@@ -1,0 +1,152 @@
+.beta-landing {
+  background: #ffffff;
+}
+
+.beta-hero-panel {
+  width: 100%;
+  background:
+    radial-gradient(ellipse 80% 70% at 15% 20%, #ffc4a8 0%, transparent 55%),
+    radial-gradient(ellipse 70% 80% at 85% 15%, #e0b8ff 0%, transparent 50%),
+    radial-gradient(ellipse 90% 60% at 60% 90%, #ff9eb5 0%, transparent 55%),
+    linear-gradient(135deg, #f0b49a 0%, #d9a8e8 45%, #b8a6f0 100%);
+}
+
+.beta-hero-lines {
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.35) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.25) 0 1px, transparent 1.5px);
+  background-size: 48px 48px, 64px 64px;
+  opacity: 0.45;
+  mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+}
+
+.beta-hero-lines::before {
+  content: "";
+  position: absolute;
+  inset: 8% 5%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 40% 60% 55% 45% / 45% 40% 60% 55%;
+  transform: rotate(-8deg);
+}
+
+.beta-hero-lines::after {
+  content: "";
+  position: absolute;
+  inset: 18% 12%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 55% 45% 40% 60% / 50% 55% 45% 50%;
+  transform: rotate(12deg);
+}
+
+/* Glass magnifier — region lens over facial skin */
+.skin-glass-lens {
+  left: 0;
+  top: 0;
+  width: clamp(4.25rem, 20%, 6.25rem);
+  aspect-ratio: 1;
+  opacity: 0;
+  transform: scale(0.28);
+  transition-property: opacity, transform;
+  transition-duration: 1000ms, 1300ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1),
+    cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: left, top, opacity, transform;
+  transform-origin: center center;
+}
+
+.skin-glass-lens.is-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Smaller field lenses — fade out mainly via opacity */
+.skin-glass-lens--field {
+  width: clamp(1.9rem, 6.5vw, 2.75rem);
+  transform: scale(0.92);
+}
+
+.skin-glass-lens--field.is-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.skin-glass-lens--field .skin-glass-lens__label {
+  font-size: 0.55rem;
+  top: calc(100% + 0.35rem);
+  opacity: inherit;
+}
+
+.skin-glass-lens__ring {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1.5px solid rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 12px 36px rgba(20, 10, 40, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -8px 20px rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+}
+
+.skin-glass-lens__zoom {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.skin-glass-lens__zoom-img {
+  position: absolute;
+  max-width: none;
+  object-fit: cover;
+  object-position: 50% 50%;
+  filter: contrast(1.12) saturate(1.08) brightness(1.02);
+  will-change: left, top, width, height;
+}
+
+.skin-glass-lens__zoom-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: contrast(1.1) saturate(1.06) brightness(1.02);
+}
+
+.skin-glass-lens__glare {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      circle at 30% 22%,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.08) 28%,
+      transparent 52%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.28) 0%,
+      transparent 42%,
+      transparent 68%,
+      rgba(255, 255, 255, 0.1) 100%
+    );
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.skin-glass-lens__label {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.45rem);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 8px rgba(20, 10, 40, 0.45);
+}

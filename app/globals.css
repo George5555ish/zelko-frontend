@@ -1,0 +1,355 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f5fc;
+  --hero-surface: #f6f3ff;
+  --foreground: #171717;
+  --muted: #737373;
+  --accent: #8b7cf6;
+  --accent-soft: #ebe4ff;
+  --border: #e5e5e5;
+  --danger: #8b3a3a;
+  --danger-soft: #f5e8e8;
+  --success: #2c4a3e;
+  --success-soft: #e8efe9;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-cursive);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Word / line stagger — slides in from the side with a soft blur trail */
+.hero-word {
+  opacity: 0;
+  transform: translateX(-1.1rem);
+  filter: blur(5px);
+  transition:
+    opacity 850ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 850ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 850ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform, filter;
+}
+
+.hero-word.is-in {
+  opacity: 1;
+  transform: translateX(0);
+  filter: blur(0);
+}
+
+.hero-word-right {
+  transform: translateX(1.1rem);
+}
+
+.hero-word-right.is-in {
+  transform: translateX(0);
+}
+
+/* Full-screen portrait: keep face clear, soft fade at the bottom into the page */
+.hero-video-mask {
+  z-index: 1;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 72%,
+    rgba(0, 0, 0, 0.75) 88%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 72%,
+    rgba(0, 0, 0, 0.75) 88%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+}
+
+.hero-video-glow {
+  z-index: 0;
+  filter: blur(14px) brightness(1.075) contrast(0.97);
+  opacity: 0.275;
+  mix-blend-mode: lighten;
+}
+
+.hero-video-wash {
+  z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 78%,
+    color-mix(in srgb, var(--hero-surface) 8%, transparent) 92%,
+    color-mix(in srgb, var(--hero-surface) 22%, transparent) 100%
+  );
+}
+
+.hero-video-fringe {
+  z-index: 3;
+  background: radial-gradient(
+    ellipse 70% 75% at 50% 40%,
+    transparent 0%,
+    transparent 62%,
+    color-mix(in srgb, var(--hero-surface) 6%, transparent) 82%,
+    color-mix(in srgb, var(--hero-surface) 14%, transparent) 100%
+  );
+  filter: blur(4px);
+  opacity: 0.3;
+}
+
+.hero-fullscreen-vignette {
+  z-index: 4;
+  background:
+    radial-gradient(
+      ellipse 90% 78% at 50% 32%,
+      transparent 40%,
+      color-mix(in srgb, var(--hero-surface) 5%, transparent) 82%,
+      color-mix(in srgb, var(--hero-surface) 12%, transparent) 100%
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--hero-surface) 14%, transparent) 0%,
+      transparent 18%,
+      transparent 82%,
+      color-mix(in srgb, var(--hero-surface) 14%, transparent) 100%
+    );
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes manifesto-float {
+  0%,
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)))
+      translateY(0);
+  }
+  50% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)))
+      translateY(-8px);
+  }
+}
+
+.float-tag.is-in {
+  animation: float-soft 5.5s ease-in-out infinite;
+}
+
+/* Manifesto cards: burst from center, then idle float */
+.manifesto-card {
+  left: 50%;
+  top: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.86);
+  transition:
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+}
+
+.manifesto-card.is-out {
+  opacity: 1;
+  transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)))
+    scale(1);
+}
+
+.manifesto-card.is-floating {
+  animation: manifesto-float 5.2s ease-in-out infinite;
+}
+
+.manifesto-copy {
+  color: #c4c4c4;
+}
+
+.manifesto-copy-lead {
+  font-weight: 500;
+  color: #c4c4c4;
+}
+
+/* Even, slow “light coming on” reveal — soft ease, no directional wipe */
+.manifesto-copy-emphasis {
+  font-weight: 600;
+  color: #c4c4c4;
+  transition: color 2.8s cubic-bezier(0.4, 0, 0.15, 1);
+}
+
+.manifesto-copy.is-dark .manifesto-copy-emphasis {
+  color: #0a0a0a;
+  font-weight: 700;
+}
+
+/* Incoming clip fades in over the still-visible outgoing clip (no blank gap) */
+.hero-video-slide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hero-video-slide.is-fading-in {
+  animation: hero-crossfade-in 1s ease-in-out both;
+}
+
+@keyframes hero-crossfade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes feature-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.feature-marquee {
+  animation: feature-marquee 40s linear infinite;
+}
+
+/* Subtle face landmarks on the home hero */
+.hero-landmark {
+  position: absolute;
+  z-index: 12;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 0 10px 3px rgba(255, 248, 240, 0.45),
+    0 0 28px 10px rgba(255, 220, 200, 0.22);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity 1100ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1100ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.hero-landmark.is-on {
+  opacity: 0.92;
+  transform: scale(1);
+  animation: hero-landmark-pulse 3.4s ease-in-out infinite;
+}
+
+.hero-landmark.is-dim {
+  opacity: 0.28;
+  transform: scale(0.85);
+  animation: none;
+}
+
+@keyframes hero-landmark-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.3),
+      0 0 10px 3px rgba(255, 248, 240, 0.4),
+      0 0 26px 9px rgba(255, 220, 200, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.5),
+      0 0 14px 5px rgba(255, 248, 240, 0.55),
+      0 0 36px 14px rgba(255, 210, 190, 0.28);
+  }
+}
+
+/* Legacy fade helper */
+.hero-fade {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.hero-fade.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Mobile nav sheet — glass panel + staggered items */
+.nav-sheet__backdrop {
+  animation: nav-sheet-backdrop-in 320ms ease-out both;
+}
+
+.nav-sheet__panel {
+  animation: nav-sheet-panel-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.nav-sheet__item {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: nav-sheet-item-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes nav-sheet-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes nav-sheet-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nav-sheet-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-sheet__backdrop,
+  .nav-sheet__panel,
+  .nav-sheet__item {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
