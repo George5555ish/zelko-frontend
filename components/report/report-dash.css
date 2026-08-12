@@ -140,3 +140,95 @@
     transparent 100%
   );
 }
+
+/* Orbit layout — floating cards around a large portrait */
+.report-orbit__stage {
+  isolation: isolate;
+}
+
+.report-orbit__card {
+  position: absolute;
+  z-index: 20;
+}
+
+.report-orbit__card--tl {
+  top: 6%;
+  left: 2%;
+}
+
+.report-orbit__card--tr {
+  top: 8%;
+  right: 2%;
+}
+
+.report-orbit__card--ml {
+  top: 42%;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+.report-orbit__card--mr {
+  top: 44%;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.report-orbit__card--bl {
+  bottom: 10%;
+  left: 4%;
+}
+
+.report-orbit__card--br {
+  bottom: 8%;
+  right: 4%;
+}
+
+.report-orbit-float {
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  animation: report-orbit-drift 7s ease-in-out infinite;
+}
+
+.report-orbit__card--tl {
+  animation-delay: 0s;
+}
+.report-orbit__card--tr {
+  animation-delay: -1.2s;
+}
+.report-orbit__card--ml {
+  animation-delay: -2.4s;
+}
+.report-orbit__card--mr {
+  animation-delay: -3.1s;
+}
+.report-orbit__card--bl {
+  animation-delay: -4s;
+}
+.report-orbit__card--br {
+  animation-delay: -5.2s;
+}
+
+.report-orbit-float--static {
+  position: relative;
+  inset: auto;
+  transform: none;
+  animation: none;
+  max-width: none;
+}
+
+@keyframes report-orbit-drift {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-orbit-float {
+    animation: none;
+  }
+}

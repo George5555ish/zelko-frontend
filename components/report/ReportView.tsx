@@ -18,8 +18,12 @@ import {
 } from "@/lib/types/report";
 import { portraitUrl, registerAccount, loginAccount } from "@/lib/auth";
 import { InteractivePortrait } from "@/components/report/InteractivePortrait";
+import { ReportOrbitLayout } from "@/components/report/ReportOrbitLayout";
 import "./report-dash.css";
 const FREE_TOP_COUNT = 2;
+
+type ReportLayoutMode = "classic" | "orbit";
+const LAYOUT_STORAGE_KEY = "zelko-report-layout";
 
 export function ReportView({
   report,
@@ -30,6 +34,25 @@ export function ReportView({
 }) {
   const [paid, setPaid] = useState(initialPaid);
   const [signupOpen, setSignupOpen] = useState(false);
+  const [layout, setLayout] = useState<ReportLayoutMode>("classic");
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
+      if (stored === "classic" || stored === "orbit") setLayout(stored);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function switchLayout(next: ReportLayoutMode) {
+    setLayout(next);
+    try {
+      window.localStorage.setItem(LAYOUT_STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  }
 
   const ranked = useMemo(() => {
     return [...SCORED_APPEARANCE_KEYS]
@@ -121,11 +144,37 @@ export function ReportView({
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-full border border-white/15 bg-white/5 p-0.5">
+            <button
+              type="button"
+              onClick={() => switchLayout("classic")}
+              className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                layout === "classic"
+                  ? "bg-white/15 text-white"
+                  : "text-white/45 hover:text-white/75"
+              }`}
+              aria-pressed={layout === "classic"}
+            >
+              Classic
+            </button>
+            <button
+              type="button"
+              onClick={() => switchLayout("orbit")}
+              className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                layout === "orbit"
+                  ? "bg-white/15 text-white"
+                  : "text-white/45 hover:text-white/75"
+              }`}
+              aria-pressed={layout === "orbit"}
+            >
+              Orbit
+            </button>
+          </div>
           {!paid ? (
             <button
               type="button"
               onClick={() => setPaid(true)}
-              className="rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-medium backdrop-blur-md transition hover:bg-white/15"
+              className="cursor-pointer rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-medium backdrop-blur-md transition hover:bg-white/15"
             >
               Unlock
             </button>
@@ -143,6 +192,21 @@ export function ReportView({
         </div>
       </nav>
 
+      {layout === "orbit" ? (
+        <ReportOrbitLayout
+          report={report}
+          faceSrc={faceSrc}
+          usingUserPortrait={usingUserPortrait}
+          isUnlocked={isUnlocked}
+          topFeature={topFeature}
+          paid={paid}
+          onUnlock={() => setPaid(true)}
+          appearanceSummary={appearanceSummary}
+          weakRecs={weakRecs}
+          groomingMeasurable={groomingMeasurable}
+          compositeTen={compositeTen}
+        />
+      ) : (
       <div className="relative z-10 mx-auto grid max-w-7xl gap-6 px-5 pb-24 pt-4 md:px-8 lg:grid-cols-[1fr_minmax(16rem,22rem)_1fr] lg:gap-5 lg:pt-6">
         {/* Left column */}
         <div className="flex flex-col gap-4 lg:order-1">
@@ -395,6 +459,7 @@ export function ReportView({
           </div>
         </div>
       </div>
+      )}
 
       {/* Full breakdown strip */}
       <section className="relative z-10 mx-auto max-w-7xl px-5 pb-16 md:px-8">

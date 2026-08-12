@@ -39,7 +39,6 @@ const FALLBACK_OVERLAYS: FeatureOverlayPoint[] = [
   { id: "jaw_l", feature: "jawline_definition", x: 0.34, y: 0.72 },
   { id: "jaw_r", feature: "jawline_definition", x: 0.66, y: 0.72 },
   { id: "chin", feature: "jawline_definition", x: 0.5, y: 0.82 },
-  { id: "groom", feature: "grooming_signal", x: 0.5, y: 0.62 },
 ];
 
 function clamp(n: number, min: number, max: number) {
@@ -69,12 +68,14 @@ export function InteractivePortrait({
   usingUserPortrait,
   isUnlocked,
   topFeature,
+  size = "default",
 }: {
   report: ReportViewModel;
   faceSrc: string;
   usingUserPortrait: boolean;
   isUnlocked: (key: FeatureKey) => boolean;
   topFeature: FeatureKey;
+  size?: "default" | "hero";
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -82,10 +83,11 @@ export function InteractivePortrait({
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const overlays =
+  const overlays = (
     report.featureOverlays?.length > 0
       ? report.featureOverlays
-      : FALLBACK_OVERLAYS;
+      : FALLBACK_OVERLAYS
+  ).filter((d) => d.feature !== "grooming_signal");
 
   const measure = useCallback(() => {
     const box = boxRef.current;
@@ -132,8 +134,13 @@ export function InteractivePortrait({
       : null;
 
   return (
-    <div className="relative mx-auto w-full max-w-md lg:order-2 lg:max-w-none">
-      <div
+    <div
+      className={
+        size === "hero"
+          ? "relative mx-auto w-full max-w-none"
+          : "relative mx-auto w-full max-w-md lg:order-2 lg:max-w-none"
+      }
+    >      <div
         ref={boxRef}
         className="report-glass relative aspect-[3/4] overflow-hidden rounded-[2rem]"
         onClick={(e) => {

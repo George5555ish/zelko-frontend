@@ -572,38 +572,6 @@ export function LandingHero() {
               Start your free report
             </Link>
           </div>
-
-          {/* Compact proof row on small screens — avoids fighting the video */}
-          <div className="mt-7 flex flex-wrap gap-x-5 gap-y-3 lg:hidden">
-            {STATS.map((stat, i) => {
-              const Icon = stat.icon;
-              const baseDelay = bodyDelay + BODY_WORDS.length * 35 + 140 + i * 90;
-              return (
-                <div key={stat.value} className="flex min-w-[6.5rem] items-start gap-2">
-                  <span
-                    className={`hero-word shrink-0 text-neutral-400 ${started ? "is-in" : ""}`}
-                    style={{ transitionDelay: `${baseDelay}ms` }}
-                  >
-                    <Icon />
-                  </span>
-                  <div>
-                    <p
-                      className={`hero-word text-base font-semibold tracking-tight text-neutral-900 ${started ? "is-in" : ""}`}
-                      style={{ transitionDelay: `${baseDelay + 40}ms` }}
-                    >
-                      {stat.value}
-                    </p>
-                    <p
-                      className={`hero-word text-[11px] leading-snug text-neutral-500 ${started ? "is-in" : ""}`}
-                      style={{ transitionDelay: `${baseDelay + 70}ms` }}
-                    >
-                      {stat.label}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
 
         <div className="pointer-events-none absolute right-6 top-[34%] hidden flex-col gap-8 sm:right-10 md:right-14 lg:right-[5%] lg:flex">
