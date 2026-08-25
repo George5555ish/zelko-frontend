@@ -5,11 +5,13 @@ import { LoopSection } from "@/components/site/LoopSection";
 import { VersusSection } from "@/components/VersusSection";
 import { LandingCTA } from "@/components/site/LandingCTA";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { ProNeedsReportBanner } from "@/components/site/ProNeedsReportBanner";
 import "@/app/landing/landing.css";
 
 export default function MainLandingPage() {
   return (
     <main className="bg-[var(--background)]">
+      <ProNeedsReportBanner />
       <MainHero />
       <FeatureMarquee />
       <ManifestoSection />

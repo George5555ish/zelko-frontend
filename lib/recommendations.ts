@@ -1,4 +1,9 @@
 import type { FeatureKey } from "@/lib/types/report";
+import {
+  featureMutability,
+  isChecklistEligibleFeature,
+  type FeatureMutability,
+} from "@/lib/feature-mutability";
 
 export type RecommendationEffort = "low" | "medium" | "high";
 export type RecommendationConfidence = "high" | "medium" | "low";
@@ -7,12 +12,18 @@ export interface RecommendationAction {
   action: string;
   effort: RecommendationEffort;
   confidence: RecommendationConfidence;
+  /** False for structural context notes — never go on the Pro weekly checklist. */
+  checklistEligible: boolean;
+  mutability: FeatureMutability;
 }
 
 export interface FeatureRecommendationRule {
   if_score: "below_70";
   observed_signal: string[];
-  recommendations: RecommendationAction[];
+  recommendations: Omit<
+    RecommendationAction,
+    "checklistEligible" | "mutability"
+  >[];
 }
 
 /**
@@ -112,7 +123,14 @@ export const RECOMMENDATION_LOOKUP: Partial<
     observed_signal: ["inter_eye_ratio_outlier"],
     recommendations: [
       {
-        action: "Confirm camera is centered — off-axis shots skew spacing",
+        action:
+          "Confirm the camera is centered — off-axis shots can skew spacing reads",
+        effort: "low",
+        confidence: "high",
+      },
+      {
+        action:
+          "This spacing read is largely structural. We won’t put it on your weekly checklist — use it for styling and reference-look context.",
         effort: "low",
         confidence: "high",
       },
@@ -152,10 +170,41 @@ export const RECOMMENDATION_LOOKUP: Partial<
   },
 };
 
+function withMutability(
+  feature: FeatureKey,
+  rec: Omit<RecommendationAction, "checklistEligible" | "mutability">,
+): RecommendationAction {
+  const mutability = featureMutability(feature);
+  return {
+    ...rec,
+    mutability,
+    checklistEligible: isChecklistEligibleFeature(feature),
+  };
+}
+
 export function recommendationsForScore(
   feature: FeatureKey,
   score: number,
 ): RecommendationAction[] {
   if (score >= 70) return [];
-  return RECOMMENDATION_LOOKUP[feature]?.recommendations ?? [];
+  const mutability = featureMutability(feature);
+  const raw = RECOMMENDATION_LOOKUP[feature]?.recommendations ?? [];
+
+  if (mutability === "structural") {
+    // Prefer the structural context note; keep a single framing check first if present.
+    const tagged = raw.map((r) => withMutability(feature, r));
+    return tagged.map((r) => ({ ...r, checklistEligible: false }));
+  }
+
+  return raw.map((r) => withMutability(feature, r));
+}
+
+/** Actions allowed on the Pro weekly checklist (actionable features only). */
+export function checklistRecommendationsForScore(
+  feature: FeatureKey,
+  score: number,
+): RecommendationAction[] {
+  return recommendationsForScore(feature, score).filter(
+    (r) => r.checklistEligible,
+  );
 }

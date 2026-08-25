@@ -6,13 +6,13 @@ import {
   SkinGlassLens,
   type SkinGlassLensStop,
 } from "@/components/SkinGlassLens";
-
-const NAV_LINKS = [
-  { label: "How it works", href: "/how-it-works" },
-  { label: "Your report", href: "/your-report" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "FAQ", href: "/faq" },
-] as const;
+import {
+  MenuToggleButton,
+  MobileNavSheet,
+} from "@/components/site/MobileNavSheet";
+import { setAuthToken } from "@/lib/auth";
+import { navForAuth } from "@/lib/site-nav";
+import { useAuthUser } from "@/lib/use-auth-user";
 
 const STATS = [
   { value: "8", label: "measured features" },
@@ -35,6 +35,9 @@ const MAIN_LENS_STOPS: SkinGlassLensStop[] = [
 export function MainHero() {
   const [scrolled, setScrolled] = useState(false);
   const [started, setStarted] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { user, isAuthed } = useAuthUser();
+  const navLinks = navForAuth(isAuthed);
 
   useEffect(() => {
     const id = window.setTimeout(() => setStarted(true), 60);
@@ -57,16 +60,16 @@ export function MainHero() {
             : "border-b border-transparent bg-transparent text-white"
         }`}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5 md:px-10">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-4 sm:px-6 sm:py-5 md:px-10">
           <Link href="/main" className="flex items-center gap-2.5">
             <LogoMark />
-            <span className="text-[1.35rem] font-semibold tracking-tight">
+            <span className="text-[1.25rem] font-semibold tracking-tight sm:text-[1.35rem]">
               Zelko
             </span>
           </Link>
 
           <nav className="hidden items-center gap-7 text-[0.92rem] lg:flex">
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -79,37 +82,123 @@ export function MainHero() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-4">
+            {isAuthed && user?.isPro ? (
+              <span
+                className={`hidden rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] sm:inline ${
+                  scrolled
+                    ? "bg-neutral-950 text-white"
+                    : "bg-white/15 text-white"
+                }`}
+              >
+                Pro
+              </span>
+            ) : null}
+            {!isAuthed ? (
+              <Link
+                href="/contact"
+                className={`hidden rounded-lg border px-4 py-2 text-sm font-medium transition lg:inline-flex ${
+                  scrolled
+                    ? "border-neutral-900/80 hover:bg-neutral-50"
+                    : "border-white/80 hover:bg-white/10"
+                }`}
+              >
+                Contact Us
+              </Link>
+            ) : null}
             <Link
-              href="/contact"
-              className={`hidden rounded-lg border px-4 py-2 text-sm font-medium transition sm:inline-flex ${
-                scrolled
-                  ? "border-neutral-900/80 hover:bg-neutral-50"
-                  : "border-white/80 hover:bg-white/10"
-              }`}
-            >
-              Contact Us
-            </Link>
-            <Link
-              href="/login"
-              className={`text-sm font-medium transition ${
+              href={isAuthed ? "/dashboard" : "/login"}
+              className={`hidden text-sm font-medium transition sm:inline ${
                 scrolled ? "hover:text-neutral-950" : "hover:text-white/80"
               }`}
             >
-              Log in
+              {isAuthed ? "Dashboard" : "Log in"}
             </Link>
+            <MenuToggleButton
+              open={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+              light={!scrolled}
+            />
           </div>
         </div>
       </header>
 
-      <div className="beta-hero-panel relative min-h-[88svh] overflow-hidden rounded-b-[2rem] px-6 pb-12 pt-28 text-white md:rounded-b-[2.5rem] md:px-10 md:pb-16 md:pt-32 lg:px-14">
+      <MobileNavSheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        links={navLinks}
+        extras={
+          isAuthed ? (
+            <div className="flex flex-col gap-3">
+              <Link
+                href="/upload"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex w-full items-center justify-center rounded-xl bg-white px-5 py-3.5 text-sm font-semibold text-neutral-900"
+              >
+                New assessment
+              </Link>
+              <div className="flex gap-3">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  className="inline-flex flex-1 items-center justify-center rounded-xl border border-neutral-900/70 px-4 py-3 text-sm font-medium text-neutral-900"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setAuthToken(null);
+                    window.location.href = "/";
+                  }}
+                  className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <Link
+                href="/upload"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex w-full items-center justify-center rounded-xl bg-white px-5 py-3.5 text-sm font-semibold text-neutral-900"
+              >
+                Start your free report
+              </Link>
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex w-full items-center justify-center rounded-xl border border-neutral-900/70 px-4 py-3 text-sm font-medium text-neutral-900"
+              >
+                Log in
+              </Link>
+            </div>
+          )
+        }
+      />
+
+      <div className="beta-hero-panel relative min-h-[100svh] overflow-hidden rounded-b-[2rem] px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))] pt-24 text-white sm:px-6 md:min-h-[88svh] md:rounded-b-[2.5rem] md:px-10 md:pb-16 md:pt-32 lg:px-14">
         <div
           aria-hidden
           className="beta-hero-lines pointer-events-none absolute inset-0"
         />
 
-        {/* Large centered portrait — absolute, ~70% viewport height */}
-        <div className="pointer-events-none absolute inset-x-0 top-[52%] z-[5] flex -translate-y-1/2 justify-center">
+        <div className="pointer-events-none absolute inset-0 z-[1] lg:hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={HERO_IMAGE}
+            alt=""
+            className={`absolute inset-0 h-full w-full object-cover object-[50%_12%] transition-opacity duration-700 ${
+              started ? "opacity-90" : "opacity-0"
+            }`}
+            draggable={false}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1a1428] via-[#1a1428]/55 to-[#1a1428]/25" />
+        </div>
+
+        <div className="pointer-events-none absolute inset-x-0 top-[52%] z-[5] hidden -translate-y-1/2 justify-center lg:flex">
           <div
             className={`relative h-[70vh] max-h-[78vh] w-auto max-w-[min(92vw,28rem)] ${
               started ? "opacity-100" : "opacity-0"
@@ -135,11 +224,10 @@ export function MainHero() {
           </div>
         </div>
 
-        <div className="relative z-10 mx-auto grid min-h-[calc(88svh-7rem)] max-w-7xl items-center gap-8 lg:grid-cols-[1fr_minmax(14rem,20rem)_1fr] lg:gap-6">
-          {/* Left copy — home-style */}
+        <div className="relative z-10 mx-auto flex min-h-[calc(100svh-6rem)] max-w-7xl flex-col justify-end gap-8 md:min-h-[calc(88svh-7rem)] lg:grid lg:grid-cols-[1fr_minmax(14rem,20rem)_1fr] lg:items-center lg:justify-end lg:gap-6">
           <div className="order-2 max-w-md lg:order-1 lg:justify-self-start">
             <div
-              className={`hero-word mb-5 inline-flex w-fit items-center rounded-full border border-white/35 bg-white/15 px-3.5 py-1.5 text-xs text-white/90 backdrop-blur-sm sm:text-sm ${
+              className={`hero-word mb-4 inline-flex w-fit items-center rounded-full border border-white/35 bg-white/15 px-3.5 py-1.5 text-xs text-white/90 backdrop-blur-sm sm:mb-5 sm:text-sm ${
                 started ? "is-in" : ""
               }`}
             >
@@ -147,7 +235,7 @@ export function MainHero() {
             </div>
 
             <h1
-              className={`hero-word font-[family-name:var(--font-cursive)] text-4xl leading-[1.12] tracking-tight text-white sm:text-5xl lg:text-[3.15rem] ${
+              className={`hero-word font-[family-name:var(--font-cursive)] text-[2.35rem] leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-[3.15rem] ${
                 started ? "is-in" : ""
               }`}
               style={{ transitionDelay: "120ms" }}
@@ -158,7 +246,7 @@ export function MainHero() {
             </h1>
 
             <p
-              className={`hero-word mt-4 text-xl font-normal leading-snug text-white/75 sm:text-2xl ${
+              className={`hero-word mt-3 text-lg font-medium leading-snug text-white/85 sm:mt-4 sm:text-2xl sm:font-normal sm:text-white/75 ${
                 started ? "is-in" : ""
               }`}
               style={{ transitionDelay: "220ms" }}
@@ -167,7 +255,7 @@ export function MainHero() {
             </p>
 
             <p
-              className={`hero-word mt-5 max-w-sm text-base leading-relaxed text-white/70 ${
+              className={`hero-word mt-5 hidden max-w-sm text-base leading-relaxed text-white/70 lg:block ${
                 started ? "is-in" : ""
               }`}
               style={{ transitionDelay: "320ms" }}
@@ -177,23 +265,21 @@ export function MainHero() {
             </p>
 
             <div
-              className={`hero-word mt-8 ${started ? "is-in" : ""}`}
+              className={`hero-word mt-7 ${started ? "is-in" : ""}`}
               style={{ transitionDelay: "420ms" }}
             >
               <Link
                 href="/upload"
-                className="inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-neutral-900 transition hover:bg-white/90"
+                className="inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-neutral-900 transition hover:bg-white/90 sm:w-auto sm:py-3"
               >
                 Start your free report
               </Link>
             </div>
           </div>
 
-          {/* Spacer column keeps left/right balance around the absolute portrait */}
           <div className="order-1 hidden lg:order-2 lg:block" aria-hidden />
 
-          {/* Right stats */}
-          <div className="order-3 flex flex-col gap-7 lg:justify-self-end lg:pl-4">
+          <div className="order-3 hidden flex-col gap-7 lg:flex lg:justify-self-end lg:pl-4">
             {STATS.map((stat, i) => (
               <div
                 key={stat.label}

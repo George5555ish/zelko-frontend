@@ -36,6 +36,33 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* Landing section scroll-in */
+.section-reveal {
+  opacity: 0;
+  transform: translateY(2.25rem);
+  filter: blur(6px);
+  transition:
+    opacity 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform, filter;
+}
+
+.section-reveal.is-in {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+}
+
 /* Word / line stagger — slides in from the side with a soft blur trail */
 .hero-word {
   opacity: 0;
@@ -127,6 +154,36 @@ body {
       transparent 18%,
       transparent 82%,
       color-mix(in srgb, var(--hero-surface) 14%, transparent) 100%
+    );
+}
+
+/* Dark hero — soft black falloff on all edges (Qoves-style framing) */
+.hero-edge-vignette {
+  z-index: 5;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 78% 72% at 58% 40%,
+      transparent 0%,
+      transparent 48%,
+      rgba(20, 24, 32, 0.22) 78%,
+      rgba(20, 24, 32, 0.48) 100%
+    ),
+    linear-gradient(
+      to right,
+      rgba(20, 24, 32, 0.55) 0%,
+      rgba(20, 24, 32, 0.22) 20%,
+      transparent 40%,
+      transparent 70%,
+      rgba(20, 24, 32, 0.28) 90%,
+      rgba(20, 24, 32, 0.45) 100%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(20, 24, 32, 0.32) 0%,
+      transparent 16%,
+      transparent 68%,
+      rgba(20, 24, 32, 0.42) 100%
     );
 }
 
@@ -347,6 +404,35 @@ body {
   .nav-sheet__backdrop,
   .nav-sheet__panel,
   .nav-sheet__item {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* Landing hero — glass analytic overlays */
+.hero-chart-card {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+  filter: blur(6px);
+  animation: hero-chart-in 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-charts-in .hero-chart-card {
+  /* delay comes from inline style */
+}
+
+@keyframes hero-chart-in {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-chart-card {
     animation: none;
     opacity: 1;
     transform: none;

@@ -1,3 +1,16 @@
 {
-  "/report/[id]/page": "app/report/[id]/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/contact/page": "app/contact/page.js",
+  "/faq/page": "app/faq/page.js",
+  "/how-it-works/page": "app/how-it-works/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/main/page": "app/main/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/report/[id]/page": "app/report/[id]/page.js",
+  "/pricing/page": "app/pricing/page.js",
+  "/upload/page": "app/upload/page.js",
+  "/your-report/page": "app/your-report/page.js",
+  "/tracking/page": "app/tracking/page.js",
+  "/landing/page": "app/landing/page.js"
 }

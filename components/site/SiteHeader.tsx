@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SITE_NAV } from "@/lib/site-nav";
+import { setAuthToken } from "@/lib/auth";
+import { navForAuth } from "@/lib/site-nav";
+import { useAuthUser } from "@/lib/use-auth-user";
 import {
   MenuToggleButton,
   MobileNavSheet,
@@ -16,6 +18,8 @@ export function SiteHeader({
   const [scrolled, setScrolled] = useState(false);
   const [started, setStarted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, isAuthed } = useAuthUser();
+  const links = navForAuth(isAuthed);
 
   useEffect(() => {
     const id = window.setTimeout(() => setStarted(true), 40);
@@ -35,6 +39,11 @@ export function SiteHeader({
       : "border-b border-transparent bg-transparent";
 
   const overlayLight = variant === "overlay" && !scrolled;
+
+  function signOut() {
+    setAuthToken(null);
+    window.location.href = "/";
+  }
 
   return (
     <>
@@ -62,7 +71,7 @@ export function SiteHeader({
               overlayLight ? "text-white/85" : "text-neutral-700"
             }`}
           >
-            {SITE_NAV.map((link, i) => (
+            {links.map((link, i) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -77,30 +86,64 @@ export function SiteHeader({
           </nav>
 
           <div className="flex items-center gap-2.5 sm:gap-4">
-            <Link
-              href="/contact"
-              className={`hero-word hidden rounded-lg border px-4 py-2 text-sm font-medium transition lg:inline-flex ${
-                overlayLight
-                  ? "border-white/80 text-white hover:bg-white/10"
-                  : "border-neutral-900/80 text-neutral-900 hover:bg-white/50"
-              } ${started ? "is-in" : ""}`}
-              style={{ transitionDelay: `${120 + SITE_NAV.length * 70 + 40}ms` }}
-            >
-              Contact Us
-            </Link>
-            <Link
-              href="/login"
-              className={`hero-word hidden text-sm font-medium transition sm:inline ${
-                overlayLight
-                  ? "text-white/90 hover:text-white"
-                  : "text-neutral-800 hover:text-neutral-950"
-              } ${started ? "is-in" : ""}`}
-              style={{
-                transitionDelay: `${120 + SITE_NAV.length * 70 + 110}ms`,
-              }}
-            >
-              Log in
-            </Link>
+            {isAuthed && user?.isPro ? (
+              <span
+                className={`hidden rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] sm:inline ${
+                  overlayLight
+                    ? "bg-white/15 text-white"
+                    : "bg-neutral-950 text-white"
+                }`}
+              >
+                Pro
+              </span>
+            ) : null}
+
+            {!isAuthed ? (
+              <Link
+                href="/contact"
+                className={`hero-word hidden rounded-lg border px-4 py-2 text-sm font-medium transition lg:inline-flex ${
+                  overlayLight
+                    ? "border-white/80 text-white hover:bg-white/10"
+                    : "border-neutral-900/80 text-neutral-900 hover:bg-white/50"
+                } ${started ? "is-in" : ""}`}
+                style={{
+                  transitionDelay: `${120 + links.length * 70 + 40}ms`,
+                }}
+              >
+                Contact Us
+              </Link>
+            ) : null}
+
+            {isAuthed ? (
+              <Link
+                href="/dashboard"
+                className={`hero-word hidden text-sm font-medium transition sm:inline ${
+                  overlayLight
+                    ? "text-white/90 hover:text-white"
+                    : "text-neutral-800 hover:text-neutral-950"
+                } ${started ? "is-in" : ""}`}
+                style={{
+                  transitionDelay: `${120 + links.length * 70 + 110}ms`,
+                }}
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className={`hero-word hidden text-sm font-medium transition sm:inline ${
+                  overlayLight
+                    ? "text-white/90 hover:text-white"
+                    : "text-neutral-800 hover:text-neutral-950"
+                } ${started ? "is-in" : ""}`}
+                style={{
+                  transitionDelay: `${120 + links.length * 70 + 110}ms`,
+                }}
+              >
+                Log in
+              </Link>
+            )}
+
             <MenuToggleButton
               open={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
@@ -113,24 +156,55 @@ export function SiteHeader({
       <MobileNavSheet
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        links={SITE_NAV}
+        links={links}
         extras={
-          <div className="flex gap-3">
-            <Link
-              href="/contact"
-              onClick={() => setMenuOpen(false)}
-              className="inline-flex flex-1 items-center justify-center rounded-xl border border-neutral-900/70 px-4 py-3 text-sm font-medium text-neutral-900"
-            >
-              Contact
-            </Link>
-            <Link
-              href="/login"
-              onClick={() => setMenuOpen(false)}
-              className="inline-flex flex-1 items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
-            >
-              Log in
-            </Link>
-          </div>
+          isAuthed ? (
+            <div className="flex flex-col gap-3">
+              <Link
+                href="/upload"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex w-full items-center justify-center rounded-xl bg-[#ebe4ff] px-5 py-3.5 text-sm font-semibold text-neutral-900"
+              >
+                New assessment
+              </Link>
+              <div className="flex gap-3">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  className="inline-flex flex-1 items-center justify-center rounded-xl border border-neutral-900/70 px-4 py-3 text-sm font-medium text-neutral-900"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    signOut();
+                  }}
+                  className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <Link
+                href="/contact"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex flex-1 items-center justify-center rounded-xl border border-neutral-900/70 px-4 py-3 text-sm font-medium text-neutral-900"
+              >
+                Contact
+              </Link>
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex flex-1 items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
+              >
+                Log in
+              </Link>
+            </div>
+          )
         }
       />
     </>

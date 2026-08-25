@@ -3,12 +3,18 @@
 import type { ReactNode } from "react";
 import type { FeatureKey, ReportViewModel } from "@/lib/types/report";
 import { FEATURE_LABELS } from "@/lib/types/report";
+import {
+  FEATURE_MUTABILITY,
+  MUTABILITY_LABELS,
+} from "@/lib/feature-mutability";
 import { InteractivePortrait } from "@/components/report/InteractivePortrait";
 
 type WeakRec = {
   feature: FeatureKey;
   action: string;
   effort: string;
+  mutability?: string;
+  checklistEligible?: boolean;
 };
 
 /**
@@ -45,7 +51,7 @@ export function ReportOrbitLayout({
   const symmetry = report.features.face_symmetry;
 
   return (
-    <div className="report-orbit relative z-10 mx-auto max-w-[90rem] px-4 pb-20 pt-2 md:px-8">
+    <div className="report-orbit relative z-10 mx-auto max-w-[90rem] px-4 pb-20 pt-2 text-white md:px-8">
       <div className="report-orbit__stage relative mx-auto min-h-[78svh] w-full max-w-6xl">
         {/* Center portrait */}
         <div className="report-orbit__portrait absolute left-1/2 top-1/2 z-10 w-[min(70vw,40rem)] -translate-x-1/2 -translate-y-1/2">
@@ -60,7 +66,7 @@ export function ReportOrbitLayout({
         </div>
 
         <FloatCard className="report-orbit__card report-orbit__card--tl hidden max-w-[16rem] lg:block">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-violet-300/70">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">
             Overall
           </p>
           <p className="mt-1 text-4xl font-semibold tracking-tight text-white">
@@ -79,7 +85,7 @@ export function ReportOrbitLayout({
           <p className="mt-1 text-sm font-semibold text-white">
             {FEATURE_LABELS[topFeature]}
           </p>
-          <p className="mt-0.5 text-2xl font-semibold text-violet-200">
+          <p className="mt-0.5 text-2xl font-semibold text-white/80">
             {isUnlocked(topFeature) ? report.features[topFeature].score : "··"}
           </p>
         </FloatCard>
@@ -104,7 +110,7 @@ export function ReportOrbitLayout({
           <p className="text-[10px] uppercase tracking-[0.16em] text-white/40">
             Jawline
           </p>
-          <p className="mt-1 text-3xl font-semibold text-sky-300">
+          <p className="mt-1 text-3xl font-semibold text-white/85">
             {isUnlocked("jawline_definition") ? jawline.score : (
               <span className="blur-sm select-none">68</span>
             )}
@@ -158,7 +164,7 @@ export function ReportOrbitLayout({
       {/* Mobile / stacked cards under portrait */}
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:hidden">
         <FloatCard className="report-orbit-float--static">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-violet-300/70">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">
             Overall
           </p>
           <p className="mt-1 text-3xl font-semibold text-white">
@@ -179,7 +185,7 @@ export function ReportOrbitLayout({
 
       <div className="mx-auto mt-6 grid max-w-4xl gap-4 lg:grid-cols-2">
         <FloatCard className="report-orbit-float--static max-w-none">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-violet-300/70">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">
             {appearanceSummary.title}
           </p>
           {paid ? (
@@ -231,7 +237,17 @@ export function ReportOrbitLayout({
                 >
                   <p className="text-sm text-white/90">{rec.action}</p>
                   <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/35">
-                    {FEATURE_LABELS[rec.feature]} · {rec.effort} effort
+                    {FEATURE_LABELS[rec.feature]} ·{" "}
+                    {MUTABILITY_LABELS[
+                      rec.mutability === "actionable" ||
+                      rec.mutability === "photo_sensitive" ||
+                      rec.mutability === "structural"
+                        ? rec.mutability
+                        : FEATURE_MUTABILITY[rec.feature]
+                    ]}
+                    {rec.checklistEligible === false
+                      ? " · not on checklist"
+                      : ""}
                   </p>
                 </li>
               ))}
@@ -247,7 +263,7 @@ export function ReportOrbitLayout({
             <button
               type="button"
               onClick={onUnlock}
-              className="mt-4 w-full cursor-pointer rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+              className="mt-4 w-full cursor-pointer rounded-xl bg-white py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
             >
               Unlock recommendations
             </button>

@@ -11,6 +11,7 @@ import {
   readStoredConsent,
   type UploadConsent,
 } from "@/lib/consent";
+import "@/app/upload/upload.css";
 
 export function UploadExperience() {
   const [consent, setConsent] = useState<UploadConsent | null>(null);
@@ -22,7 +23,7 @@ export function UploadExperience() {
   }, []);
 
   return (
-    <main className="upload-page bg-[var(--background)] text-neutral-900">
+    <main className="upload-page text-neutral-900">
       <SiteHeader variant="solid" />
 
       <section className="upload-stage">
@@ -32,8 +33,8 @@ export function UploadExperience() {
             alt=""
             fill
             priority
-            className="object-cover object-[38%_8%]"
-            sizes="(max-width: 900px) 100vw, 70vw"
+            className="object-cover object-[42%_12%]"
+            sizes="100vw"
           />
           <div className="upload-stage-portrait-fade" />
         </div>
@@ -41,7 +42,7 @@ export function UploadExperience() {
         <div className="upload-stage-inner">
           <div className="upload-stage-card">
             {consent && (
-              <div className="mb-3 max-w-md rounded-2xl border border-neutral-200/80 bg-white/85 px-3.5 py-2.5 text-sm text-neutral-600 shadow-sm backdrop-blur-sm">
+              <div className="upload-glass mb-4 px-4 py-3 text-center text-sm text-neutral-600">
                 <p>
                   Retention:{" "}
                   <span className="font-medium text-neutral-900">
@@ -70,7 +71,7 @@ export function UploadExperience() {
 
             <div className="upload-stage-card-body">
               {!hydrated ? (
-                <div className="h-[20rem] animate-pulse rounded-3xl border border-neutral-200 bg-white/70" />
+                <div className="upload-glass h-[22rem] animate-pulse" />
               ) : consent ? (
                 <PhotoUpload consent={consent} />
               ) : (

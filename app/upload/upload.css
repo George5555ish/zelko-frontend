@@ -1,47 +1,54 @@
 .upload-page {
   overflow-x: clip;
+  min-height: 100svh;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% -10%, rgba(186, 170, 220, 0.35), transparent 55%),
+    radial-gradient(ellipse 60% 50% at 100% 80%, rgba(160, 190, 210, 0.22), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 0% 60%, rgba(210, 180, 160, 0.18), transparent 45%),
+    #f3f0f8;
 }
 
-/* First viewport: card up front, portrait behind and visible */
+/* Centered stage: portrait as atmosphere, glass card as hero */
 .upload-stage {
   position: relative;
-  height: 100svh;
-  max-height: 100svh;
-  overflow: hidden;
+  min-height: calc(100svh - 4rem);
   display: flex;
-  align-items: flex-start;
-  padding: 4.35rem 0 0.75rem;
+  align-items: center;
+  justify-content: center;
+  padding: 5.5rem 1.25rem 2.5rem;
+  overflow: hidden;
 }
 
 .upload-stage-portrait {
   pointer-events: none;
   position: absolute;
   z-index: 0;
-  top: 2.75rem;
-  right: -4%;
-  left: 18%;
-  width: auto;
-  height: calc(100svh - 2.75rem);
-  opacity: 1;
+  inset: 0;
+  opacity: 0.55;
+}
+
+.upload-stage-portrait img,
+.upload-stage-portrait > span {
+  object-fit: cover;
+  object-position: 42% 12%;
 }
 
 .upload-stage-portrait-fade {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(
-      90deg,
-      var(--background) 0%,
-      color-mix(in srgb, var(--background) 70%, transparent) 8%,
-      color-mix(in srgb, var(--background) 28%, transparent) 22%,
-      transparent 38%
+    radial-gradient(
+      ellipse 55% 70% at 50% 42%,
+      transparent 0%,
+      rgba(243, 240, 248, 0.35) 55%,
+      rgba(243, 240, 248, 0.92) 100%
     ),
     linear-gradient(
       180deg,
-      var(--background) 0%,
-      transparent 8%,
-      transparent 92%,
-      var(--background) 100%
+      rgba(243, 240, 248, 0.75) 0%,
+      transparent 18%,
+      transparent 72%,
+      rgba(243, 240, 248, 0.95) 100%
     );
 }
 
@@ -49,82 +56,241 @@
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 72rem;
+  max-width: 36rem;
   margin: 0 auto;
-  padding: 0.15rem 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .upload-stage-card {
   position: relative;
   z-index: 3;
   width: 100%;
-  max-width: 26.5rem;
-  max-height: calc(100svh - 5.25rem);
+  max-height: calc(100svh - 6.5rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
-.upload-stage-card-body > div {
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 18px 50px rgba(20, 12, 40, 0.08);
+/* Shared glass panel */
+.upload-glass {
+  border-radius: 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background:
+    linear-gradient(
+      155deg,
+      rgba(255, 255, 255, 0.52) 0%,
+      rgba(255, 255, 255, 0.28) 48%,
+      rgba(240, 235, 255, 0.35) 100%
+    );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 28px 70px -28px rgba(40, 25, 70, 0.35),
+    0 8px 24px -12px rgba(80, 60, 120, 0.18);
+  backdrop-filter: blur(28px) saturate(1.35);
+  -webkit-backdrop-filter: blur(28px) saturate(1.35);
 }
 
-@media (min-width: 960px) {
+.upload-glass-inset {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.upload-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(80, 70, 100, 0.55);
+}
+
+/* Photo slot carousel — full width of the glass card */
+.upload-carousel {
+  position: relative;
+  width: 100%;
+}
+
+.upload-carousel-track {
+  position: relative;
+  width: 100%;
+  height: min(56svh, 30rem);
+  overflow: hidden;
+  border-radius: 1.5rem;
+}
+
+.upload-carousel-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(0.985);
+  transition:
+    opacity 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.upload-carousel-slide.is-active {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.upload-carousel-slide img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 18%;
+}
+
+.upload-carousel-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(20, 16, 36, 0.72) 0%,
+    rgba(20, 16, 36, 0.15) 42%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.upload-carousel-meta {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 1.1rem 1.15rem 1.15rem;
+  color: #fff;
+}
+
+.upload-carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+}
+
+.upload-carousel-dot {
+  height: 0.35rem;
+  width: 0.35rem;
+  border-radius: 999px;
+  background: rgba(80, 70, 110, 0.28);
+  transition: width 280ms ease, background 280ms ease;
+}
+
+.upload-carousel-dot.is-active {
+  width: 1.35rem;
+  background: rgba(60, 45, 95, 0.85);
+}
+
+.upload-carousel-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: flex;
+  size: 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.35);
+  color: rgba(40, 30, 60, 0.85);
+  backdrop-filter: blur(10px);
+  transform: translateY(-50%);
+  transition: background 200ms ease;
+}
+
+.upload-carousel-nav:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.upload-carousel-nav--prev {
+  left: 0.65rem;
+}
+
+.upload-carousel-nav--next {
+  right: 0.65rem;
+}
+
+@media (min-width: 768px) {
   .upload-stage {
-    padding: 4.5rem 0 0.75rem;
+    padding: 6rem 2rem 3rem;
   }
 
   .upload-stage-inner {
-    padding: 0.25rem 2.5rem 0;
-  }
-
-  .upload-stage-card {
-    max-width: 28rem;
+    max-width: 38rem;
   }
 
   .upload-stage-portrait {
-    left: 22%;
-    right: -2%;
-    top: 2.25rem;
-    height: calc(100svh - 2.25rem);
+    opacity: 0.62;
   }
 }
 
-@media (max-width: 959px) {
-  .upload-stage {
-    padding-top: 4.5rem;
-  }
-
+@media (max-width: 640px) {
   .upload-stage-portrait {
-    left: auto;
-    right: -18%;
-    width: min(92vw, 26rem);
-    top: 4.25rem;
-    height: min(78svh, 32rem);
-    opacity: 0.55;
+    opacity: 0.4;
   }
 
-  .upload-stage-portrait-fade {
-    background:
-      linear-gradient(
-        105deg,
-        var(--background) 0%,
-        color-mix(in srgb, var(--background) 65%, transparent) 40%,
-        transparent 72%
-      ),
-      linear-gradient(
-        180deg,
-        var(--background) 0%,
-        transparent 14%,
-        transparent 75%,
-        var(--background) 100%
-      );
+  .upload-carousel-track {
+    height: min(48svh, 24rem);
   }
+}
 
-  .upload-stage-card {
-    max-width: none;
-    max-height: calc(100svh - 5.25rem);
-  }
+/* Approval toast */
+.upload-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.75rem;
+  z-index: 60;
+  width: min(calc(100% - 2rem), 26rem);
+  transform: translateX(-50%) translateY(1.25rem);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.upload-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.upload-toast-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background:
+    linear-gradient(
+      155deg,
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(255, 255, 255, 0.55) 100%
+    );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 22px 50px -18px rgba(40, 25, 70, 0.35);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  padding: 0.95rem 1rem;
+  text-align: left;
+}
+
+.upload-toast-dot {
+  margin-top: 0.35rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #16a34a;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.15);
 }

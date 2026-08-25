@@ -14,6 +14,8 @@ export type FeatureKey =
 
 export type ConfidenceLabel = "High" | "Medium" | "Low";
 
+export type ReportKind = "baseline" | "target_look";
+
 /** Per-feature score packet — every scored trait ships all three fields. */
 export interface FeatureScore {
   score: number; // 0–100, never a percentage
@@ -29,6 +31,18 @@ export interface FeatureScore {
 }
 
 export type ReportFeatures = Record<FeatureKey, FeatureScore>;
+
+/** Gap vs a reference photo for one appearance feature. */
+export interface TargetFeatureDiff {
+  feature: Exclude<FeatureKey, "photo_quality">;
+  userScore: number;
+  referenceScore: number;
+  alignment: number;
+  gap: number;
+  observedSignal: string;
+  confidence: ConfidenceLabel;
+  measurable: boolean;
+}
 
 /** Tap targets on the portrait — normalized 0–1 image coordinates. */
 export interface FeatureOverlayPoint {
@@ -50,6 +64,8 @@ export interface ReportDocument {
   fileIds: string[];
   /** First upload kept for report portrait display. */
   portraitFileId: string | null;
+  /** AI standardized clinical portrait (fixed pose/style, user face). */
+  standardizedPortraitFileId?: string | null;
   retainForTracking: boolean;
   allowTraining: boolean;
   /** Set when non-portrait source photos are deleted after analysis. */
@@ -71,6 +87,22 @@ export interface ReportDocument {
    * Derived from MediaPipe landmarks when provided at analyze time.
    */
   featureOverlays: FeatureOverlayPoint[];
+  qualityMetrics?: {
+    width: number;
+    height: number;
+    sharpness: number;
+    brightness: number;
+    contrast: number;
+    roll: number | null;
+    yawProxy: number | null;
+  } | null;
+  kind?: ReportKind;
+  baselineReportId?: string | null;
+  referenceFileId?: string | null;
+  referencePortraitFileId?: string | null;
+  targetDiff?: TargetFeatureDiff[] | null;
+  overallAlignment?: number | null;
+  referenceFeatures?: ReportFeatures | null;
 }
 
 /** Client-safe report payload (ISO dates, string id). */
@@ -82,10 +114,19 @@ export interface ReportViewModel {
   retainForTracking: boolean;
   photoDeletedAt: string | null;
   portraitFileId: string | null;
+  standardizedPortraitFileId?: string | null;
   userId: string | null;
   /** Ranking hint for recommendations — safe to expose. */
   priorityFeatures: Exclude<FeatureKey, "photo_quality">[];
   featureOverlays: FeatureOverlayPoint[];
+  qualityMetrics?: ReportDocument["qualityMetrics"];
+  kind?: ReportKind;
+  baselineReportId?: string | null;
+  referenceFileId?: string | null;
+  referencePortraitFileId?: string | null;
+  targetDiff?: TargetFeatureDiff[] | null;
+  overallAlignment?: number | null;
+  referenceFeatures?: ReportFeatures | null;
 }
 
 export const FEATURE_KEYS: FeatureKey[] = [

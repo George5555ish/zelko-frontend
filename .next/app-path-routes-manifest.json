@@ -1,0 +1,16 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/contact/page": "/contact",
+  "/faq/page": "/faq",
+  "/how-it-works/page": "/how-it-works",
+  "/dashboard/page": "/dashboard",
+  "/main/page": "/main",
+  "/login/page": "/login",
+  "/page": "/",
+  "/report/[id]/page": "/report/[id]",
+  "/pricing/page": "/pricing",
+  "/upload/page": "/upload",
+  "/your-report/page": "/your-report",
+  "/tracking/page": "/tracking",
+  "/landing/page": "/landing"
+}

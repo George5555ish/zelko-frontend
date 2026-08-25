@@ -9,6 +9,10 @@ import {
 } from "react";
 import { mapNormToCoverPercent } from "@/lib/object-cover-map";
 import { recommendationsForScore } from "@/lib/recommendations";
+import {
+  FEATURE_MUTABILITY,
+  MUTABILITY_LABELS,
+} from "@/lib/feature-mutability";
 import { isFeatureMeasurable, scoreToneClass } from "@/lib/score-tone";
 import type {
   FeatureKey,
@@ -138,7 +142,7 @@ export function InteractivePortrait({
       className={
         size === "hero"
           ? "relative mx-auto w-full max-w-none"
-          : "relative mx-auto w-full max-w-md lg:order-2 lg:max-w-none"
+          : "relative mx-auto w-full max-w-md lg:max-w-none"
       }
     >      <div
         ref={boxRef}
@@ -157,7 +161,7 @@ export function InteractivePortrait({
           onClick={() => setSelectedId(null)}
         />
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#12081f]/90 via-transparent to-[#1a0b2e]/35"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30"
           aria-hidden
         />
 
@@ -193,7 +197,7 @@ export function InteractivePortrait({
             </p>
             <p className="text-sm font-semibold text-white">
               {FEATURE_LABELS[topFeature]}{" "}
-              <span className="text-violet-300">
+              <span className="text-white/70">
                 {report.features[topFeature].score}
               </span>
             </p>
@@ -264,7 +268,7 @@ function OverlayDot({
         onSelect();
       }}
       onKeyDown={onKeyDown}
-      className={`report-face-dot absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 ${
+      className={`report-face-dot absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 ${
         active ? "report-face-dot--active" : ""
       }`}
       style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
@@ -291,6 +295,7 @@ function FeatureBreakdownCard({
   onClose: () => void;
 }) {
   const measurable = isFeatureMeasurable(packet.measurable);
+  const mutability = FEATURE_MUTABILITY[feature];
   const tip =
     unlocked && measurable
       ? recommendationsForScore(feature, packet.score)[0]?.action
@@ -315,7 +320,7 @@ function FeatureBreakdownCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[9px] uppercase tracking-[0.14em] text-white/45">
-            Region
+            {MUTABILITY_LABELS[mutability]}
           </p>
           <p className="mt-0.5 truncate text-[13px] font-semibold text-white">
             {FEATURE_LABELS[feature]}
@@ -357,7 +362,7 @@ function FeatureBreakdownCard({
             {packet.observedSignal}
           </p>
           {tip && (
-            <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[10px] leading-snug text-violet-200/85">
+            <p className="mt-1.5 border-t border-white/10 pt-1.5 text-[10px] leading-snug text-white/55">
               Tip: {tip}
             </p>
           )}

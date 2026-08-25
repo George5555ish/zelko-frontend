@@ -9,6 +9,11 @@ import {
   type ReactNode,
 } from "react";
 import { recommendationsForScore } from "@/lib/recommendations";
+import {
+  FEATURE_MUTABILITY,
+  MUTABILITY_HINTS,
+  MUTABILITY_LABELS,
+} from "@/lib/feature-mutability";
 import { buildAppearanceSummary } from "@/lib/appearance-summary";
 import { isFeatureMeasurable, scoreToneClass } from "@/lib/score-tone";
 import type { FeatureKey, ReportViewModel } from "@/lib/types/report";
@@ -16,9 +21,28 @@ import {
   FEATURE_LABELS,
   SCORED_APPEARANCE_KEYS,
 } from "@/lib/types/report";
-import { portraitUrl, registerAccount, loginAccount } from "@/lib/auth";
+import {
+  portraitUrl,
+  registerAccount,
+  loginAccount,
+  fetchMe,
+  startProCheckout,
+  devUnlockPro,
+  linkReportToAccount,
+} from "@/lib/auth";
+import { useAuthUser } from "@/lib/use-auth-user";
+import { navForAuth } from "@/lib/site-nav";
+import {
+  MenuToggleButton,
+  MobileNavSheet,
+} from "@/components/site/MobileNavSheet";
 import { InteractivePortrait } from "@/components/report/InteractivePortrait";
 import { ReportOrbitLayout } from "@/components/report/ReportOrbitLayout";
+import { ActionChecklist } from "@/components/report/ActionChecklist";
+import { LookTrackPanel } from "@/components/report/LookTrackPanel";
+import { OutfitRecommendPanel } from "@/components/report/OutfitRecommendPanel";
+import { ReportAnalyticsSection } from "@/components/report/ReportAnalyticsSection";
+import { PrivacyDataStatement } from "@/components/site/PrivacyDataStatement";
 import "./report-dash.css";
 const FREE_TOP_COUNT = 2;
 
@@ -34,7 +58,15 @@ export function ReportView({
 }) {
   const [paid, setPaid] = useState(initialPaid);
   const [signupOpen, setSignupOpen] = useState(false);
+  /** Why the auth modal opened — unlock requires account before Stripe. */
+  const [signupReason, setSignupReason] = useState<"save" | "unlock">("save");
   const [layout, setLayout] = useState<ReportLayoutMode>("classic");
+  const [unlockBusy, setUnlockBusy] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [checkoutJustSucceeded, setCheckoutJustSucceeded] = useState(false);
+  const { user, ready, isAuthed } = useAuthUser();
+  const navLinks = navForAuth(isAuthed);
 
   useEffect(() => {
     try {
@@ -44,6 +76,137 @@ export function ReportView({
       /* ignore */
     }
   }, []);
+
+  useEffect(() => {
+    if (user?.isPro) setPaid(true);
+  }, [user?.isPro]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      // After Stripe redirect, poll briefly — webhook may lag.
+      if (
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("checkout") ===
+          "success"
+      ) {
+        setCheckoutJustSucceeded(true);
+        for (let i = 0; i < 5; i++) {
+          await new Promise((r) => setTimeout(r, 1200));
+          const again = await fetchMe();
+          if (cancelled) return;
+          if (again?.isPro) {
+            setPaid(true);
+            try {
+              await linkReportToAccount(report.id);
+            } catch {
+              /* report may already be linked */
+            }
+            break;
+          }
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [report.id]);
+
+  // Soft “save report” prompt only for guests — never for signed-in users.
+  useEffect(() => {
+    if (!ready || !isAuthed) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await linkReportToAccount(report.id);
+      } catch {
+        /* already linked to someone else, or guest edge */
+      }
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, isAuthed, report.id]);
+
+  useEffect(() => {
+    if (!ready || isAuthed) {
+      if (isAuthed) setSignupOpen(false);
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setSignupReason((reason) => (reason === "unlock" ? reason : "save"));
+      setSignupOpen(true);
+    }, 2800);
+    return () => window.clearTimeout(id);
+  }, [ready, isAuthed]);
+
+  /** Stripe / Pro checkout — callers must already be authenticated. */
+  async function runProCheckout() {
+    setUnlockError(null);
+    setUnlockBusy(true);
+    try {
+      const me = await fetchMe();
+      if (!me) {
+        setSignupReason("unlock");
+        setSignupOpen(true);
+        return;
+      }
+      try {
+        await linkReportToAccount(report.id);
+      } catch {
+        /* already linked or guest edge */
+      }
+      if (me.isPro) {
+        setPaid(true);
+        return;
+      }
+
+      const checkout = await startProCheckout({
+        successPath: `/report/${report.id}?checkout=success`,
+        cancelPath: `/report/${report.id}?checkout=cancel`,
+      });
+
+      if (checkout.alreadyPro) {
+        setPaid(true);
+        return;
+      }
+
+      if (checkout.url) {
+        window.location.href = checkout.url;
+        return;
+      }
+
+      if (checkout.devUnlock) {
+        const updated = await devUnlockPro();
+        if (updated.isPro) setPaid(true);
+        return;
+      }
+
+      setUnlockError(
+        checkout.error ??
+          "Billing is not configured yet. Set Stripe keys on the backend.",
+      );
+    } catch (err) {
+      setUnlockError(
+        err instanceof Error ? err.message : "Could not start checkout.",
+      );
+    } finally {
+      setUnlockBusy(false);
+    }
+  }
+
+  /** Unlock Pro: account first, then checkout. */
+  async function handleUnlock() {
+    setUnlockError(null);
+    const me = await fetchMe();
+    if (!me) {
+      setSignupReason("unlock");
+      setSignupOpen(true);
+      return;
+    }
+    await runProCheckout();
+  }
 
   function switchLayout(next: ReportLayoutMode) {
     setLayout(next);
@@ -79,6 +242,13 @@ export function ReportView({
     if (!paid) return [];
     const priority = new Set<string>(report.priorityFeatures ?? []);
     // Personalization only reorders recommendations — scores stay as measured.
+    // Prefer actionable first, then photo-sensitive setup tips; structural last.
+    const mutRank = (k: FeatureKey) => {
+      const m = FEATURE_MUTABILITY[k];
+      if (m === "actionable") return 0;
+      if (m === "photo_sensitive") return 1;
+      return 2;
+    };
     const weak = SCORED_APPEARANCE_KEYS.filter(
       (k) =>
         isFeatureMeasurable(report.features[k].measurable) &&
@@ -87,6 +257,8 @@ export function ReportView({
       const aPri = priority.has(a) ? 0 : 1;
       const bPri = priority.has(b) ? 0 : 1;
       if (aPri !== bPri) return aPri - bPri;
+      const m = mutRank(a) - mutRank(b);
+      if (m !== 0) return m;
       return report.features[a].score - report.features[b].score;
     });
 
@@ -108,43 +280,59 @@ export function ReportView({
   const faceSrc = portraitUrl(report.portraitFileId) ?? "/woman1.png";
   const usingUserPortrait = Boolean(report.portraitFileId);
 
-  useEffect(() => {
-    const id = window.setTimeout(() => setSignupOpen(true), 2800);
-    return () => window.clearTimeout(id);
-  }, []);
-
   return (
     <div className="report-dash relative min-h-screen overflow-hidden text-white">
       <div aria-hidden className="report-dash__bg" />
 
-      <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 md:px-8">
+      <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-5 md:px-8">
         <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-full bg-violet-500/30 text-sm font-bold text-violet-200">
+          <span className="flex size-8 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white/90">
             Z
           </span>
-          <span className="text-lg font-semibold tracking-tight">Zelko</span>
+          <span className="text-lg font-semibold tracking-tight text-white">
+            Zelko
+          </span>
         </Link>
 
-        <div className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur-md sm:flex">
-          <Link
-            href="/"
-            className="rounded-full px-3.5 py-1.5 text-sm text-white/55 transition hover:text-white"
-          >
-            home
-          </Link>
-          <span className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3.5 py-1.5 text-sm font-medium text-white">
-            result
-          </span>
-          <Link
-            href="/tracking"
-            className="rounded-full px-3.5 py-1.5 text-sm text-white/55 transition hover:text-white"
-          >
-            progress
-          </Link>
+        <div className="hidden items-center gap-1 rounded-full border border-white/12 bg-white/8 p-1 shadow-sm backdrop-blur-xl lg:flex">
+          {isAuthed ? (
+            <>
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-full px-3.5 py-1.5 text-sm text-white/50 transition hover:text-white"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <span className="rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950">
+                Report
+              </span>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/"
+                className="rounded-full px-3.5 py-1.5 text-sm text-white/50 transition hover:text-white"
+              >
+                home
+              </Link>
+              <span className="rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950">
+                result
+              </span>
+              <Link
+                href="/tracking"
+                className="rounded-full px-3.5 py-1.5 text-sm text-white/50 transition hover:text-white"
+              >
+                progress
+              </Link>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-full border border-white/15 bg-white/5 p-0.5">
+          <div className="flex items-center rounded-full border border-white/12 bg-white/8 p-0.5 backdrop-blur-xl">
             <button
               type="button"
               onClick={() => switchLayout("classic")}
@@ -173,45 +361,113 @@ export function ReportView({
           {!paid ? (
             <button
               type="button"
-              onClick={() => setPaid(true)}
-              className="cursor-pointer rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-medium backdrop-blur-md transition hover:bg-white/15"
+              onClick={() => void handleUnlock()}
+              disabled={unlockBusy}
+              className="cursor-pointer rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950 transition hover:bg-white/90 disabled:opacity-60"
             >
-              Unlock
+              {unlockBusy ? "…" : "Unlock"}
             </button>
           ) : (
-            <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
               Full report
             </span>
           )}
-          <Link
-            href="/login"
-            className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/70 backdrop-blur-md transition hover:bg-white/10"
-          >
-            Sign in
-          </Link>
+          {isAuthed ? (
+            <Link
+              href="/login"
+              className="hidden rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-sm text-white/70 backdrop-blur-xl transition hover:bg-white/15 sm:inline"
+            >
+              Account
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="hidden rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-sm text-white/70 backdrop-blur-xl transition hover:bg-white/15 sm:inline"
+            >
+              Sign in
+            </Link>
+          )}
+          <MenuToggleButton
+            open={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+            light
+          />
         </div>
       </nav>
 
+      <MobileNavSheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        links={
+          isAuthed
+            ? [...navLinks, { label: "This report", href: `/report/${report.id}` }]
+            : [
+                { label: "Home", href: "/" },
+                { label: "Tracking", href: "/tracking" },
+                { label: "Pricing", href: "/pricing" },
+              ]
+        }
+        extras={
+          isAuthed ? (
+            <Link
+              href="/login"
+              onClick={() => setMenuOpen(false)}
+              className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
+            >
+              Account
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              onClick={() => setMenuOpen(false)}
+              className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
+            >
+              Sign in
+            </Link>
+          )
+        }
+      />
+
+      {unlockError ? (
+        <p className="relative z-20 mx-auto max-w-7xl px-5 pb-2 text-sm text-amber-200/90 md:px-8">
+          {unlockError}
+        </p>
+      ) : null}
+
       {layout === "orbit" ? (
-        <ReportOrbitLayout
-          report={report}
-          faceSrc={faceSrc}
-          usingUserPortrait={usingUserPortrait}
-          isUnlocked={isUnlocked}
-          topFeature={topFeature}
-          paid={paid}
-          onUnlock={() => setPaid(true)}
-          appearanceSummary={appearanceSummary}
-          weakRecs={weakRecs}
-          groomingMeasurable={groomingMeasurable}
-          compositeTen={compositeTen}
-        />
+        <>
+          <ReportOrbitLayout
+            report={report}
+            faceSrc={faceSrc}
+            usingUserPortrait={usingUserPortrait}
+            isUnlocked={isUnlocked}
+            topFeature={topFeature}
+            paid={paid}
+            onUnlock={() => void handleUnlock()}
+            appearanceSummary={appearanceSummary}
+            weakRecs={weakRecs}
+            groomingMeasurable={groomingMeasurable}
+            compositeTen={compositeTen}
+          />
+          <div className="relative z-10 mx-auto max-w-md px-5 pb-8 md:px-8">
+            <OutfitRecommendPanel
+              baselineReportId={
+                report.kind === "target_look"
+                  ? (report.baselineReportId ?? report.id)
+                  : report.id
+              }
+              isAuthed={isAuthed}
+              isPro={Boolean(user?.isPro) || paid}
+              reportPath={`/report/${report.id}`}
+            />
+          </div>
+        </>
       ) : (
-      <div className="relative z-10 mx-auto grid max-w-7xl gap-6 px-5 pb-24 pt-4 md:px-8 lg:grid-cols-[1fr_minmax(16rem,22rem)_1fr] lg:gap-5 lg:pt-6">
+      <div className="relative z-10 mx-auto grid max-w-7xl gap-6 px-5 pb-24 pt-4 text-white md:px-8 lg:grid-cols-[1fr_minmax(16rem,22rem)_1fr] lg:gap-5 lg:pt-6">
         {/* Left column */}
         <div className="flex flex-col gap-4 lg:order-1">
           <div className="report-glass rounded-3xl p-6 md:p-7">
-            <p className="text-xs uppercase tracking-[0.2em] text-violet-300/70">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45">
               Appearance report
             </p>
             <h1 className="mt-3 font-[family-name:var(--font-cursive)] text-4xl leading-[1.1] text-white sm:text-5xl">
@@ -224,7 +480,7 @@ export function ReportView({
           </div>
 
           <div className="report-glass rounded-3xl p-5 md:p-6">
-            <p className="text-xs uppercase tracking-[0.16em] text-violet-300/70">
+            <p className="text-xs uppercase tracking-[0.16em] text-white/45">
               {appearanceSummary.title}
             </p>
             <div className="relative mt-3">
@@ -263,10 +519,11 @@ export function ReportView({
                   <div className="relative z-10 mt-3 flex justify-center">
                     <button
                       type="button"
-                      onClick={() => setPaid(true)}
-                      className="cursor-pointer rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white/85 backdrop-blur-md transition hover:bg-white/15 hover:text-white"
+                      onClick={() => void handleUnlock()}
+                      disabled={unlockBusy}
+                      className="cursor-pointer rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white/85 backdrop-blur-md transition hover:bg-white/15 hover:text-white disabled:opacity-60"
                     >
-                      Unlock to view the full summary
+                      {unlockBusy ? "Starting…" : "Unlock to view the full summary"}
                     </button>
                   </div>
                 </>
@@ -287,7 +544,7 @@ export function ReportView({
                   </span>
                 </p>
               </div>
-              <span className="rounded-full bg-violet-500/25 px-2.5 py-1 text-xs font-semibold text-violet-200">
+              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/70">
                 measured
               </span>
             </div>
@@ -308,7 +565,7 @@ export function ReportView({
               label="Skin clarity"
               score={isUnlocked("skin_clarity") ? clarity.score : null}
               locked={!isUnlocked("skin_clarity")}
-              accent="violet"
+              accent="neutral"
             >
               <MiniSpark values={sparkFromScore(clarity.score)} />
             </MetricTile>
@@ -316,7 +573,7 @@ export function ReportView({
               label="Symmetry map"
               score={isUnlocked("face_symmetry") ? symmetry.score : null}
               locked={!isUnlocked("face_symmetry")}
-              accent="blue"
+              accent="neutral"
             >
               <DotScatter
                 scores={SCORED_APPEARANCE_KEYS.filter((k) =>
@@ -331,14 +588,26 @@ export function ReportView({
           </div>
         </div>
 
-        {/* Center portrait — landmark-mapped tappable dots */}
-        <InteractivePortrait
-          report={report}
-          faceSrc={faceSrc}
-          usingUserPortrait={usingUserPortrait}
-          isUnlocked={isUnlocked}
-          topFeature={topFeature}
-        />
+        {/* Center portrait + outfit still below the face */}
+        <div className="mx-auto flex w-full max-w-md flex-col gap-4 lg:order-2 lg:max-w-none">
+          <InteractivePortrait
+            report={report}
+            faceSrc={faceSrc}
+            usingUserPortrait={usingUserPortrait}
+            isUnlocked={isUnlocked}
+            topFeature={topFeature}
+          />
+          <OutfitRecommendPanel
+            baselineReportId={
+              report.kind === "target_look"
+                ? (report.baselineReportId ?? report.id)
+                : report.id
+            }
+            isAuthed={isAuthed}
+            isPro={Boolean(user?.isPro) || paid}
+            reportPath={`/report/${report.id}`}
+          />
+        </div>
 
         {/* Right column */}
         <div className="flex flex-col gap-4 lg:order-3">
@@ -347,7 +616,7 @@ export function ReportView({
               value={isUnlocked("jawline_definition") ? jawline.score : 0}
               locked={!isUnlocked("jawline_definition")}
               label="Jawline"
-              color="#60a5fa"
+              color="#e2e8f0"
             />
             <p className="mt-3 text-xs leading-relaxed text-white/45">
               Edge contrast along the jaw contour — medium confidence tier.
@@ -402,35 +671,26 @@ export function ReportView({
             <p className="text-xs uppercase tracking-[0.16em] text-white/40">
               Next actions
             </p>
-            {paid && weakRecs.length > 0 ? (
-              <ul className="mt-3 space-y-2.5">
-                {weakRecs.map((rec) => (
-                  <li
-                    key={rec.action}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5"
-                  >
-                    <p className="text-sm text-white/90">{rec.action}</p>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/35">
-                      {FEATURE_LABELS[rec.feature]} · {rec.effort} effort
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 text-sm leading-relaxed text-white/45">
-                {paid
-                  ? "No weak scores below 70 — keep your routine consistent."
-                  : "Unlock the full report to see paired recommendations for every weak score."}
+            {paid ? (
+              <p className="mt-3 text-sm leading-relaxed text-white/55">
+                Your checklist below only includes changeable levers (skin,
+                grooming, brows, photo setup) — not fixed facial structure.
               </p>
-            )}
-            {!paid && (
-              <button
-                type="button"
-                onClick={() => setPaid(true)}
-                className="mt-4 w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
-              >
-                Unlock recommendations
-              </button>
+            ) : (
+              <>
+                <p className="mt-3 text-sm leading-relaxed text-white/45">
+                  Unlock the full report to get a concrete Pro checklist tied to
+                  this score.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleUnlock()}
+                  disabled={unlockBusy}
+                  className="mt-4 w-full rounded-xl bg-white py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90 disabled:opacity-60"
+                >
+                  {unlockBusy ? "Starting…" : "Unlock recommendations"}
+                </button>
+              </>
             )}
           </div>
 
@@ -448,12 +708,12 @@ export function ReportView({
                 value={
                   isUnlocked("facial_proportions") ? proportions.score : null
                 }
-                color="#a78bfa"
+                color="#f8fafc"
               />
               <MiniRing
                 label="Clarity"
                 value={isUnlocked("skin_clarity") ? clarity.score : null}
-                color="#34d399"
+                color="#94a3b8"
               />
             </div>
           </div>
@@ -461,8 +721,38 @@ export function ReportView({
       </div>
       )}
 
+      <ReportAnalyticsSection report={report} isUnlocked={isUnlocked} />
+
       {/* Full breakdown strip */}
       <section className="relative z-10 mx-auto max-w-7xl px-5 pb-16 md:px-8">
+        {paid ? (
+          <div className="mb-8 space-y-4">
+            {checkoutJustSucceeded ? (
+              <p className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+                Pro is active. Your full report is unlocked — start the checklist
+                below before your next weekly check-in.
+              </p>
+            ) : null}
+            <ActionChecklist
+              reportId={report.id}
+              highlight={checkoutJustSucceeded}
+            />
+            <LookTrackPanel
+              baselineReport={report}
+              isAuthed={isAuthed}
+              isPro={Boolean(user?.isPro) || paid}
+            />
+            <PrivacyDataStatement tone="dark" compact />
+          </div>
+        ) : (
+          <div className="mb-8">
+            <LookTrackPanel
+              baselineReport={report}
+              isAuthed={isAuthed}
+              isPro={Boolean(user?.isPro) || paid}
+            />
+          </div>
+        )}
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-white/40">
@@ -474,7 +764,7 @@ export function ReportView({
           </div>
           <Link
             href="/upload"
-            className="text-sm text-violet-300 underline-offset-4 hover:underline"
+            className="text-sm text-white/50 underline-offset-4 hover:text-white hover:underline"
           >
             Start another assessment
           </Link>
@@ -486,7 +776,7 @@ export function ReportView({
             return (
               <div
                 key={key}
-                className="report-glass rounded-2xl px-4 py-4"
+                className="report-glass rounded-2xl px-4 py-4 text-white"
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-medium text-white/90">
@@ -501,7 +791,7 @@ export function ReportView({
                       <span className="blur-[5px] select-none">
                         {packet.score}
                       </span>
-                      <span className="absolute inset-0 flex items-center justify-center text-[9px] uppercase tracking-[0.14em] text-violet-200/80">
+                      <span className="absolute inset-0 flex items-center justify-center text-[9px] uppercase tracking-[0.14em] text-white/50">
                         Locked
                       </span>
                     </span>
@@ -510,10 +800,14 @@ export function ReportView({
                 {unlocked ? (
                   <>
                     <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/35">
-                      {packet.confidence} confidence
+                      {packet.confidence} confidence ·{" "}
+                      {MUTABILITY_LABELS[FEATURE_MUTABILITY[key]]}
                     </p>
                     <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-white/50">
                       {packet.observedSignal}
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-white/35">
+                      {MUTABILITY_HINTS[FEATURE_MUTABILITY[key]]}
                     </p>
                   </>
                 ) : (
@@ -529,8 +823,20 @@ export function ReportView({
 
       <SignupPrompt
         open={signupOpen}
+        reason={signupReason}
         onClose={() => setSignupOpen(false)}
         reportId={report.id}
+        onAuthed={(authedUser) => {
+          if (authedUser.isPro) {
+            setPaid(true);
+            setSignupOpen(false);
+            return;
+          }
+          if (signupReason === "unlock") {
+            setSignupOpen(false);
+            void runProCheckout();
+          }
+        }}
       />
     </div>
   );
@@ -540,18 +846,24 @@ function SignupPrompt({
   open,
   onClose,
   reportId,
+  reason = "save",
+  onAuthed,
 }: {
   open: boolean;
   onClose: () => void;
   reportId: string;
+  reason?: "save" | "unlock";
+  onAuthed?: (user: { isPro: boolean; email: string }) => void;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
   const [mode, setMode] = useState<"register" | "login">("register");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [linkedEmail, setLinkedEmail] = useState<string | null>(null);
+  const forUnlock = reason === "unlock";
 
   if (!open) return null;
 
@@ -562,10 +874,12 @@ function SignupPrompt({
     try {
       const result =
         mode === "register"
-          ? await registerAccount({ email, password, reportId })
+          ? await registerAccount({ firstName, email, password, reportId })
           : await loginAccount({ email, password, reportId });
       setLinkedEmail(result.user.email);
-      setSent(true);
+      onAuthed?.(result.user);
+      // Unlock flow continues to Stripe in onAuthed — skip “saved” screen.
+      if (!forUnlock) setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -597,7 +911,7 @@ function SignupPrompt({
 
         {sent ? (
           <div className="pt-2">
-            <p className="text-xs uppercase tracking-[0.18em] text-violet-300/70">
+            <p className="text-xs uppercase tracking-[0.18em] text-white/45">
               Linked
             </p>
             <h2
@@ -614,7 +928,7 @@ function SignupPrompt({
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/tracking"
-                className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-2.5 text-sm font-semibold text-white"
+                className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950"
               >
                 Go to tracking
               </Link>
@@ -629,22 +943,43 @@ function SignupPrompt({
           </div>
         ) : (
           <form onSubmit={onSubmit} className="pt-2">
-            <p className="text-xs uppercase tracking-[0.18em] text-violet-300/70">
-              Track progress
+            <p className="text-xs uppercase tracking-[0.18em] text-white/45">
+              {forUnlock ? "Unlock Pro" : "Track progress"}
             </p>
             <h2
               id="signup-prompt-title"
               className="mt-2 text-2xl font-semibold text-white"
             >
-              {mode === "register"
-                ? "Create an account to save this report"
-                : "Sign in to link this report"}
+              {forUnlock
+                ? mode === "register"
+                  ? "Create an account to unlock Pro"
+                  : "Sign in to unlock Pro"
+                : mode === "register"
+                  ? "Create an account to save this report"
+                  : "Sign in to link this report"}
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-white/55">
-              Re-upload weekly, compare under consistent lighting, and keep
-              recommendations tied to this baseline.
+              {forUnlock
+                ? "Pro is tied to your account so full reports and tracking stay with you. After you sign up, we’ll take you to checkout."
+                : "Re-upload weekly, compare under consistent lighting, and keep recommendations tied to this baseline."}
             </p>
-            <label className="mt-5 block">
+            {mode === "register" ? (
+              <label className="mt-5 block">
+                <span className="text-xs uppercase tracking-[0.14em] text-white/40">
+                  First name
+                </span>
+                <input
+                  type="text"
+                  required
+                  autoComplete="given-name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Alex"
+                  className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/40"
+                />
+              </label>
+            ) : null}
+            <label className={`block ${mode === "register" ? "mt-3" : "mt-5"}`}>
               <span className="text-xs uppercase tracking-[0.14em] text-white/40">
                 Email
               </span>
@@ -654,7 +989,7 @@ function SignupPrompt({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
-                className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-400/50"
+                className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/40"
               />
             </label>
             <label className="mt-3 block">
@@ -668,7 +1003,7 @@ function SignupPrompt({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 8 characters"
-                className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-400/50"
+                className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/40"
               />
             </label>
             {error && (
@@ -679,13 +1014,17 @@ function SignupPrompt({
             <button
               type="submit"
               disabled={busy}
-              className="mt-4 w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+              className="mt-4 w-full rounded-xl bg-white py-3 text-sm font-semibold text-neutral-950 transition hover:bg-white/90 disabled:opacity-60"
             >
               {busy
                 ? "Working…"
-                : mode === "register"
-                  ? "Create account & save report"
-                  : "Sign in & link report"}
+                : forUnlock
+                  ? mode === "register"
+                    ? "Create account & continue"
+                    : "Sign in & continue"
+                  : mode === "register"
+                    ? "Create account & save report"
+                    : "Sign in & link report"}
             </button>
             <button
               type="button"
@@ -711,11 +1050,11 @@ function ScoreGauge({ value }: { value: number }) {
   return (
     <div className="relative mt-5 h-2.5 overflow-hidden rounded-full bg-white/10">
       <div
-        className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-emerald-400"
+        className="h-full rounded-full bg-gradient-to-r from-white/40 via-white/80 to-white"
         style={{ width: `${pct}%` }}
       />
       <span
-        className="absolute top-1/2 size-3 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]"
+        className="absolute top-1/2 size-3 -translate-y-1/2 rounded-full border-2 border-white bg-white shadow-[0_0_12px_rgba(255,255,255,0.55)]"
         style={{ left: `calc(${pct}% - 6px)` }}
       />
     </div>
@@ -732,7 +1071,7 @@ function MetricTile({
   label: string;
   score: number | null;
   locked: boolean;
-  accent: "violet" | "blue";
+  accent: "neutral" | "blue";
   children: ReactNode;
 }) {
   return (
@@ -748,7 +1087,7 @@ function MetricTile({
         )}
       </p>
       <div
-        className={`mt-3 h-14 ${accent === "blue" ? "text-sky-300" : "text-violet-300"}`}
+        className={`mt-3 h-14 ${accent === "blue" ? "text-slate-300" : "text-white/70"}`}
       >
         {children}
       </div>
@@ -927,7 +1266,7 @@ function DropMeter({ filled }: { filled: number }) {
           key={i}
           className={`h-2.5 flex-1 rounded-full ${
             i < n
-              ? "bg-gradient-to-r from-sky-400 to-violet-400"
+              ? "bg-gradient-to-r from-white/50 to-white"
               : "bg-white/10"
           }`}
         />

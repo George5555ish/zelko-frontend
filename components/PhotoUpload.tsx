@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { extractFaceLandmarksFromFile, type LandmarkPoint } from "@/lib/mediapipe";
 import type { UploadConsent } from "@/lib/consent";
 import { checkDistressLanguage } from "@/lib/distress-check";
+import { getAuthToken } from "@/lib/auth";
 import {
   PRIORITY_FEATURE_OPTIONS,
   USER_NOTE_MAX_LENGTH,
@@ -30,14 +31,6 @@ export interface UploadSlot {
 
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 5;
-
-async function stubQualityCheck(_file: File): Promise<
-  { accepted: true } | { accepted: false; reason: string }
-> {
-  void _file;
-  await new Promise((r) => setTimeout(r, 400));
-  return { accepted: true };
-}
 
 function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -72,6 +65,37 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
   >([]);
   const [userNote, setUserNote] = useState("");
   const [supportMode, setSupportMode] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [approvalToast, setApprovalToast] = useState(false);
+  const approvalShownRef = useRef(false);
+
+  useEffect(() => {
+    if (slots.length === 0) {
+      setCarouselIndex(0);
+      return;
+    }
+    setCarouselIndex((i) => Math.min(i, slots.length - 1));
+  }, [slots.length]);
+
+  const allApproved =
+    slots.length >= MIN_PHOTOS &&
+    slots.every((s) => s.status === "accepted") &&
+    !uploadingBatch;
+
+  useEffect(() => {
+    if (!allApproved) {
+      if (slots.some((s) => s.status !== "accepted")) {
+        approvalShownRef.current = false;
+        setApprovalToast(false);
+      }
+      return;
+    }
+    if (approvalShownRef.current) return;
+    approvalShownRef.current = true;
+    setApprovalToast(true);
+    const hide = window.setTimeout(() => setApprovalToast(false), 6500);
+    return () => window.clearTimeout(hide);
+  }, [allApproved, slots]);
 
   const updateSlot = useCallback((id: string, patch: Partial<UploadSlot>) => {
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -85,52 +109,72 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
 
   const processFile = useCallback(
     async (slot: UploadSlot) => {
-      updateSlot(slot.id, { status: "uploading" });
+      updateSlot(slot.id, { status: "quality-check-pending" });
 
       try {
+        let landmarks: LandmarkPoint[] | null = null;
+        let fileForUpload = slot.file;
+        try {
+          const extracted = await extractFaceLandmarksFromFile(slot.file);
+          landmarks = extracted.landmarks;
+          fileForUpload = extracted.fileForUpload;
+          if (extracted.previewUrl) {
+            URL.revokeObjectURL(slot.previewUrl);
+            updateSlot(slot.id, {
+              file: fileForUpload,
+              previewUrl: extracted.previewUrl,
+            });
+          }
+        } catch (err) {
+          console.error("[MediaPipe] landmark extraction failed:", err);
+        }
+
+        if (!landmarks || landmarks.length < 100) {
+          updateSlot(slot.id, {
+            status: "rejected",
+            rejectReason:
+              "No clear face detected — try a clearer photo with your face fully visible (we'll auto-rotate sideways shots).",
+            landmarks: null,
+          });
+          return;
+        }
+
+        updateSlot(slot.id, { status: "uploading", landmarks, file: fileForUpload });
+
         const formData = new FormData();
-        formData.append("file", slot.file);
+        formData.append("file", fileForUpload);
         formData.append("retainForTracking", String(consent.retainForTracking));
         formData.append("allowTraining", String(consent.allowTraining));
+        formData.append("landmarks", JSON.stringify(landmarks));
 
         const res = await fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
 
-        const data = (await res.json()) as { fileId?: string; error?: string };
+        const data = (await res.json()) as {
+          fileId?: string;
+          error?: string;
+          reasons?: string[];
+        };
 
         if (!res.ok || !data.fileId) {
           updateSlot(slot.id, {
             status: "rejected",
-            rejectReason: data.error ?? "Upload failed.",
+            rejectReason:
+              data.error ??
+              data.reasons?.[0] ??
+              "Photo did not pass the quality gate.",
+            landmarks,
           });
           return;
         }
 
         updateSlot(slot.id, {
-          status: "quality-check-pending",
+          status: "accepted",
           fileId: data.fileId,
+          landmarks,
         });
-
-        let landmarks: LandmarkPoint[] | null = null;
-        try {
-          landmarks = await extractFaceLandmarksFromFile(slot.file);
-        } catch (err) {
-          console.error("[MediaPipe] landmark extraction failed:", err);
-        }
-
-        const quality = await stubQualityCheck(slot.file);
-
-        if (quality.accepted) {
-          updateSlot(slot.id, { status: "accepted", landmarks });
-        } else {
-          updateSlot(slot.id, {
-            status: "rejected",
-            rejectReason: quality.reason,
-            landmarks,
-          });
-        }
       } catch (err) {
         updateSlot(slot.id, {
           status: "rejected",
@@ -222,9 +266,13 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
     setError(null);
     setAnalyzing(true);
     try {
+      const token = getAuthToken();
       const res = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           fileIds,
           retainForTracking: consent.retainForTracking,
@@ -238,7 +286,16 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
         report?: { id: string };
         supportRequired?: boolean;
         error?: string;
+        nextEligibleAt?: string;
       };
+
+      if (res.status === 429) {
+        setError(
+          data.error ??
+            "Re-analysis is limited to once per week. Try again after the cooldown.",
+        );
+        return;
+      }
 
       if (data.supportRequired) {
         setSupportMode(true);
@@ -276,18 +333,23 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
     return <SupportPauseCard />;
   }
 
+  const activeSlot = slots[carouselIndex] ?? null;
+
   return (
-    <div className="rounded-3xl border border-neutral-200/70 bg-white/75 p-4 shadow-[0_20px_60px_-40px_rgba(40,20,80,0.45)] backdrop-blur-md sm:p-5 md:p-6">
-      <h2 className="text-lg font-semibold tracking-tight text-neutral-950 sm:text-xl">
-        Upload Images
+    <div className="upload-glass px-5 py-6 text-center sm:px-7 sm:py-7">
+      <p className="upload-eyebrow">Private session</p>
+      <h2 className="mt-2 font-[family-name:var(--font-cursive)] text-3xl leading-tight tracking-tight text-neutral-950 sm:text-[2.15rem]">
+        Place your portraits.
       </h2>
+      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-neutral-500">
+        {MIN_PHOTOS}–{MAX_PHOTOS} clear face photos. Glass cards hold each
+        frame — swipe through them before you analyze.
+      </p>
 
       <div
-        className={`mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-5 py-8 transition ${
-          dragging
-            ? "border-[var(--accent)] bg-[var(--accent-soft)]/50"
-            : "border-neutral-300 bg-white/80 hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/30"
-        } ${!canAddMore ? "cursor-not-allowed opacity-60" : ""}`}
+        className={`upload-glass-inset mt-6 flex cursor-pointer flex-col items-center justify-center px-5 py-7 transition ${
+          dragging ? "ring-2 ring-[var(--accent)]/40" : ""
+        } ${!canAddMore ? "cursor-not-allowed opacity-55" : "hover:bg-white/40"}`}
         onClick={() => canAddMore && inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -310,13 +372,13 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
       >
         <FileStackGraphic />
         <p className="mt-4 text-sm text-neutral-700">
-          Drag and drop or{" "}
+          Drop portraits or{" "}
           <span className="font-semibold text-[var(--accent)] underline underline-offset-2">
-            Browse computer
+            browse
           </span>
         </p>
-        <p className="mt-2 text-xs text-neutral-400">
-          Allowed Formats: JPG, JPEG, PNG
+        <p className="mt-1.5 text-xs text-neutral-400">
+          JPG, PNG, WEBP
           {canAddMore ? ` · ${MIN_PHOTOS}–${MAX_PHOTOS} photos` : " · max reached"}
         </p>
         <input
@@ -334,60 +396,100 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
       </div>
 
       {error && (
-        <p className="mt-4 rounded-xl bg-[var(--danger-soft)] px-3 py-2 text-sm text-[var(--danger)]">
+        <p className="mt-4 rounded-xl bg-[var(--danger-soft)] px-3 py-2 text-left text-sm text-[var(--danger)]">
           {error}
         </p>
       )}
 
-      {slots.length > 0 && (
-        <div className="mt-5">
-          <h3 className="text-sm font-semibold text-neutral-950">
-            Selected files ({slots.length})
-          </h3>
-          <ul className="mt-3 space-y-2.5">
-            {slots.map((slot) => (
-              <li
+      {slots.length > 0 && activeSlot ? (
+        <div className="upload-carousel mt-6">
+          <div className="upload-carousel-track upload-glass-inset relative overflow-hidden !p-0">
+            {slots.map((slot, i) => (
+              <div
                 key={slot.id}
-                className="flex items-center gap-3 rounded-2xl bg-[var(--accent-soft)]/55 px-3.5 py-3"
+                className={`upload-carousel-slide ${
+                  i === carouselIndex ? "is-active" : ""
+                }`}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-neutral-950">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={slot.previewUrl} alt="" />
+                <div className="upload-carousel-veil" />
+                <div className="upload-carousel-meta text-left">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-white/55">
+                    Frame {i + 1} of {slots.length} · {fileKindLabel(slot.file)}
+                  </p>
+                  <p className="mt-1 truncate text-base font-semibold text-white">
                     {slot.file.name}
                   </p>
-                  <p className="text-xs text-neutral-500">
-                    {formatBytes(slot.file.size)}
-                    {slot.status !== "idle" ? (
-                      <>
-                        {" · "}
-                        <StatusLabel slot={slot} />
-                      </>
-                    ) : null}
+                  <p className="mt-0.5 text-xs text-white/65">
+                    {formatBytes(slot.file.size)} · <StatusLabel slot={slot} />
                   </p>
                 </div>
-                <span className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)] sm:inline">
-                  {fileKindLabel(slot.file)}
-                </span>
+              </div>
+            ))}
+
+            {slots.length > 1 ? (
+              <>
                 <button
                   type="button"
-                  onClick={() => removeSlot(slot.id)}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full text-red-500 transition hover:bg-white/70"
-                  aria-label={`Remove ${slot.file.name}`}
+                  className="upload-carousel-nav upload-carousel-nav--prev"
+                  aria-label="Previous photo"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCarouselIndex(
+                      (i) => (i - 1 + slots.length) % slots.length,
+                    );
+                  }}
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="size-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                  >
-                    <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-                  </svg>
+                  ‹
                 </button>
-              </li>
-            ))}
-          </ul>
+                <button
+                  type="button"
+                  className="upload-carousel-nav upload-carousel-nav--next"
+                  aria-label="Next photo"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCarouselIndex((i) => (i + 1) % slots.length);
+                  }}
+                >
+                  ›
+                </button>
+              </>
+            ) : null}
+          </div>
+
+          {slots.length > 1 ? (
+            <div className="upload-carousel-dots" role="tablist" aria-label="Photos">
+              {slots.map((slot, i) => (
+                <button
+                  key={slot.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === carouselIndex}
+                  aria-label={`Show photo ${i + 1}`}
+                  className={`upload-carousel-dot ${
+                    i === carouselIndex ? "is-active" : ""
+                  }`}
+                  onClick={() => setCarouselIndex(i)}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-neutral-500">
+              {acceptedCount} accepted
+            </p>
+            <button
+              type="button"
+              onClick={() => removeSlot(activeSlot.id)}
+              className="rounded-full border border-neutral-300/80 bg-white/40 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-white/70"
+            >
+              Remove this frame
+            </button>
+          </div>
         </div>
-      )}
+      ) : null}
 
       <PersonalizationFields
         priorityFeatures={priorityFeatures}
@@ -400,10 +502,10 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
         type="button"
         disabled={uploadingBatch || !hasIdle}
         onClick={() => void uploadPending()}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <UploadIcon />
-        {uploadingBatch ? "Uploading…" : "Upload Files"}
+        {uploadingBatch ? "Uploading…" : "Upload files"}
       </button>
 
       {readyToAnalyze && (
@@ -411,11 +513,38 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           type="button"
           disabled={analyzing}
           onClick={() => void runAnalysis()}
-          className="mt-3 w-full rounded-2xl bg-neutral-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-3 w-full rounded-full bg-neutral-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {analyzing ? "Generating report…" : "Generate free report"}
         </button>
       )}
+
+      <div
+        className={`upload-toast ${approvalToast ? "is-visible" : ""}`}
+        role="status"
+        aria-live="polite"
+      >
+        <div className="upload-toast-card">
+          <span className="upload-toast-dot" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-neutral-950">
+              Approved — generate your report
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-neutral-500">
+              All {acceptedCount} photos passed quality checks. You’re ready to
+              continue.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-neutral-400 transition hover:text-neutral-700"
+            aria-label="Dismiss"
+            onClick={() => setApprovalToast(false)}
+          >
+            ✕
+          </button>
+        </div>
+      </div>
 
       <p className="mt-3 text-center text-xs text-neutral-400">
         {acceptedCount} of {MIN_PHOTOS}–{MAX_PHOTOS} accepted
@@ -442,10 +571,8 @@ function PersonalizationFields({
   const remaining = USER_NOTE_MAX_LENGTH - userNote.length;
 
   return (
-    <div className="mt-5 rounded-2xl border border-neutral-200/80 bg-[var(--hero-surface)]/50 px-3.5 py-3.5">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">
-        Optional focus
-      </p>
+    <div className="upload-glass-inset mt-5 px-3.5 py-3.5 text-left">
+      <p className="upload-eyebrow">Optional focus</p>
       <p className="mt-1 text-sm font-medium text-neutral-900">
         What are you most curious about?
       </p>
@@ -454,7 +581,7 @@ function PersonalizationFields({
         stay the same either way.
       </p>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
         {PRIORITY_FEATURE_OPTIONS.map(({ key, label }) => {
           const selected = priorityFeatures.includes(key);
           return (
@@ -465,8 +592,8 @@ function PersonalizationFields({
               onClick={() => onToggle(key)}
               className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition ${
                 selected
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "border-neutral-200 bg-white/80 text-neutral-600 hover:border-neutral-300"
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)]/80 text-[var(--accent)]"
+                  : "border-white/50 bg-white/35 text-neutral-600 hover:bg-white/55"
               }`}
             >
               {label}
@@ -485,7 +612,7 @@ function PersonalizationFields({
           rows={2}
           maxLength={USER_NOTE_MAX_LENGTH}
           placeholder="Anything else you'd like us to focus on?"
-          className="w-full resize-none rounded-xl border border-neutral-200 bg-white/90 px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+          className="w-full resize-none rounded-xl border border-white/50 bg-white/45 px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
         />
         <span className="mt-1 block text-right text-[11px] text-neutral-400">
           {remaining} left
@@ -497,19 +624,17 @@ function PersonalizationFields({
 
 function SupportPauseCard() {
   return (
-    <div className="rounded-3xl border border-neutral-200/70 bg-white/90 p-5 shadow-[0_20px_60px_-40px_rgba(40,20,80,0.45)] backdrop-blur-md sm:p-6">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">
-        Pause
-      </p>
-      <h2 className="mt-2 text-xl font-semibold tracking-tight text-neutral-950">
+    <div className="upload-glass px-5 py-6 text-center sm:px-7 sm:py-8">
+      <p className="upload-eyebrow">Pause</p>
+      <h2 className="mt-2 font-[family-name:var(--font-cursive)] text-2xl tracking-tight text-neutral-950 sm:text-3xl">
         We&apos;re glad you reached out — let&apos;s take this gently.
       </h2>
-      <p className="mt-3 text-sm leading-relaxed text-neutral-600">
+      <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-neutral-600">
         Zelko is built for appearance feedback, not emotional support. If
         you&apos;re carrying something heavy right now, please talk with someone
         who can help. We won&apos;t run a beauty report for this session.
       </p>
-      <ul className="mt-5 space-y-2 text-sm text-neutral-700">
+      <ul className="mx-auto mt-5 max-w-sm space-y-2 text-left text-sm text-neutral-700">
         <li>
           <a
             href="https://www.iasp.info/suicidalthoughts/"

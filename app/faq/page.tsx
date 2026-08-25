@@ -2,6 +2,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { PageHero } from "@/components/site/PageHero";
 import { Reveal } from "@/components/site/Reveal";
+import { PrivacyDataStatement } from "@/components/site/PrivacyDataStatement";
 
 const FAQS = [
   {
@@ -13,16 +14,24 @@ const FAQS = [
     a: "No. We never score confidence, trustworthiness, intelligence, approachability, ethnicity-based comparisons, displayed age, or health diagnoses. Attractiveness only exists as a composite of measured sub-scores — never a single inferred vibe.",
   },
   {
+    q: "What are the two analysis tracks?",
+    a: "Baseline is the general heuristic report from your selfie. Toward your look compares you to a reference photo you upload — including skin clarity and grooming, not just facial landmarks. Lifestyle profile answers are for styling context only, never ethnicity scoring.",
+  },
+  {
     q: "What happens to my photos?",
-    a: "Default privacy: analyze → generate report → delete source photo. Retaining photos for tracking requires explicit opt-in. We do not train on your images without a separate permission.",
+    a: "Extra upload photos are deleted after analysis by default. We keep a portrait copy so your report can display the face that was measured. Reference look photos are retained for comparison and outfit stills until you delete the linked report. We do not train on your images unless you separately allow it, and we do not sell photos to third parties.",
+  },
+  {
+    q: "What about outfit stills?",
+    a: "From your report you can generate one AI-recommended outfit that complements your face, eyes, and hair. Free includes that one still; another requires Pro (up to 3). These are generative fashion previews, not medical or clinical advice.",
   },
   {
     q: "What’s free vs paid?",
-    a: "Free always includes your overall composite score plus your top 1–2 strongest features. Paid unlocks the full breakdown, confidence labels, all recommendations, and re-upload tracking.",
+    a: "Free always includes your overall composite score plus your top 1–2 strongest features, and one AI-recommended outfit still from your report. Paid unlocks the full breakdown, confidence labels, a trackable action checklist, re-upload tracking, and more outfit stills (up to 3).",
   },
   {
     q: "How do recommendations work?",
-    a: "Recommendations are a flat lookup per feature. Weak scores and their recommendations unlock together — you never see a low score without a paired next step.",
+    a: "Weak scores unlock paired recommendations. We separate changeable levers (skin, grooming, brows, photo setup) from photo-sensitive reads (often lighting/angle) and mostly structural ones (like eye spacing). On Pro, only actionable items become your weekly checklist — structural context stays on the report, not as chores.",
   },
   {
     q: "How does re-upload tracking work?",
@@ -41,6 +50,9 @@ export default function FaqPage() {
       />
 
       <section className="px-6 pb-24 md:px-10">
+        <div className="mx-auto mb-10 max-w-3xl">
+          <PrivacyDataStatement tone="light" />
+        </div>
         <div className="mx-auto max-w-3xl divide-y divide-neutral-200 border-y border-neutral-200">
           {FAQS.map((item, i) => (
             <Reveal key={item.q} delayMs={i * 60}>
