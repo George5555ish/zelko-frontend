@@ -11,6 +11,7 @@ import {
   USER_NOTE_MAX_LENGTH,
   type PriorityFeatureKey,
 } from "@/lib/personalization";
+import { PhotoExamplesGuide } from "@/components/upload/PhotoExamplesGuide";
 
 export type UploadSlotStatus =
   | "idle"
@@ -282,12 +283,23 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           landmarks: portraitLandmarks,
         }),
       });
-      const data = (await res.json()) as {
+      const raw = await res.text();
+      let data: {
         report?: { id: string };
         supportRequired?: boolean;
         error?: string;
         nextEligibleAt?: string;
-      };
+      } = {};
+      try {
+        data = raw ? (JSON.parse(raw) as typeof data) : {};
+      } catch {
+        setError(
+          res.ok
+            ? "Analysis returned an unexpected response."
+            : `Analysis failed (${res.status}). Try again in a moment.`,
+        );
+        return;
+      }
 
       if (res.status === 429) {
         setError(
@@ -336,188 +348,226 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
   const activeSlot = slots[carouselIndex] ?? null;
 
   return (
-    <div className="upload-glass px-5 py-6 text-center sm:px-7 sm:py-7">
-      <p className="upload-eyebrow">Private session</p>
-      <h2 className="mt-2 font-[family-name:var(--font-cursive)] text-3xl leading-tight tracking-tight text-neutral-950 sm:text-[2.15rem]">
-        Place your portraits.
-      </h2>
-      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-neutral-500">
-        {MIN_PHOTOS}–{MAX_PHOTOS} clear face photos. Glass cards hold each
-        frame — swipe through them before you analyze.
-      </p>
+    <div className="upload-glass px-3.5 py-3 text-left sm:px-4 sm:py-3.5">
+      <div className="upload-layout">
+        <div className="upload-layout-copy">
+          <p className="upload-eyebrow">Private session</p>
+          <h2 className="mt-1 font-[family-name:var(--font-cursive)] text-[1.65rem] leading-tight tracking-tight text-neutral-950 sm:text-[1.75rem]">
+            Place your portraits.
+          </h2>
+          <p className="mt-1 max-w-md text-[13px] leading-snug text-neutral-500">
+            {MIN_PHOTOS}–{MAX_PHOTOS} clear face photos. Drop them in, review
+            frames, then generate your report.
+          </p>
 
-      <div
-        className={`upload-glass-inset mt-6 flex cursor-pointer flex-col items-center justify-center px-5 py-7 transition ${
-          dragging ? "ring-2 ring-[var(--accent)]/40" : ""
-        } ${!canAddMore ? "cursor-not-allowed opacity-55" : "hover:bg-white/40"}`}
-        onClick={() => canAddMore && inputRef.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (canAddMore) setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          if (canAddMore) addFiles(e.dataTransfer.files);
-        }}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            if (canAddMore) inputRef.current?.click();
-          }
-        }}
-      >
-        <FileStackGraphic />
-        <p className="mt-4 text-sm text-neutral-700">
-          Drop portraits or{" "}
-          <span className="font-semibold text-[var(--accent)] underline underline-offset-2">
-            browse
-          </span>
-        </p>
-        <p className="mt-1.5 text-xs text-neutral-400">
-          JPG, PNG, WEBP
-          {canAddMore ? ` · ${MIN_PHOTOS}–${MAX_PHOTOS} photos` : " · max reached"}
-        </p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          className="hidden"
-          disabled={!canAddMore}
-          onChange={(e) => {
-            addFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-      </div>
+          <div
+            className={`upload-glass-inset mt-3 flex cursor-pointer items-center gap-3 px-3 py-2.5 transition ${
+              dragging ? "ring-2 ring-[var(--accent)]/40" : ""
+            } ${!canAddMore ? "cursor-not-allowed opacity-55" : "hover:bg-white/40"}`}
+            onClick={() => canAddMore && inputRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (canAddMore) setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              if (canAddMore) addFiles(e.dataTransfer.files);
+            }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (canAddMore) inputRef.current?.click();
+              }
+            }}
+          >
+            <FileStackGraphic />
+            <div className="min-w-0">
+              <p className="text-sm text-neutral-700">
+                Drop portraits or{" "}
+                <span className="font-semibold text-[var(--accent)] underline underline-offset-2">
+                  browse
+                </span>
+              </p>
+              <p className="mt-0.5 text-xs text-neutral-400">
+                JPG, PNG, WEBP
+                {canAddMore
+                  ? ` · ${MIN_PHOTOS}–${MAX_PHOTOS} photos`
+                  : " · max reached"}
+              </p>
+            </div>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              className="hidden"
+              disabled={!canAddMore}
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </div>
 
-      {error && (
-        <p className="mt-4 rounded-xl bg-[var(--danger-soft)] px-3 py-2 text-left text-sm text-[var(--danger)]">
-          {error}
-        </p>
-      )}
+          {error && (
+            <p className="mt-3 rounded-xl bg-[var(--danger-soft)] px-3 py-2 text-sm text-[var(--danger)]">
+              {error}
+            </p>
+          )}
 
-      {slots.length > 0 && activeSlot ? (
-        <div className="upload-carousel mt-6">
-          <div className="upload-carousel-track upload-glass-inset relative overflow-hidden !p-0">
-            {slots.map((slot, i) => (
-              <div
-                key={slot.id}
-                className={`upload-carousel-slide ${
-                  i === carouselIndex ? "is-active" : ""
-                }`}
+          <PersonalizationFields
+            priorityFeatures={priorityFeatures}
+            onToggle={togglePriority}
+            userNote={userNote}
+            onNoteChange={setUserNote}
+          />
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={uploadingBatch || !hasIdle}
+              onClick={() => void uploadPending()}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+            >
+              <UploadIcon />
+              {uploadingBatch ? "Uploading…" : "Upload files"}
+            </button>
+
+            {readyToAnalyze ? (
+              <button
+                type="button"
+                disabled={analyzing}
+                onClick={() => void runAnalysis()}
+                className="inline-flex flex-1 items-center justify-center rounded-full bg-neutral-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={slot.previewUrl} alt="" />
-                <div className="upload-carousel-veil" />
-                <div className="upload-carousel-meta text-left">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-white/55">
-                    Frame {i + 1} of {slots.length} · {fileKindLabel(slot.file)}
-                  </p>
-                  <p className="mt-1 truncate text-base font-semibold text-white">
-                    {slot.file.name}
-                  </p>
-                  <p className="mt-0.5 text-xs text-white/65">
-                    {formatBytes(slot.file.size)} · <StatusLabel slot={slot} />
-                  </p>
-                </div>
-              </div>
-            ))}
-
-            {slots.length > 1 ? (
-              <>
-                <button
-                  type="button"
-                  className="upload-carousel-nav upload-carousel-nav--prev"
-                  aria-label="Previous photo"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCarouselIndex(
-                      (i) => (i - 1 + slots.length) % slots.length,
-                    );
-                  }}
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  className="upload-carousel-nav upload-carousel-nav--next"
-                  aria-label="Next photo"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCarouselIndex((i) => (i + 1) % slots.length);
-                  }}
-                >
-                  ›
-                </button>
-              </>
+                {analyzing ? "Generating…" : "Generate report"}
+              </button>
             ) : null}
           </div>
 
-          {slots.length > 1 ? (
-            <div className="upload-carousel-dots" role="tablist" aria-label="Photos">
-              {slots.map((slot, i) => (
-                <button
-                  key={slot.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={i === carouselIndex}
-                  aria-label={`Show photo ${i + 1}`}
-                  className={`upload-carousel-dot ${
-                    i === carouselIndex ? "is-active" : ""
-                  }`}
-                  onClick={() => setCarouselIndex(i)}
-                />
-              ))}
-            </div>
-          ) : null}
-
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-neutral-500">
-              {acceptedCount} accepted
-            </p>
-            <button
-              type="button"
-              onClick={() => removeSlot(activeSlot.id)}
-              className="rounded-full border border-neutral-300/80 bg-white/40 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-white/70"
-            >
-              Remove this frame
-            </button>
-          </div>
+          <p className="mt-2 text-xs text-neutral-400">
+            {acceptedCount} of {MIN_PHOTOS}–{MAX_PHOTOS} accepted
+            {consent.retainForTracking
+              ? " · photos retained for tracking"
+              : " · photos deleted after report"}
+            {readyToAnalyze ? " — ready for analysis" : ""}
+          </p>
         </div>
-      ) : null}
 
-      <PersonalizationFields
-        priorityFeatures={priorityFeatures}
-        onToggle={togglePriority}
-        userNote={userNote}
-        onNoteChange={setUserNote}
-      />
+        <div className="upload-layout-media">
+          {slots.length > 0 && activeSlot ? (
+            <div className="upload-carousel">
+              <div className="upload-carousel-track upload-glass-inset relative overflow-hidden !p-0">
+                {slots.map((slot, i) => (
+                  <div
+                    key={slot.id}
+                    className={`upload-carousel-slide ${
+                      i === carouselIndex ? "is-active" : ""
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={slot.previewUrl} alt="" />
+                    <div className="upload-carousel-veil" />
+                    <div className="upload-carousel-meta">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-white/55">
+                        Frame {i + 1} of {slots.length} ·{" "}
+                        {fileKindLabel(slot.file)}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm font-semibold text-white">
+                        {slot.file.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-white/65">
+                        {formatBytes(slot.file.size)} ·{" "}
+                        <StatusLabel slot={slot} />
+                      </p>
+                    </div>
+                  </div>
+                ))}
 
-      <button
-        type="button"
-        disabled={uploadingBatch || !hasIdle}
-        onClick={() => void uploadPending()}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <UploadIcon />
-        {uploadingBatch ? "Uploading…" : "Upload files"}
-      </button>
+                {slots.length > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      className="upload-carousel-nav upload-carousel-nav--prev"
+                      aria-label="Previous photo"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCarouselIndex(
+                          (i) => (i - 1 + slots.length) % slots.length,
+                        );
+                      }}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      className="upload-carousel-nav upload-carousel-nav--next"
+                      aria-label="Next photo"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCarouselIndex((i) => (i + 1) % slots.length);
+                      }}
+                    >
+                      ›
+                    </button>
+                  </>
+                ) : null}
+              </div>
 
-      {readyToAnalyze && (
-        <button
-          type="button"
-          disabled={analyzing}
-          onClick={() => void runAnalysis()}
-          className="mt-3 w-full rounded-full bg-neutral-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {analyzing ? "Generating report…" : "Generate free report"}
-        </button>
-      )}
+              <div className="mt-2 flex items-center justify-between gap-3">
+                {slots.length > 1 ? (
+                  <div
+                    className="upload-carousel-dots !mt-0"
+                    role="tablist"
+                    aria-label="Photos"
+                  >
+                    {slots.map((slot, i) => (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={i === carouselIndex}
+                        aria-label={`Show photo ${i + 1}`}
+                        className={`upload-carousel-dot ${
+                          i === carouselIndex ? "is-active" : ""
+                        }`}
+                        onClick={() => setCarouselIndex(i)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-neutral-500">
+                    {acceptedCount} accepted
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeSlot(activeSlot.id)}
+                  className="rounded-full border border-neutral-300/80 bg-white/40 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-white/70"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="upload-media-empty upload-glass-inset flex h-full min-h-[9rem] flex-col items-center justify-center px-4 py-5 text-center">
+              <p className="text-sm font-medium text-neutral-700">
+                Preview appears here
+              </p>
+              <p className="mt-1 max-w-[14rem] text-xs leading-relaxed text-neutral-400">
+                Add {MIN_PHOTOS}–{MAX_PHOTOS} portraits to review frames side by
+                side with your upload controls.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <PhotoExamplesGuide />
 
       <div
         className={`upload-toast ${approvalToast ? "is-visible" : ""}`}
@@ -545,14 +595,6 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           </button>
         </div>
       </div>
-
-      <p className="mt-3 text-center text-xs text-neutral-400">
-        {acceptedCount} of {MIN_PHOTOS}–{MAX_PHOTOS} accepted
-        {consent.retainForTracking
-          ? " · photos retained for tracking"
-          : " · photos deleted after report"}
-        {readyToAnalyze ? " — ready for analysis" : ""}
-      </p>
     </div>
   );
 }
@@ -571,17 +613,17 @@ function PersonalizationFields({
   const remaining = USER_NOTE_MAX_LENGTH - userNote.length;
 
   return (
-    <div className="upload-glass-inset mt-5 px-3.5 py-3.5 text-left">
-      <p className="upload-eyebrow">Optional focus</p>
-      <p className="mt-1 text-sm font-medium text-neutral-900">
-        What are you most curious about?
-      </p>
-      <p className="mt-1 text-[12px] leading-snug text-neutral-500">
-        Tap any that matter — we&apos;ll prioritize those recommendations. Scores
-        stay the same either way.
-      </p>
+    <div className="upload-glass-inset mt-2.5 px-2.5 py-2.5">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="upload-eyebrow">Optional focus</p>
+          <p className="mt-0.5 text-[13px] font-medium text-neutral-900">
+            What are you most curious about?
+          </p>
+        </div>
+      </div>
 
-      <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
+      <div className="mt-2 flex flex-wrap gap-1.5">
         {PRIORITY_FEATURE_OPTIONS.map(({ key, label }) => {
           const selected = priorityFeatures.includes(key);
           return (
@@ -590,7 +632,7 @@ function PersonalizationFields({
               type="button"
               aria-pressed={selected}
               onClick={() => onToggle(key)}
-              className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition ${
+              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition ${
                 selected
                   ? "border-[var(--accent)] bg-[var(--accent-soft)]/80 text-[var(--accent)]"
                   : "border-white/50 bg-white/35 text-neutral-600 hover:bg-white/55"
@@ -602,19 +644,19 @@ function PersonalizationFields({
         })}
       </div>
 
-      <label className="mt-4 block">
+      <label className="mt-2 block">
         <span className="sr-only">Anything else you&apos;d like us to focus on?</span>
         <textarea
           value={userNote}
           onChange={(e) =>
             onNoteChange(e.target.value.slice(0, USER_NOTE_MAX_LENGTH))
           }
-          rows={2}
+          rows={1}
           maxLength={USER_NOTE_MAX_LENGTH}
           placeholder="Anything else you'd like us to focus on?"
-          className="w-full resize-none rounded-xl border border-white/50 bg-white/45 px-3 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+          className="w-full resize-none rounded-xl border border-white/50 bg-white/45 px-3 py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
         />
-        <span className="mt-1 block text-right text-[11px] text-neutral-400">
+        <span className="mt-0.5 block text-right text-[10px] text-neutral-400">
           {remaining} left
         </span>
       </label>
@@ -696,24 +738,24 @@ function UploadIcon() {
 function FileStackGraphic() {
   const labels = ["JPEG", "JPG", "PNG"] as const;
   return (
-    <div className="relative h-16 w-24" aria-hidden>
+    <div className="relative h-12 w-[4.5rem] shrink-0" aria-hidden>
       {labels.map((label, i) => (
         <div
           key={label}
-          className="absolute top-0 h-16 w-12 overflow-hidden rounded-md border border-white bg-white shadow-md"
+          className="absolute top-0 h-12 w-9 overflow-hidden rounded-md border border-white bg-white shadow-md"
           style={{
-            left: `${i * 18}px`,
+            left: `${i * 14}px`,
             transform: `rotate(${(i - 1) * 8}deg)`,
             zIndex: i + 1,
           }}
         >
-          <div className="bg-[var(--accent)] px-1 py-0.5 text-center text-[7px] font-bold tracking-wide text-white">
+          <div className="bg-[var(--accent)] px-0.5 py-0.5 text-center text-[6px] font-bold tracking-wide text-white">
             {label}
           </div>
-          <div className="flex h-[calc(100%-16px)] items-center justify-center bg-neutral-50">
+          <div className="flex h-[calc(100%-14px)] items-center justify-center bg-neutral-50">
             <svg
               viewBox="0 0 24 24"
-              className="size-5 text-neutral-300"
+              className="size-4 text-neutral-300"
               fill="currentColor"
             >
               <path d="M5 5h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zm2 10l3-4 2 2.5L15 9l4 6H7z" />

@@ -11,12 +11,12 @@
 /* Centered stage: portrait as atmosphere, glass card as hero */
 .upload-stage {
   position: relative;
-  min-height: calc(100svh - 4rem);
+  min-height: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 5.5rem 1.25rem 2.5rem;
-  overflow: hidden;
+  padding: 4.75rem 1.25rem 1.25rem;
+  overflow: visible;
 }
 
 .upload-stage-portrait {
@@ -56,21 +56,147 @@
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 36rem;
+  max-width: 58rem;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
 }
 
 .upload-stage-card {
   position: relative;
   z-index: 3;
   width: 100%;
-  max-height: calc(100svh - 6.5rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
+}
+
+.upload-layout {
+  display: grid;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.upload-layout-copy,
+.upload-layout-media {
+  min-width: 0;
+}
+
+.upload-layout-media {
+  display: flex;
+  flex-direction: column;
+}
+
+.upload-media-empty {
+  flex: 1;
+}
+
+/* Good vs bad photo guidance */
+.upload-photo-guide {
+  margin-top: 0.55rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.upload-photo-guide-row {
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0.5rem 0.55rem 0.55rem;
+}
+
+.upload-photo-guide-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.upload-photo-guide-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  border-radius: 999px;
+  color: #fff;
+}
+
+.upload-photo-guide-row--good .upload-photo-guide-icon {
+  background: #22c55e;
+}
+
+.upload-photo-guide-row--bad .upload-photo-guide-icon {
+  background: #ef4444;
+}
+
+.upload-photo-guide-icon svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.upload-photo-guide-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(23, 23, 23, 0.92);
+  line-height: 1.2;
+}
+
+.upload-photo-guide-desc {
+  margin-top: 0.1rem;
+  font-size: 0.625rem;
+  line-height: 1.35;
+  color: rgba(82, 82, 91, 0.85);
+}
+
+.upload-photo-guide-scroller {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.upload-photo-guide-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.upload-photo-guide-thumb {
+  flex: 0 0 auto;
+  width: 3.15rem;
+  height: 3.15rem;
+  border-radius: 0.55rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.upload-photo-guide-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 18%;
+}
+
+.upload-photo-guide-row--bad .upload-photo-guide-thumb img {
+  object-position: 50% 40%;
+}
+
+@media (min-width: 900px) {
+  .upload-photo-guide {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.65rem;
+  }
+
+  .upload-photo-guide-thumb {
+    width: 3.4rem;
+    height: 3.4rem;
+  }
 }
 
 /* Shared glass panel */
@@ -117,9 +243,9 @@
 .upload-carousel-track {
   position: relative;
   width: 100%;
-  height: min(56svh, 30rem);
+  height: min(28svh, 14rem);
   overflow: hidden;
-  border-radius: 1.5rem;
+  border-radius: 1.1rem;
 }
 
 .upload-carousel-slide {
@@ -164,7 +290,7 @@
   inset-inline: 0;
   bottom: 0;
   z-index: 2;
-  padding: 1.1rem 1.15rem 1.15rem;
+  padding: 0.75rem 0.85rem 0.85rem;
   color: #fff;
 }
 
@@ -219,17 +345,28 @@
   right: 0.65rem;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 900px) {
   .upload-stage {
-    padding: 6rem 2rem 3rem;
+    padding: 4.85rem 2rem 1.5rem;
   }
 
-  .upload-stage-inner {
-    max-width: 38rem;
+  .upload-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 0.9rem;
+  }
+
+  .upload-carousel-track {
+    height: min(36svh, 16.5rem);
   }
 
   .upload-stage-portrait {
     opacity: 0.62;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 899px) {
+  .upload-stage {
+    padding: 5rem 2rem 1.5rem;
   }
 }
 
@@ -239,7 +376,7 @@
   }
 
   .upload-carousel-track {
-    height: min(48svh, 24rem);
+    height: min(24svh, 12rem);
   }
 }
 

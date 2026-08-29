@@ -225,6 +225,10 @@
   gap: 1rem;
 }
 
+.account-dash__outfit {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 1024px) {
   .account-dash__grid {
     grid-template-columns: 1fr;

@@ -1,11 +1,12 @@
 /**
- * Privacy consent — PRODUCT.md:
- * Default analyze → report → delete source photos.
- * Opt-in to retain for tracking. Separate opt-in for training.
+ * Upload privacy defaults — PRODUCT.md:
+ * Analyze → report → delete extras by default.
+ * Tracking / training remain off unless the product later exposes settings.
+ * Full conditions live on /privacy.
  */
 
 export interface UploadConsent {
-  /** Required: user understands analysis will run on their photos. */
+  /** User proceeds under Privacy Policy terms (analysis allowed). */
   analysisAcknowledged: boolean;
   /** Default false: delete source photos after report. */
   retainForTracking: boolean;
@@ -16,9 +17,19 @@ export interface UploadConsent {
 
 export const CONSENT_STORAGE_KEY = "zelko.uploadConsent";
 
+/** Defaults applied when the user starts an upload (no consent gate). */
+export function acceptedUploadConsent(): UploadConsent {
+  return {
+    analysisAcknowledged: true,
+    retainForTracking: false,
+    allowTraining: false,
+    acceptedAt: new Date().toISOString(),
+  };
+}
+
 export function defaultConsentDraft(): Omit<UploadConsent, "acceptedAt"> {
   return {
-    analysisAcknowledged: false,
+    analysisAcknowledged: true,
     retainForTracking: false,
     allowTraining: false,
   };

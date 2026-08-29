@@ -87,9 +87,9 @@ export function OutfitStudioSection() {
             See yourself in the look — not just the score.
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-neutral-500 sm:text-[15px]">
-            From your report, Zelko recommends one outfit that complements your
-            face, eyes, and hair — then generates you in it. One free look;
-            another requires Pro.
+            From your report, Zelko recommends outfits that complement your
+            face, eyes, and hair — then generates you in them. Signed-in users
+            get up to 3 stills.
           </p>
           <ul className="mt-6 space-y-2 text-sm text-neutral-500">
             <li className="flex gap-2">

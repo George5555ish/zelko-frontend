@@ -1,26 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { ConsentGate } from "@/components/ConsentGate";
 import { PhotoUpload } from "@/components/PhotoUpload";
-import {
-  clearStoredConsent,
-  readStoredConsent,
-  type UploadConsent,
-} from "@/lib/consent";
+import { acceptedUploadConsent } from "@/lib/consent";
 import "@/app/upload/upload.css";
 
 export function UploadExperience() {
-  const [consent, setConsent] = useState<UploadConsent | null>(null);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setConsent(readStoredConsent());
-    setHydrated(true);
-  }, []);
+  const consent = acceptedUploadConsent();
 
   return (
     <main className="upload-page text-neutral-900">
@@ -41,42 +30,18 @@ export function UploadExperience() {
 
         <div className="upload-stage-inner">
           <div className="upload-stage-card">
-            {consent && (
-              <div className="upload-glass mb-4 px-4 py-3 text-center text-sm text-neutral-600">
-                <p>
-                  Retention:{" "}
-                  <span className="font-medium text-neutral-900">
-                    {consent.retainForTracking
-                      ? "Keep for tracking"
-                      : "Delete after report"}
-                  </span>
-                  {" · "}
-                  Training:{" "}
-                  <span className="font-medium text-neutral-900">
-                    {consent.allowTraining ? "Allowed" : "Not allowed"}
-                  </span>
-                </p>
-                <button
-                  type="button"
-                  className="mt-1.5 text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
-                  onClick={() => {
-                    clearStoredConsent();
-                    setConsent(null);
-                  }}
-                >
-                  Edit consent
-                </button>
-              </div>
-            )}
-
             <div className="upload-stage-card-body">
-              {!hydrated ? (
-                <div className="upload-glass h-[22rem] animate-pulse" />
-              ) : consent ? (
-                <PhotoUpload consent={consent} />
-              ) : (
-                <ConsentGate onAccepted={setConsent} />
-              )}
+              <PhotoUpload consent={consent} />
+              <p className="mt-2 text-center text-[11px] leading-relaxed text-neutral-400">
+                By uploading you agree to how we handle photos under our{" "}
+                <Link
+                  href="/privacy"
+                  className="font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </p>
             </div>
           </div>
         </div>

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 /** Accurate data-handling statement — matches current product behavior. */
 
 export function PrivacyDataStatement({
@@ -11,6 +13,10 @@ export function PrivacyDataStatement({
   const strong = tone === "dark" ? "text-white/85" : "text-neutral-800";
   const border =
     tone === "dark" ? "border-white/10 bg-white/5" : "border-neutral-200 bg-white";
+  const link =
+    tone === "dark"
+      ? "text-white underline-offset-2 hover:underline"
+      : "text-neutral-900 underline-offset-2 hover:underline";
 
   return (
     <aside
@@ -20,14 +26,13 @@ export function PrivacyDataStatement({
       <ul className={`mt-2 list-disc space-y-1.5 pl-4 ${compact ? "" : ""}`}>
         <li>
           We do <span className={strong}>not</span> use your photos to train AI
-          models unless you separately opt in on the consent screen (off by
-          default).
+          models unless you separately and explicitly allow it (off by default).
         </li>
         <li>
           Extra upload photos are deleted after analysis by default. We keep a{" "}
           <span className={strong}>portrait copy for your report display</span>{" "}
-          so scores stay tied to the face you measured. Opt in to retain sources
-          only if you want paid tracking comparisons.
+          so scores stay tied to the face you measured. Sources are retained only
+          when needed for paid tracking.
         </li>
         <li>
           If you upload a <span className={strong}>reference look</span> photo,
@@ -48,6 +53,13 @@ export function PrivacyDataStatement({
           account at any time.
         </li>
       </ul>
+      <p className="mt-3">
+        Full terms:{" "}
+        <Link href="/privacy" className={`font-medium ${link}`}>
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </aside>
   );
 }

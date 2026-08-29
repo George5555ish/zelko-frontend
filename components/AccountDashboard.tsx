@@ -26,6 +26,7 @@ import {
 import { isFeatureMeasurable } from "@/lib/score-tone";
 import { recommendationsForScore } from "@/lib/recommendations";
 import { LookTrackPanel } from "@/components/report/LookTrackPanel";
+import { OutfitRecommendPanel } from "@/components/report/OutfitRecommendPanel";
 import type { DashboardTheme } from "@/hooks/useDashboardTheme";
 import "./account-dash.css";
 
@@ -463,7 +464,7 @@ export function AccountDashboard({
                 </h2>
                 <p className="mt-1 max-w-xl text-sm text-white/50">
                   Full feature breakdown, confidence labels, weekly tracking,
-                  checklist, and up to 3 outfit stills — £9.99/mo.
+                  and checklist — £9.99/mo.
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
@@ -729,6 +730,18 @@ export function AccountDashboard({
                 </section>
               </div>
             </div>
+
+            {latest ? (
+              <section className="account-dash__outfit">
+                <OutfitRecommendPanel
+                  baselineReportId={latest.id}
+                  isAuthed
+                  compact
+                  reportPath="/dashboard"
+                  onUserChange={onUserChange}
+                />
+              </section>
+            ) : null}
           </div>
           ) : null}
 
@@ -766,9 +779,9 @@ export function AccountDashboard({
               </h2>
               <ul className="mt-3 space-y-1.5 text-sm text-white/50">
                 <li>Composite score + strongest features preview</li>
-                <li>1 outfit still</li>
+                <li>Up to 3 outfit stills</li>
                 <li className="text-white/35">
-                  Pro adds full breakdown, tracking, checklist, and more outfits
+                  Pro adds full breakdown, tracking, and checklist
                 </li>
               </ul>
               <Link

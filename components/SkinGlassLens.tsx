@@ -14,6 +14,10 @@ export type SkinGlassLensStop = {
   /** Lens top-left as fractions of the parent box */
   x: number;
   y: number;
+  /** Extra pixel nudge after the fractional position (e.g. push down on tall heroes). */
+  offsetYPx?: number;
+  /** Extra horizontal pixel nudge after the fractional position. */
+  offsetXPx?: number;
   label: string;
   motion: "orbit" | "figure8" | "sweep" | "bob" | "zigzag";
 };
@@ -99,6 +103,11 @@ type SkinGlassLensProps = {
   useVideoZoom?: boolean;
   /** Keep the zoom canvas locked to this element's frames */
   syncVideoRef?: RefObject<HTMLVideoElement | null>;
+  /**
+   * Box used for % positioning + video cover math.
+   * Defaults to the lens parent — pass the hero stage when the lens is wrapped.
+   */
+  containerRef?: RefObject<HTMLElement | null>;
   /** Multi-stop cycle (MainHero) */
   stops?: readonly SkinGlassLensStop[];
   /** Single stop (LandingHero batches) — preferred over ephemeral `[lens]` arrays */
@@ -130,6 +139,7 @@ export function SkinGlassLens({
   imageSrc,
   useVideoZoom = false,
   syncVideoRef,
+  containerRef,
   stops: stopsProp,
   stop,
   objectPosition = "50% 50%",
@@ -144,7 +154,12 @@ export function SkinGlassLens({
   lite = false,
 }: SkinGlassLensProps) {
   const stops = stopsProp ?? (stop ? [stop] : []);
-  const stopKey = stops.map((s) => `${s.label}:${s.x}:${s.y}:${s.motion}`).join("|");
+  const stopKey = stops
+    .map(
+      (s) =>
+        `${s.label}:${s.x}:${s.y}:${s.offsetXPx ?? 0}:${s.offsetYPx ?? 0}:${s.motion}`,
+    )
+    .join("|");
   const lensRef = useRef<HTMLDivElement>(null);
   const zoomImgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -153,6 +168,8 @@ export function SkinGlassLens({
   const stopsRef = useRef(stops);
   stopsRef.current = stops;
   const posRef = useRef({ x: stops[0]?.x ?? 0, y: stops[0]?.y ?? 0 });
+  const offsetXPxRef = useRef(stops[0]?.offsetXPx ?? 0);
+  const offsetYPxRef = useRef(stops[0]?.offsetYPx ?? 0);
   const objectPos = parseObjectPosition(objectPosition);
   const [ready, setReady] = useState(false);
   const [label, setLabel] = useState(stops[0]?.label ?? "");
@@ -172,10 +189,10 @@ export function SkinGlassLens({
     if (!ready || stops.length === 0) return;
 
     const lens = lensRef.current;
-    const parent = lens?.parentElement;
+    const parent = containerRef?.current ?? lens?.offsetParent ?? lens?.parentElement;
     const img = zoomImgRef.current;
     const canvas = canvasRef.current;
-    if (!lens || !parent) return;
+    if (!lens || !parent || !(parent instanceof HTMLElement)) return;
     if (useVideoZoom && !canvas) return;
     if (!useVideoZoom && !img) return;
 
@@ -192,6 +209,10 @@ export function SkinGlassLens({
       const source = syncVideoRefStable.current?.current;
       if (!source || source.readyState < 2) return;
 
+      const mediaW = source.videoWidth;
+      const mediaH = source.videoHeight;
+      if (!mediaW || !mediaH) return;
+
       const pw = parent.clientWidth;
       const ph = parent.clientHeight;
       const size = lens.offsetWidth;
@@ -205,8 +226,8 @@ export function SkinGlassLens({
       }
 
       const { scale, offsetX, offsetY } = coverLayout(
-        source.videoWidth || source.clientWidth,
-        source.videoHeight || source.clientHeight,
+        mediaW,
+        mediaH,
         pw,
         ph,
         objectPos.x,
@@ -214,33 +235,53 @@ export function SkinGlassLens({
       );
 
       const { x: xFrac, y: yFrac } = posRef.current;
-      const cx = xFrac * pw + size / 2;
-      const cy = yFrac * ph + size / 2;
+      const cx = xFrac * pw + offsetXPxRef.current + size / 2;
+      const cy = yFrac * ph + offsetYPxRef.current + size / 2;
       const view = size / LENS_ZOOM;
       const left = cx - view / 2;
       const top = cy - view / 2;
 
-      const sx = (left - offsetX) / scale;
-      const sy = (top - offsetY) / scale;
-      const sw = view / scale;
-      const sh = view / scale;
+      let sx = (left - offsetX) / scale;
+      let sy = (top - offsetY) / scale;
+      let sw = view / scale;
+      let sh = view / scale;
 
-      ctx.fillStyle = "#111";
-      ctx.fillRect(0, 0, pixel, pixel);
+      // Keep sample rect inside the video frame so we never paint empty black.
+      if (sw > mediaW) {
+        sx = 0;
+        sw = mediaW;
+      } else {
+        sx = Math.max(0, Math.min(sx, mediaW - sw));
+      }
+      if (sh > mediaH) {
+        sy = 0;
+        sh = mediaH;
+      } else {
+        sy = Math.max(0, Math.min(sy, mediaH - sh));
+      }
+
       try {
         ctx.drawImage(source, sx, sy, sw, sh, 0, 0, pixel, pixel);
       } catch {
-        /* video frame not ready */
+        ctx.fillStyle = "#1a1c20";
+        ctx.fillRect(0, 0, pixel, pixel);
       }
     };
 
-    const moveLens = (xFrac: number, yFrac: number) => {
+    const moveLens = (
+      xFrac: number,
+      yFrac: number,
+      offsetXPx = offsetXPxRef.current,
+      offsetYPx = offsetYPxRef.current,
+    ) => {
       posRef.current = { x: xFrac, y: yFrac };
+      offsetXPxRef.current = offsetXPx;
+      offsetYPxRef.current = offsetYPx;
       const pw = parent.clientWidth;
       const ph = parent.clientHeight;
       const size = lens.offsetWidth;
-      const left = xFrac * pw;
-      const top = yFrac * ph;
+      const left = xFrac * pw + offsetXPx;
+      const top = yFrac * ph + offsetYPx;
 
       lens.style.left = `${left}px`;
       lens.style.top = `${top}px`;
@@ -255,8 +296,13 @@ export function SkinGlassLens({
       }
     };
 
-    const placeAt = (xFrac: number, yFrac: number) => {
-      moveLens(xFrac, yFrac);
+    const placeAt = (
+      xFrac: number,
+      yFrac: number,
+      offsetXPx = offsetXPxRef.current,
+      offsetYPx = offsetYPxRef.current,
+    ) => {
+      moveLens(xFrac, yFrac, offsetXPx, offsetYPx);
       if (useVideoZoom) paintCanvas();
     };
 
@@ -270,7 +316,9 @@ export function SkinGlassLens({
 
     const startPan = (stop: SkinGlassLensStop) => {
       stopPan();
-      placeAt(stop.x, stop.y);
+      const ox = stop.offsetXPx ?? 0;
+      const oy = stop.offsetYPx ?? 0;
+      placeAt(stop.x, stop.y, ox, oy);
       if (reduced) return;
 
       const origin = performance.now();
@@ -283,13 +331,13 @@ export function SkinGlassLens({
         const t = ((now - origin) % PAN_PERIOD_MS) / PAN_PERIOD_MS;
         const { dx, dy } = offsetForMotion(stop.motion, t);
         if (paintEveryMs > 0) {
-          moveLens(stop.x + dx, stop.y + dy);
+          moveLens(stop.x + dx, stop.y + dy, ox, oy);
           if (now - lastPaint >= paintEveryMs) {
             paintCanvas();
             lastPaint = now;
           }
         } else {
-          placeAt(stop.x + dx, stop.y + dy);
+          placeAt(stop.x + dx, stop.y + dy, ox, oy);
         }
         raf = window.requestAnimationFrame(tick);
       };
@@ -301,7 +349,12 @@ export function SkinGlassLens({
       const list = stopsRef.current;
       const current = list[index];
       if (!current) return;
-      placeAt(current.x, current.y);
+      placeAt(
+        current.x,
+        current.y,
+        current.offsetXPx ?? 0,
+        current.offsetYPx ?? 0,
+      );
       setLabel(current.label);
       setVisible(true);
       startPan(current);
@@ -312,7 +365,12 @@ export function SkinGlassLens({
       dwellTimer = window.setTimeout(() => {
         if (cancelled) return;
         stopPan();
-        placeAt(current.x, current.y);
+        placeAt(
+          current.x,
+          current.y,
+          current.offsetXPx ?? 0,
+          current.offsetYPx ?? 0,
+        );
         setVisible(false);
         fadeTimer = window.setTimeout(() => {
           if (cancelled) return;
@@ -341,12 +399,12 @@ export function SkinGlassLens({
 
     const first = stopsRef.current[0];
     if (!first) return;
-    placeAt(first.x, first.y);
+    placeAt(first.x, first.y, first.offsetXPx ?? 0, first.offsetYPx ?? 0);
     setLabel(first.label);
 
     if (exiting) {
       setVisible(true);
-      placeAt(first.x, first.y);
+      placeAt(first.x, first.y, first.offsetXPx ?? 0, first.offsetYPx ?? 0);
       fadeTimer = window.setTimeout(() => {
         if (cancelled) return;
         setVisible(false);
@@ -358,7 +416,14 @@ export function SkinGlassLens({
     const onResize = () => {
       const list = stopsRef.current;
       const current = list[stopIndex] ?? list[0];
-      if (current) placeAt(current.x, current.y);
+      if (current) {
+        placeAt(
+          current.x,
+          current.y,
+          current.offsetXPx ?? 0,
+          current.offsetYPx ?? 0,
+        );
+      }
     };
     window.addEventListener("resize", onResize);
 
@@ -381,6 +446,7 @@ export function SkinGlassLens({
     exiting,
     useVideoZoom,
     lite,
+    containerRef,
     objectPos.x,
     objectPos.y,
   ]);

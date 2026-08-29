@@ -23,11 +23,11 @@ const FAQS = [
   },
   {
     q: "What about outfit stills?",
-    a: "From your report you can generate one AI-recommended outfit that complements your face, eyes, and hair. Free includes that one still; another requires Pro (up to 3). These are generative fashion previews, not medical or clinical advice.",
+    a: "From your report you can generate AI-recommended outfits that complement your face, eyes, and hair. Signed-in users get up to 3 stills. These are generative fashion previews, not medical or clinical advice.",
   },
   {
     q: "What’s free vs paid?",
-    a: "Free always includes your overall composite score plus your top 1–2 strongest features, and one AI-recommended outfit still from your report. Paid unlocks the full breakdown, confidence labels, a trackable action checklist, re-upload tracking, and more outfit stills (up to 3).",
+    a: "Free always includes your overall composite score plus your top 1–2 strongest features, and up to 3 AI outfit stills when signed in. Paid unlocks the full breakdown, confidence labels, a trackable action checklist, and re-upload tracking.",
   },
   {
     q: "How do recommendations work?",

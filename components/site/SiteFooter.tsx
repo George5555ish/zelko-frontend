@@ -60,6 +60,11 @@ export function SiteFooter() {
                 Contact
               </Link>
             </li>
+            <li>
+              <Link href="/privacy" className="transition hover:text-neutral-950">
+                Privacy Policy
+              </Link>
+            </li>
           </ul>
         </div>
       </div>

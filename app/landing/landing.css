@@ -47,7 +47,7 @@
   opacity: 0;
   transform: scale(0.28);
   transition-property: opacity, transform;
-  transition-duration: 1000ms, 1300ms;
+  transition-duration: 280ms, 320ms;
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1),
     cubic-bezier(0.16, 1, 0.3, 1);
   will-change: left, top, opacity, transform;
@@ -59,10 +59,11 @@
   transform: scale(1);
 }
 
-/* Smaller field lenses — fade out mainly via opacity */
+/* Field lenses — thin glass rim, live video zoom fill */
 .skin-glass-lens--field {
-  width: clamp(1.9rem, 6.5vw, 2.75rem);
-  transform: scale(0.92);
+  width: clamp(1.38rem, 2.76vw, 2.03rem);
+  transform: scale(0.9);
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
 }
 
 .skin-glass-lens--field.is-active {
@@ -70,10 +71,49 @@
   transform: scale(1);
 }
 
+.skin-glass-lens--field .skin-glass-lens__ring {
+  border: 1.25px solid rgba(255, 255, 255, 0.72);
+  background: transparent;
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.35),
+    0 8px 20px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.skin-glass-lens--field .skin-glass-lens__zoom {
+  inset: 2px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+}
+
+.skin-glass-lens--field .skin-glass-lens__zoom-canvas {
+  filter: contrast(1.12) saturate(1.08) brightness(1.03);
+}
+
+.skin-glass-lens--field .skin-glass-lens__glare {
+  inset: 2px;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse 60% 42% at 30% 24%,
+    rgba(255, 255, 255, 0.38) 0%,
+    rgba(255, 255, 255, 0.08) 34%,
+    transparent 58%
+  );
+  box-shadow: none;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
 .skin-glass-lens--field .skin-glass-lens__label {
-  font-size: 0.55rem;
+  font-size: 0.45rem;
+  letter-spacing: 0.08em;
   top: calc(100% + 0.35rem);
   opacity: inherit;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.65),
+    0 0 12px rgba(0, 0, 0, 0.35);
 }
 
 .skin-glass-lens__ring {

@@ -1,0 +1,397 @@
+/* [project]/app/upload/upload.css [app-client] (css) */
+.upload-page {
+  background: radial-gradient(90% 70% at 50% -10%, rgba(186, 170, 220, .35), rgba(0, 0, 0, 0) 55%), radial-gradient(60% 50% at 100% 80%, rgba(160, 190, 210, .22), rgba(0, 0, 0, 0) 50%), radial-gradient(50% 40% at 0 60%, rgba(210, 180, 160, .18), rgba(0, 0, 0, 0) 45%), #f3f0f8;
+  min-height: 100svh;
+  overflow-x: clip;
+}
+
+.upload-stage {
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 0;
+  padding: 4.75rem 1.25rem 1.25rem;
+  display: flex;
+  position: relative;
+  overflow: visible;
+}
+
+.upload-stage-portrait {
+  pointer-events: none;
+  z-index: 0;
+  opacity: .55;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.upload-stage-portrait img, .upload-stage-portrait > span {
+  object-fit: cover;
+  object-position: 42% 12%;
+}
+
+.upload-stage-portrait-fade {
+  background: radial-gradient(55% 70% at 50% 42%, rgba(0, 0, 0, 0) 0%, rgba(243, 240, 248, .35) 55%, rgba(243, 240, 248, .92) 100%), linear-gradient(rgba(243, 240, 248, .75) 0%, rgba(0, 0, 0, 0) 18%, rgba(0, 0, 0, 0) 72%, rgba(243, 240, 248, .95) 100%);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.upload-stage-inner {
+  z-index: 2;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 58rem;
+  margin: 0 auto;
+  display: flex;
+  position: relative;
+}
+
+.upload-stage-card {
+  z-index: 3;
+  width: 100%;
+  position: relative;
+}
+
+.upload-layout {
+  align-items: stretch;
+  gap: .75rem;
+  display: grid;
+}
+
+.upload-layout-copy, .upload-layout-media {
+  min-width: 0;
+}
+
+.upload-layout-media {
+  flex-direction: column;
+  display: flex;
+}
+
+.upload-media-empty {
+  flex: 1;
+}
+
+.upload-photo-guide {
+  gap: .45rem;
+  margin-top: .55rem;
+  display: grid;
+}
+
+.upload-photo-guide-row {
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, .22);
+  border: 1px solid rgba(255, 255, 255, .45);
+  border-radius: .95rem;
+  padding: .5rem .55rem .55rem;
+}
+
+.upload-photo-guide-heading {
+  align-items: flex-start;
+  gap: .45rem;
+  display: flex;
+}
+
+.upload-photo-guide-icon {
+  color: #fff;
+  border-radius: 999px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: .05rem;
+  display: inline-flex;
+}
+
+.upload-photo-guide-row--good .upload-photo-guide-icon {
+  background: #22c55e;
+}
+
+.upload-photo-guide-row--bad .upload-photo-guide-icon {
+  background: #ef4444;
+}
+
+.upload-photo-guide-icon svg {
+  width: .7rem;
+  height: .7rem;
+}
+
+.upload-photo-guide-title {
+  color: rgba(23, 23, 23, .92);
+  font-size: .75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.upload-photo-guide-desc {
+  color: rgba(82, 82, 91, .85);
+  margin-top: .1rem;
+  font-size: .625rem;
+  line-height: 1.35;
+}
+
+.upload-photo-guide-scroller {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  gap: .35rem;
+  margin-top: .4rem;
+  padding-bottom: 0;
+  display: flex;
+  overflow-x: auto;
+}
+
+.upload-photo-guide-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.upload-photo-guide-thumb {
+  background: rgba(255, 255, 255, .35);
+  border: 1px solid rgba(255, 255, 255, .55);
+  border-radius: .55rem;
+  flex: none;
+  width: 3.15rem;
+  height: 3.15rem;
+  overflow: hidden;
+}
+
+.upload-photo-guide-thumb img {
+  object-fit: cover;
+  object-position: 50% 18%;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.upload-photo-guide-row--bad .upload-photo-guide-thumb img {
+  object-position: 50% 40%;
+}
+
+@media (min-width: 900px) {
+  .upload-photo-guide {
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+    margin-top: .65rem;
+  }
+
+  .upload-photo-guide-thumb {
+    width: 3.4rem;
+    height: 3.4rem;
+  }
+}
+
+.upload-glass {
+  -webkit-backdrop-filter: blur(28px) saturate(1.35);
+  background: linear-gradient(155deg, rgba(255, 255, 255, .52) 0%, rgba(255, 255, 255, .28) 48%, rgba(240, 235, 255, .35) 100%);
+  border: 1px solid rgba(255, 255, 255, .55);
+  border-radius: 1.75rem;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .65), 0 28px 70px -28px rgba(40, 25, 70, .35), 0 8px 24px -12px rgba(80, 60, 120, .18);
+}
+
+.upload-glass-inset {
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, .22);
+  border: 1px solid rgba(255, 255, 255, .45);
+  border-radius: 1.25rem;
+}
+
+.upload-eyebrow {
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: rgba(80, 70, 100, .55);
+  font-size: .6875rem;
+  font-weight: 500;
+}
+
+.upload-carousel {
+  width: 100%;
+  position: relative;
+}
+
+.upload-carousel-track {
+  border-radius: 1.1rem;
+  width: 100%;
+  height: min(28svh, 14rem);
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-carousel-slide {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .52s cubic-bezier(.22, 1, .36, 1), transform .52s cubic-bezier(.22, 1, .36, 1);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transform: scale(.985);
+}
+
+.upload-carousel-slide.is-active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.upload-carousel-slide img {
+  object-fit: cover;
+  object-position: 50% 18%;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.upload-carousel-veil {
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(20, 16, 36, .72) 0%, rgba(20, 16, 36, .15) 42%, rgba(0, 0, 0, 0) 70%);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.upload-carousel-meta {
+  left: 0;
+  right: 0;
+  z-index: 2;
+  color: #fff;
+  padding: .75rem .85rem .85rem;
+  position: absolute;
+  bottom: 0;
+}
+
+.upload-carousel-dots {
+  justify-content: center;
+  gap: .4rem;
+  margin-top: .85rem;
+  display: flex;
+}
+
+.upload-carousel-dot {
+  background: rgba(80, 70, 110, .28);
+  border-radius: 999px;
+  width: .35rem;
+  height: .35rem;
+  transition: width .28s, background .28s;
+}
+
+.upload-carousel-dot.is-active {
+  background: rgba(60, 45, 95, .85);
+  width: 1.35rem;
+}
+
+.upload-carousel-nav {
+  z-index: 3;
+  size: 2.25rem;
+  color: rgba(40, 30, 60, .85);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, .35);
+  border: 1px solid rgba(255, 255, 255, .5);
+  border-radius: 999px;
+  justify-content: center;
+  align-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  transition: background .2s;
+  display: flex;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.upload-carousel-nav:hover {
+  background: rgba(255, 255, 255, .55);
+}
+
+.upload-carousel-nav--prev {
+  left: .65rem;
+}
+
+.upload-carousel-nav--next {
+  right: .65rem;
+}
+
+@media (min-width: 900px) {
+  .upload-stage {
+    padding: 4.85rem 2rem 1.5rem;
+  }
+
+  .upload-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: .9rem;
+  }
+
+  .upload-carousel-track {
+    height: min(36svh, 16.5rem);
+  }
+
+  .upload-stage-portrait {
+    opacity: .62;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 899px) {
+  .upload-stage {
+    padding: 5rem 2rem 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .upload-stage-portrait {
+    opacity: .4;
+  }
+
+  .upload-carousel-track {
+    height: min(24svh, 12rem);
+  }
+}
+
+.upload-toast {
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  width: min(100% - 2rem, 26rem);
+  transition: opacity .32s cubic-bezier(.22, 1, .36, 1), transform .32s cubic-bezier(.22, 1, .36, 1);
+  position: fixed;
+  bottom: 1.75rem;
+  left: 50%;
+  transform: translateX(-50%)translateY(1.25rem);
+}
+
+.upload-toast.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%)translateY(0);
+}
+
+.upload-toast-card {
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  text-align: left;
+  background: linear-gradient(155deg, rgba(255, 255, 255, .82) 0%, rgba(255, 255, 255, .55) 100%);
+  border: 1px solid rgba(255, 255, 255, .55);
+  border-radius: 1.15rem;
+  align-items: flex-start;
+  gap: .85rem;
+  padding: .95rem 1rem;
+  display: flex;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .7), 0 22px 50px -18px rgba(40, 25, 70, .35);
+}
+
+.upload-toast-dot {
+  background: #16a34a;
+  border-radius: 999px;
+  flex-shrink: 0;
+  width: .5rem;
+  height: .5rem;
+  margin-top: .35rem;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, .15);
+}
+
+/*# sourceMappingURL=app_upload_upload_2b817a9e.css.map*/

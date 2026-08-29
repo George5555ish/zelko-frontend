@@ -14,52 +14,92 @@ const VIDEO_INTERVAL_MS = 4000;
 /** Crossfade length — must match `.hero-video-slide.is-fading-in` (~1s) */
 const VIDEO_FADE_MS = 1000;
 
-/** Face center in viewport — matches video `object-[52%_28%]` crop. */
-const FACE_CX = 0.52;
-const FACE_CY = 0.36;
+/** Face center on the hero video stage (mid-frame where the subject sits). */
+const FACE_CX = 0.5;
+const FACE_CY = 0.44;
 
 const LENS_BATCHES: SkinGlassLensStop[][] = [
   [
-    { x: FACE_CX - 0.08, y: FACE_CY - 0.12, label: "Skin clarity", motion: "orbit" },
-    { x: FACE_CX - 0.1, y: FACE_CY + 0.12, label: "Jawline definition", motion: "sweep" },
+    {
+      x: FACE_CX - 0.04,
+      y: FACE_CY + 0.1,
+      offsetYPx: 200,
+      label: "Skin clarity",
+      motion: "orbit",
+    },
+    {
+      x: FACE_CX - 0.06,
+      y: FACE_CY - 0.06,
+      offsetYPx: 200,
+      label: "Jawline definition",
+      motion: "sweep",
+    },
   ],
   [
-    { x: FACE_CX - 0.1, y: FACE_CY - 0.06, label: "Eye spacing", motion: "bob" },
-    { x: FACE_CX - 0.08, y: FACE_CY - 0.18, label: "Forehead tone", motion: "zigzag" },
+    {
+      x: FACE_CX - 0.055,
+      y: FACE_CY - 0.03,
+      offsetXPx: 50,
+      offsetYPx: -50,
+      label: "Eye spacing",
+      motion: "bob",
+    },
+    {
+      x: FACE_CX - 0.02,
+      y: FACE_CY - 0.1,
+      offsetXPx: 50,
+      offsetYPx: -50,
+      label: "Forehead tone",
+      motion: "zigzag",
+    },
   ],
   [
-    { x: FACE_CX - 0.08, y: FACE_CY + 0.06, label: "Lip definition", motion: "figure8" },
-    { x: FACE_CX + 0.02, y: FACE_CY - 0.04, label: "Cheek volume", motion: "orbit" },
+    {
+      x: FACE_CX,
+      y: FACE_CY + 0.05,
+      offsetXPx: -30,
+      offsetYPx: 100,
+      label: "Lip definition",
+      motion: "figure8",
+    },
+    {
+      x: FACE_CX + 0.06,
+      y: FACE_CY - 0.01,
+      offsetXPx: -30,
+      offsetYPx: 100,
+      label: "Cheek volume",
+      motion: "orbit",
+    },
   ],
 ];
 
 const LANDMARK_BATCHES = [
   [
-    { id: "forehead", x: FACE_CX, y: FACE_CY - 0.14 },
-    { id: "eye-l", x: FACE_CX - 0.045, y: FACE_CY - 0.05 },
+    { id: "forehead", x: FACE_CX, y: FACE_CY - 0.09 },
+    { id: "eye-l", x: FACE_CX - 0.04, y: FACE_CY - 0.03 },
   ],
   [
-    { id: "eye-r", x: FACE_CX + 0.045, y: FACE_CY - 0.05 },
-    { id: "cheek", x: FACE_CX + 0.08, y: FACE_CY + 0.02 },
+    { id: "eye-r", x: FACE_CX + 0.04, y: FACE_CY - 0.03 },
+    { id: "cheek", x: FACE_CX + 0.07, y: FACE_CY + 0.02 },
   ],
   [
-    { id: "lip", x: FACE_CX, y: FACE_CY + 0.1 },
-    { id: "jaw", x: FACE_CX, y: FACE_CY + 0.18 },
+    { id: "lip", x: FACE_CX, y: FACE_CY + 0.07 },
+    { id: "jaw", x: FACE_CX, y: FACE_CY + 0.13 },
   ],
 ] as const;
 
-const BATCH_STAGGER_MS = 700;
+const BATCH_STAGGER_MS = 280;
 const BATCH_DWELL_MS = 3800;
-const BATCH_FADE_MS = 900;
+const BATCH_FADE_MS = 280;
 const BATCH_GAP_MS = 3000;
 const BATCH_ENTER_BASE_MS = 0;
 const BATCH_START_DELAY_MS = 3000;
 const LENSES_MAX_MS = 30_000;
 
 const LM_START_DELAY_MS = 900;
-const LM_STAGGER_MS = 450;
+const LM_STAGGER_MS = 180;
 const LM_DWELL_MS = 2400;
-const LM_FADE_MS = 700;
+const LM_FADE_MS = 220;
 const LM_GAP_MS = 1400;
 
 function playFromStart(video: HTMLVideoElement | null) {
@@ -100,6 +140,7 @@ export function LandingHero() {
 
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
   const activeVideoSyncRef = useRef<HTMLVideoElement | null>(null);
+  const stageRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const id = window.setTimeout(() => setStarted(true), 60);
@@ -194,7 +235,10 @@ export function LandingHero() {
   }, [lensesReady, lensesDone, lensBatch]);
 
   return (
-    <section className="relative min-h-[100svh] overflow-hidden bg-[#2a3038] text-white">
+    <section
+      ref={stageRef}
+      className="relative min-h-[100svh] overflow-hidden bg-[#2a3038] text-white"
+    >
       <GlassPillNav />
 
       {/* Dual-video stage */}
@@ -220,7 +264,7 @@ export function LandingHero() {
                   videoRefs.current[i] = el;
                   if (isActive) activeVideoSyncRef.current = el;
                 }}
-                className="absolute inset-0 h-full w-full object-cover object-[52%_28%]"
+                className="absolute inset-0 h-full w-full object-cover object-[50%_32%]"
                 src={src}
                 muted
                 playsInline
@@ -260,27 +304,27 @@ export function LandingHero() {
           ))}
       </div>
 
-      {/* Glass measure lenses */}
+      {/* Glass measure lenses — positioned against the full hero stage */}
       {lensesReady &&
         !lensesDone &&
         (LENS_BATCHES[lensBatch] ?? []).map((lens, i) => {
           const batchLen = LENS_BATCHES[lensBatch]?.length ?? 1;
           return (
-            <div key={`${lensBatch}-${lens.label}`} className="max-lg:hidden">
-              <SkinGlassLens
-                active
-                useVideoZoom
-                syncVideoRef={activeVideoSyncRef}
-                stop={lens}
-                objectPosition="52% 28%"
-                className="skin-glass-lens--field"
-                enterDelayMs={BATCH_ENTER_BASE_MS + i * BATCH_STAGGER_MS}
-                dwellMs={BATCH_DWELL_MS + (batchLen - 1 - i) * BATCH_STAGGER_MS}
-                fadeMs={BATCH_FADE_MS}
-                loop={false}
-                lite
-              />
-            </div>
+            <SkinGlassLens
+              key={`${lensBatch}-${lens.label}`}
+              active
+              useVideoZoom
+              syncVideoRef={activeVideoSyncRef}
+              containerRef={stageRef}
+              stop={lens}
+              objectPosition="50% 32%"
+              className="skin-glass-lens--field max-lg:hidden"
+              enterDelayMs={BATCH_ENTER_BASE_MS + i * BATCH_STAGGER_MS}
+              dwellMs={BATCH_DWELL_MS + (batchLen - 1 - i) * BATCH_STAGGER_MS}
+              fadeMs={BATCH_FADE_MS}
+              loop={false}
+              lite
+            />
           );
         })}
 
@@ -291,7 +335,7 @@ export function LandingHero() {
           }`}
         >
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/50 sm:text-[11px]">
-            Join people measuring what they can change
+            Join people measuring change
           </p>
           <h1 className="mt-4 font-[family-name:var(--font-cursive)] text-[2.6rem] leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[3.6rem]">
             Know exactly
