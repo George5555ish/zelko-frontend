@@ -2524,8 +2524,8 @@ if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelper
  * The task model returns 478 points (468 face mesh + 10 iris). We keep the
  * classic 468-point mesh per PRODUCT.md.
  *
- * Also tries 90° rotations when the first pass fails or the face is heavily
- * tilted — phone photos often arrive sideways / Dutch-tilted.
+ * Also tries 90° rotations when the first pass fails — phone photos often
+ * arrive sideways without usable EXIF.
  */ __turbopack_context__.s([
     "extractFaceLandmarks",
     ()=>extractFaceLandmarks,
@@ -2558,8 +2558,9 @@ async function getFaceLandmarker() {
                         delegate: "GPU"
                     }
                 });
-            } catch (e) {
-                return FaceLandmarker.createFromOptions(vision, {
+            } catch (gpuErr) {
+                console.warn("[MediaPipe] GPU delegate failed, using CPU", gpuErr);
+                return await FaceLandmarker.createFromOptions(vision, {
                     ...shared,
                     baseOptions: {
                         ...baseOptions,
@@ -2570,20 +2571,6 @@ async function getFaceLandmarker() {
         })();
     }
     return faceLandmarkerPromise;
-}
-async function extractFaceLandmarks(image) {
-    const landmarker = await getFaceLandmarker();
-    const result = landmarker.detect(image);
-    var _result_faceLandmarks_;
-    const raw = (_result_faceLandmarks_ = result.faceLandmarks[0]) !== null && _result_faceLandmarks_ !== void 0 ? _result_faceLandmarks_ : null;
-    const landmarks = raw ? raw.slice(0, FACE_MESH_COUNT) : null;
-    var _raw_length, _landmarks_length;
-    console.log("[MediaPipe] face landmark output (468-point mesh):", {
-        faceCount: result.faceLandmarks.length,
-        rawLandmarkCount: (_raw_length = raw === null || raw === void 0 ? void 0 : raw.length) !== null && _raw_length !== void 0 ? _raw_length : 0,
-        landmarkCount: (_landmarks_length = landmarks === null || landmarks === void 0 ? void 0 : landmarks.length) !== null && _landmarks_length !== void 0 ? _landmarks_length : 0
-    });
-    return landmarks;
 }
 /** Absolute roll (degrees) from eye line — 0 is level. */ function eyeLineRollAbs(landmarks) {
     const L = landmarks[LEFT_EYE_OUTER];
@@ -2597,11 +2584,26 @@ function eyeSpan(landmarks) {
     if (!L || !R) return 0;
     return Math.hypot(R.x - L.x, R.y - L.y);
 }
-function drawRotated(source, quarterTurns) {
+function toCanvas(source) {
+    if (source instanceof HTMLCanvasElement) return source;
     const canvas = document.createElement("canvas");
-    const w = source.width;
-    const h = source.height;
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not create canvas.");
+    ctx.drawImage(source, 0, 0);
+    return canvas;
+}
+/**
+ * Rotate clockwise by quarter-turns. MediaPipe Face Landmarker is unreliable
+ * on raw ImageBitmap in some browsers — always detect from a canvas.
+ */ function drawRotated(source, quarterTurns) {
+    const src = toCanvas(source);
+    const w = src.width;
+    const h = src.height;
     const turns = (quarterTurns % 4 + 4) % 4;
+    if (turns === 0) return src;
+    const canvas = document.createElement("canvas");
     if (turns % 2 === 0) {
         canvas.width = w;
         canvas.height = h;
@@ -2613,7 +2615,7 @@ function drawRotated(source, quarterTurns) {
     if (!ctx) throw new Error("Could not create canvas for rotation.");
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.rotate(turns * Math.PI / 2);
-    ctx.drawImage(source, -w / 2, -h / 2);
+    ctx.drawImage(src, -w / 2, -h / 2);
     return canvas;
 }
 function canvasToJpegFile(canvas, originalName) {
@@ -2632,6 +2634,63 @@ function canvasToJpegFile(canvas, originalName) {
             }));
         }, "image/jpeg", 0.92);
     });
+}
+async function fileToBitmap(file) {
+    // Prefer raw pixels — EXIF "from-image" can disagree with how WebPs are
+    // stored and fight our manual 90° search.
+    try {
+        return await createImageBitmap(file);
+    } catch (e) {
+    /* fall through */ }
+    const url = URL.createObjectURL(file);
+    try {
+        const img = await new Promise((resolve, reject)=>{
+            const el = new Image();
+            el.onload = ()=>resolve(el);
+            el.onerror = ()=>reject(new Error("Could not decode image."));
+            el.decoding = "async";
+            el.src = url;
+        });
+        await img.decode().catch(()=>undefined);
+        return await createImageBitmap(img);
+    } finally{
+        URL.revokeObjectURL(url);
+    }
+}
+/** Downscale huge bitmaps before MediaPipe to avoid silent detect failures. */ async function bitmapForDetection(bitmap) {
+    const maxEdge = 1600;
+    const w = bitmap.width;
+    const h = bitmap.height;
+    if (Math.max(w, h) <= maxEdge) {
+        return {
+            source: bitmap,
+            scaled: false
+        };
+    }
+    const scale = maxEdge / Math.max(w, h);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(w * scale));
+    canvas.height = Math.max(1, Math.round(h * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return {
+        source: bitmap,
+        scaled: false
+    };
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const scaledBmp = await createImageBitmap(canvas);
+    return {
+        source: scaledBmp,
+        scaled: true
+    };
+}
+async function extractFaceLandmarks(image) {
+    const landmarker = await getFaceLandmarker();
+    const canvas = toCanvas(image);
+    const result = landmarker.detect(canvas);
+    var _result_faceLandmarks_;
+    const raw = (_result_faceLandmarks_ = result.faceLandmarks[0]) !== null && _result_faceLandmarks_ !== void 0 ? _result_faceLandmarks_ : null;
+    const landmarks = raw ? raw.slice(0, FACE_MESH_COUNT) : null;
+    return landmarks;
 }
 /**
  * Crop a region and upscale so small faces in full-body shots become
@@ -2664,20 +2723,26 @@ function canvasToJpegFile(canvas, originalName) {
             label
         });
     };
-    // Full-length portraits: face sits in the top band.
     push(width * 0.5, height * 0.18, 0.55, 0.32, "upper-tight");
     push(width * 0.5, height * 0.2, 0.7, 0.4, "upper-mid");
     push(width * 0.5, height * 0.22, 0.85, 0.48, "upper-wide");
     push(width * 0.5, height * 0.15, 0.42, 0.28, "head-zoom");
-    // Slight left/right for off-center subjects.
+    push(width * 0.5, height * 0.45, 0.85, 0.75, "center-face");
+    push(width * 0.5, height * 0.4, 1, 0.7, "center-wide");
     push(width * 0.42, height * 0.18, 0.5, 0.34, "upper-left");
     push(width * 0.58, height * 0.18, 0.5, 0.34, "upper-right");
     return crops;
 }
 async function extractFaceLandmarksFromFile(file) {
-    const bitmap = await createImageBitmap(file);
+    const rawBitmap = await fileToBitmap(file);
+    const { source: bitmap, scaled } = await bitmapForDetection(rawBitmap);
+    const bitmapsToClose = [
+        rawBitmap
+    ];
+    if (scaled) bitmapsToClose.push(bitmap);
     try {
         const candidates = [];
+        // Always try every orientation — sideways phone WebPs often have no EXIF.
         const turns = [
             0,
             1,
@@ -2685,9 +2750,14 @@ async function extractFaceLandmarksFromFile(file) {
             2
         ];
         for (const q of turns){
-            const canvas = q === 0 ? null : drawRotated(bitmap, q);
-            const source = canvas !== null && canvas !== void 0 ? canvas : bitmap;
-            const landmarks = await extractFaceLandmarks(source);
+            const canvas = drawRotated(bitmap, q);
+            let landmarks = null;
+            try {
+                landmarks = await extractFaceLandmarks(canvas);
+            } catch (err) {
+                console.warn("[MediaPipe] detect failed for q" + q, err);
+                continue;
+            }
             if (!landmarks || landmarks.length < 100) continue;
             candidates.push({
                 landmarks,
@@ -2698,46 +2768,81 @@ async function extractFaceLandmarksFromFile(file) {
                 fromCrop: false,
                 label: "full-q".concat(q)
             });
-            if (q === 0 && eyeLineRollAbs(landmarks) < 25 && eyeSpan(landmarks) > 0.08) {
-                break;
-            }
         }
-        const bestFull = candidates.length ? [
+        // Prefer level eyes + larger face among full-frame hits.
+        let bestFull = candidates.length ? [
             ...candidates
         ].sort((a, b)=>{
             const rollDiff = a.roll - b.roll;
             if (Math.abs(rollDiff) > 8) return rollDiff;
             return b.span - a.span;
         })[0] : null;
-        // Full-body / distant faces: eye span under ~8% of frame usually fails
-        // downstream quality — try zoomed upper crops.
+        var _bestFull_canvas;
+        // Crops only on the best upright orientation (never on sideways pixels).
+        const baseForCrop = (_bestFull_canvas = bestFull === null || bestFull === void 0 ? void 0 : bestFull.canvas) !== null && _bestFull_canvas !== void 0 ? _bestFull_canvas : drawRotated(bitmap, 0);
         const needsCrop = !bestFull || bestFull.span < 0.08 || bestFull.roll > 35;
         if (needsCrop) {
-            const oriented = (bestFull === null || bestFull === void 0 ? void 0 : bestFull.canvas) && bestFull.quarters > 0 ? bestFull.canvas : bitmap;
-            const w = oriented.width;
-            const h = oriented.height;
+            const w = baseForCrop.width;
+            const h = baseForCrop.height;
+            var _bestFull_quarters;
+            const cropQuarters = (_bestFull_quarters = bestFull === null || bestFull === void 0 ? void 0 : bestFull.quarters) !== null && _bestFull_quarters !== void 0 ? _bestFull_quarters : 0;
             for (const region of faceSearchCrops(w, h)){
-                const crop = cropAndUpscale(oriented, region.sx, region.sy, region.sw, region.sh);
-                const landmarks = await extractFaceLandmarks(crop);
+                const crop = cropAndUpscale(baseForCrop, region.sx, region.sy, region.sw, region.sh);
+                let landmarks = null;
+                try {
+                    landmarks = await extractFaceLandmarks(crop);
+                } catch (err) {
+                    console.warn("[MediaPipe] crop detect failed", region.label, err);
+                    continue;
+                }
                 if (!landmarks || landmarks.length < 100) continue;
                 const span = eyeSpan(landmarks);
                 const roll = eyeLineRollAbs(landmarks);
-                var _bestFull_quarters;
                 candidates.push({
                     landmarks,
-                    quarters: (_bestFull_quarters = bestFull === null || bestFull === void 0 ? void 0 : bestFull.quarters) !== null && _bestFull_quarters !== void 0 ? _bestFull_quarters : 0,
+                    quarters: cropQuarters,
                     canvas: crop,
                     roll,
                     span,
                     fromCrop: true,
                     label: region.label
                 });
-                // Strong face fill in crop — stop early.
                 if (span > 0.18 && roll < 30) break;
+            }
+            // If no full-frame hit, also try crops on other orientations.
+            if (!bestFull) {
+                for (const q of turns){
+                    if (q === 0) continue;
+                    const oriented = drawRotated(bitmap, q);
+                    for (const region of faceSearchCrops(oriented.width, oriented.height).slice(0, 4)){
+                        const crop = cropAndUpscale(oriented, region.sx, region.sy, region.sw, region.sh);
+                        let landmarks = null;
+                        try {
+                            landmarks = await extractFaceLandmarks(crop);
+                        } catch (e) {
+                            continue;
+                        }
+                        if (!landmarks || landmarks.length < 100) continue;
+                        candidates.push({
+                            landmarks,
+                            quarters: q,
+                            canvas: crop,
+                            roll: eyeLineRollAbs(landmarks),
+                            span: eyeSpan(landmarks),
+                            fromCrop: true,
+                            label: "q".concat(q, "-").concat(region.label)
+                        });
+                    }
+                }
             }
         }
         if (candidates.length === 0) {
-            console.info("[MediaPipe] no face in full frame or upper crops");
+            console.info("[MediaPipe] no face in any orientation", {
+                width: bitmap.width,
+                height: bitmap.height,
+                type: file.type,
+                name: file.name
+            });
             return {
                 landmarks: null,
                 fileForUpload: file,
@@ -2745,7 +2850,6 @@ async function extractFaceLandmarksFromFile(file) {
                 rotationQuarters: 0
             };
         }
-        // Prefer larger face (crops win for full-body), then level eyes.
         candidates.sort((a, b)=>{
             const spanDiff = b.span - a.span;
             if (Math.abs(spanDiff) > 0.03) return spanDiff;
@@ -2760,32 +2864,32 @@ async function extractFaceLandmarksFromFile(file) {
             eyeSpan: Number(best.span.toFixed(3)),
             tried: candidates.length
         });
-        if (!best.fromCrop && (best.quarters === 0 || !best.canvas)) {
-            return {
-                landmarks: best.landmarks,
-                fileForUpload: file,
-                previewUrl: null,
-                rotationQuarters: 0
-            };
+        // Always re-encode so the preview is upright and pixels match landmarks
+        // (sideways WebPs / EXIF mismatches otherwise keep showing rotated).
+        let canvasOut = best.canvas;
+        let landmarksOut = best.landmarks;
+        let quartersOut = best.quarters;
+        if (best.fromCrop && bestFull && bestFull.span >= 0.08 && bestFull.roll <= 35) {
+            canvasOut = bestFull.canvas;
+            landmarksOut = bestFull.landmarks;
+            quartersOut = bestFull.quarters;
         }
-        if (!best.canvas) {
-            return {
-                landmarks: best.landmarks,
-                fileForUpload: file,
-                previewUrl: null,
-                rotationQuarters: best.quarters
-            };
-        }
-        const fileForUpload = await canvasToJpegFile(best.canvas, file.name, best.fromCrop ? "face-crop" : "oriented");
+        const suffix = best.fromCrop && canvasOut === best.canvas ? "face-crop" : quartersOut ? "oriented" : "normalized";
+        const fileForUpload = await canvasToJpegFile(canvasOut, file.name, suffix);
         const previewUrl = URL.createObjectURL(fileForUpload);
         return {
-            landmarks: best.landmarks,
+            landmarks: landmarksOut,
             fileForUpload,
             previewUrl,
-            rotationQuarters: best.quarters
+            rotationQuarters: quartersOut
         };
     } finally{
-        bitmap.close();
+        for (const b of bitmapsToClose){
+            try {
+                b.close();
+            } catch (e) {
+            /* already closed */ }
+        }
     }
 }
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {

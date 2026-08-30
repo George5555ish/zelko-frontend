@@ -115,6 +115,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
       try {
         let landmarks: LandmarkPoint[] | null = null;
         let fileForUpload = slot.file;
+        // MediaPipe is best-effort only — never block upload if it fails.
         try {
           const extracted = await extractFaceLandmarksFromFile(slot.file);
           landmarks = extracted.landmarks;
@@ -127,45 +128,55 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
             });
           }
         } catch (err) {
-          console.error("[MediaPipe] landmark extraction failed:", err);
+          console.warn(
+            "[MediaPipe] optional — continuing upload without landmarks",
+            err,
+          );
         }
 
-        if (!landmarks || landmarks.length < 100) {
-          updateSlot(slot.id, {
-            status: "rejected",
-            rejectReason:
-              "No clear face detected — try a clearer photo with your face fully visible (we'll auto-rotate sideways shots).",
-            landmarks: null,
-          });
-          return;
-        }
-
-        updateSlot(slot.id, { status: "uploading", landmarks, file: fileForUpload });
+        updateSlot(slot.id, {
+          status: "uploading",
+          landmarks,
+          file: fileForUpload,
+        });
 
         const formData = new FormData();
         formData.append("file", fileForUpload);
         formData.append("retainForTracking", String(consent.retainForTracking));
         formData.append("allowTraining", String(consent.allowTraining));
-        formData.append("landmarks", JSON.stringify(landmarks));
+        if (landmarks && landmarks.length >= 100) {
+          formData.append("landmarks", JSON.stringify(landmarks));
+        }
 
         const res = await fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
 
-        const data = (await res.json()) as {
+        const raw = await res.text();
+        let data: {
           fileId?: string;
           error?: string;
           reasons?: string[];
-        };
+        } = {};
+        try {
+          data = raw ? (JSON.parse(raw) as typeof data) : {};
+        } catch {
+          updateSlot(slot.id, {
+            status: "rejected",
+            rejectReason: `Upload failed (${res.status}). Try again.`,
+            landmarks,
+          });
+          return;
+        }
 
         if (!res.ok || !data.fileId) {
           updateSlot(slot.id, {
             status: "rejected",
             rejectReason:
-              data.error ??
-              data.reasons?.[0] ??
-              "Photo did not pass the quality gate.",
+              data.error ||
+              data.reasons?.[0] ||
+              `Photo did not pass the quality gate (${res.status}).`,
             landmarks,
           });
           return;
@@ -554,7 +565,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
               </div>
             </div>
           ) : (
-            <div className="upload-media-empty upload-glass-inset flex h-full min-h-[9rem] flex-col items-center justify-center px-4 py-5 text-center">
+            <div className="upload-media-empty upload-glass-inset flex h-full min-h-[16rem] flex-col items-center justify-center px-4 py-5 text-center sm:min-h-[22rem]">
               <p className="text-sm font-medium text-neutral-700">
                 Preview appears here
               </p>

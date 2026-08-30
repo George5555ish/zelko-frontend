@@ -1215,10 +1215,6 @@
     height: calc(100% - 14px);
   }
 
-  .h-\[calc\(100\%-16px\)\] {
-    height: calc(100% - 16px);
-  }
-
   .h-full {
     height: 100%;
   }
@@ -1241,10 +1237,6 @@
 
   .min-h-\[9rem\] {
     min-height: 9rem;
-  }
-
-  .min-h-\[12rem\] {
-    min-height: 12rem;
   }
 
   .min-h-\[16rem\] {
@@ -1297,14 +1289,6 @@
 
   .w-9 {
     width: calc(var(--spacing) * 9);
-  }
-
-  .w-12 {
-    width: calc(var(--spacing) * 12);
-  }
-
-  .w-24 {
-    width: calc(var(--spacing) * 24);
   }
 
   .w-36 {
@@ -3181,10 +3165,6 @@
     padding-inline: calc(var(--spacing) * .5);
   }
 
-  .px-1 {
-    padding-inline: var(--spacing);
-  }
-
   .px-1\.5 {
     padding-inline: calc(var(--spacing) * 1.5);
   }
@@ -3255,10 +3235,6 @@
 
   .py-6 {
     padding-block: calc(var(--spacing) * 6);
-  }
-
-  .py-7 {
-    padding-block: calc(var(--spacing) * 7);
   }
 
   .py-8 {
@@ -3509,10 +3485,6 @@
 
   .text-\[6px\] {
     font-size: 6px;
-  }
-
-  .text-\[7px\] {
-    font-size: 7px;
   }
 
   .text-\[8px\] {
@@ -4739,6 +4711,10 @@
       max-height: 560px;
     }
 
+    .sm\:min-h-\[22rem\] {
+      min-height: 22rem;
+    }
+
     .sm\:min-h-full {
       min-height: 100%;
     }
@@ -4889,10 +4865,6 @@
       padding-block: calc(var(--spacing) * 5);
     }
 
-    .sm\:py-7 {
-      padding-block: calc(var(--spacing) * 7);
-    }
-
     .sm\:py-8 {
       padding-block: calc(var(--spacing) * 8);
     }
@@ -4964,14 +4936,6 @@
 
     .sm\:text-\[1\.75rem\] {
       font-size: 1.75rem;
-    }
-
-    .sm\:text-\[1\.85rem\] {
-      font-size: 1.85rem;
-    }
-
-    .sm\:text-\[2\.15rem\] {
-      font-size: 2.15rem;
     }
 
     .sm\:text-\[11px\] {
@@ -5255,10 +5219,6 @@
 
     .lg\:col-span-1 {
       grid-column: span 1 / span 1;
-    }
-
-    .lg\:col-span-2 {
-      grid-column: span 2 / span 2;
     }
 
     .lg\:mx-0 {
