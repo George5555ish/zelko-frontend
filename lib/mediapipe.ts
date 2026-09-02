@@ -23,8 +23,10 @@ async function getFaceLandmarker(): Promise<FaceLandmarker> {
         "@mediapipe/tasks-vision"
       );
 
+      // MUST match installed @mediapipe/tasks-vision version (package.json).
+      // Mismatched CDN wasm (e.g. 0.10.18 vs 0.10.35) often returns empty faces.
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm",
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm",
       );
 
       const baseOptions = {
@@ -34,24 +36,35 @@ async function getFaceLandmarker(): Promise<FaceLandmarker> {
 
       const shared = {
         runningMode: "IMAGE" as const,
-        numFaces: 1,
+        numFaces: 2,
+        minFaceDetectionConfidence: 0.3,
+        minFacePresenceConfidence: 0.3,
+        minTrackingConfidence: 0.3,
         outputFaceBlendshapes: false,
         outputFacialTransformationMatrixes: false,
       };
 
+      // CPU first — GPU can "succeed" then return empty landmark sets on some GPUs.
       try {
-        return await FaceLandmarker.createFromOptions(vision, {
-          ...shared,
-          baseOptions: { ...baseOptions, delegate: "GPU" },
-        });
-      } catch (gpuErr) {
-        console.warn("[MediaPipe] GPU delegate failed, using CPU", gpuErr);
-        return await FaceLandmarker.createFromOptions(vision, {
+        const cpu = await FaceLandmarker.createFromOptions(vision, {
           ...shared,
           baseOptions: { ...baseOptions, delegate: "CPU" },
         });
+        console.info("[MediaPipe] FaceLandmarker ready (CPU)");
+        return cpu;
+      } catch (cpuErr) {
+        console.warn("[MediaPipe] CPU delegate failed, trying GPU", cpuErr);
+        const gpu = await FaceLandmarker.createFromOptions(vision, {
+          ...shared,
+          baseOptions: { ...baseOptions, delegate: "GPU" },
+        });
+        console.info("[MediaPipe] FaceLandmarker ready (GPU)");
+        return gpu;
       }
-    })();
+    })().catch((err) => {
+      faceLandmarkerPromise = null;
+      throw err;
+    });
   }
 
   return faceLandmarkerPromise;
@@ -97,6 +110,9 @@ function toCanvas(
   canvas.height = source.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create canvas.");
+  // Opaque backdrop — transparent cutouts otherwise confuse MediaPipe.
+  ctx.fillStyle = "#d4d0cc";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(source, 0, 0);
   return canvas;
 }
@@ -182,27 +198,111 @@ async function fileToBitmap(file: File): Promise<ImageBitmap> {
   }
 }
 
-/** Downscale huge bitmaps before MediaPipe to avoid silent detect failures. */
-async function bitmapForDetection(bitmap: ImageBitmap): Promise<{
-  source: ImageBitmap;
-  scaled: boolean;
-}> {
-  const maxEdge = 1600;
-  const w = bitmap.width;
-  const h = bitmap.height;
-  if (Math.max(w, h) <= maxEdge) {
-    return { source: bitmap, scaled: false };
+/**
+ * MediaPipe is unreliable on transparent PNGs (cutouts). Paint onto an opaque
+ * neutral backdrop, then for ultra-wide / ultra-tall canvases crop toward a
+ * portrait window so the face isn't a tiny strip after downscale.
+ */
+function prepareCanvasForFaceDetect(
+  source: ImageBitmap | HTMLCanvasElement,
+): HTMLCanvasElement {
+  const w = source.width;
+  const h = source.height;
+  const aspect = w / Math.max(1, h);
+
+  let sx = 0;
+  let sy = 0;
+  let sw = w;
+  let sh = h;
+
+  // Ultra-wide cutouts (common studio PNGs): keep a portrait window on center.
+  if (aspect > 1.35) {
+    const targetAspect = 3 / 4;
+    sw = Math.min(w, Math.round(h * targetAspect * 1.15));
+    sh = h;
+    sx = Math.max(0, Math.round((w - sw) / 2));
+  } else if (aspect < 0.55) {
+    // Ultra-tall: keep upper-body band where faces usually sit.
+    const targetAspect = 3 / 4;
+    sh = Math.min(h, Math.round(w / targetAspect));
+    sw = w;
+    sy = Math.max(0, Math.round(h * 0.08));
+    if (sy + sh > h) sy = Math.max(0, h - sh);
   }
 
-  const scale = maxEdge / Math.max(w, h);
+  const maxEdge = 1600;
+  const scale = Math.min(1, maxEdge / Math.max(sw, sh));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(w * scale));
-  canvas.height = Math.max(1, Math.round(h * scale));
+  canvas.width = Math.max(1, Math.round(sw * scale));
+  canvas.height = Math.max(1, Math.round(sh * scale));
   const ctx = canvas.getContext("2d");
-  if (!ctx) return { source: bitmap, scaled: false };
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  const scaledBmp = await createImageBitmap(canvas);
-  return { source: scaledBmp, scaled: true };
+  if (!ctx) throw new Error("Could not create detection canvas.");
+
+  // Opaque fill — transparent pixels become soft gray, not checker noise.
+  ctx.fillStyle = "#d4d0cc";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(
+    source,
+    sx,
+    sy,
+    sw,
+    sh,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+  return canvas;
+}
+
+/** Downscale / flatten / reframe before MediaPipe. */
+async function bitmapForDetection(bitmap: ImageBitmap): Promise<{
+  source: ImageBitmap | HTMLCanvasElement;
+  scaled: boolean;
+}> {
+  const prepared = prepareCanvasForFaceDetect(bitmap);
+  const changed =
+    prepared.width !== bitmap.width || prepared.height !== bitmap.height;
+  return { source: prepared, scaled: changed };
+}
+
+function landmarksFromDetect(
+  landmarker: FaceLandmarker,
+  canvas: HTMLCanvasElement,
+): LandmarkPoint[] | null {
+  const result = landmarker.detect(canvas);
+  const raw = result.faceLandmarks[0] ?? null;
+  if (!raw) {
+    console.info("[MediaPipe] detect: no face", {
+      w: canvas.width,
+      h: canvas.height,
+      faces: result.faceLandmarks.length,
+    });
+    return null;
+  }
+  return raw.slice(0, FACE_MESH_COUNT).map((p) => ({
+    x: p.x,
+    y: p.y,
+    z: p.z ?? 0,
+  }));
+}
+
+/** Re-draw onto a solid backdrop (helps transparent cutouts / noisy studio mats). */
+function withBackdrop(
+  source: HTMLCanvasElement,
+  color: string,
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = source.width;
+  canvas.height = source.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return source;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(source, 0, 0);
+  return canvas;
 }
 
 /**
@@ -214,11 +314,16 @@ export async function extractFaceLandmarks(
 ): Promise<LandmarkPoint[] | null> {
   const landmarker = await getFaceLandmarker();
   const canvas = toCanvas(image);
-  const result = landmarker.detect(canvas);
-  const raw = result.faceLandmarks[0] ?? null;
-  const landmarks = raw ? raw.slice(0, FACE_MESH_COUNT) : null;
+  let landmarks = landmarksFromDetect(landmarker, canvas);
+  if (landmarks) return landmarks;
 
-  return landmarks;
+  // Retry on alternate backdrops — cutouts / checker mats confuse the detector.
+  for (const color of ["#f0eeea", "#2a2a2a", "#ffffff"]) {
+    landmarks = landmarksFromDetect(landmarker, withBackdrop(canvas, color));
+    if (landmarks) return landmarks;
+  }
+
+  return null;
 }
 
 /**
@@ -303,9 +408,7 @@ export async function extractFaceLandmarksFromFile(
   file: File,
 ): Promise<FaceExtractionResult> {
   const rawBitmap = await fileToBitmap(file);
-  const { source: bitmap, scaled } = await bitmapForDetection(rawBitmap);
-  const bitmapsToClose: ImageBitmap[] = [rawBitmap];
-  if (scaled) bitmapsToClose.push(bitmap);
+  const { source: prepared } = await bitmapForDetection(rawBitmap);
 
   try {
     const candidates: Candidate[] = [];
@@ -313,7 +416,7 @@ export async function extractFaceLandmarksFromFile(
     const turns: Array<0 | 1 | 2 | 3> = [0, 1, 3, 2];
 
     for (const q of turns) {
-      const canvas = drawRotated(bitmap, q);
+      const canvas = drawRotated(prepared, q);
       let landmarks: LandmarkPoint[] | null = null;
       try {
         landmarks = await extractFaceLandmarks(canvas);
@@ -335,7 +438,7 @@ export async function extractFaceLandmarksFromFile(
     }
 
     // Prefer level eyes + larger face among full-frame hits.
-    let bestFull = candidates.length
+    const bestFull = candidates.length
       ? [...candidates].sort((a, b) => {
           const rollDiff = a.roll - b.roll;
           if (Math.abs(rollDiff) > 8) return rollDiff;
@@ -344,7 +447,7 @@ export async function extractFaceLandmarksFromFile(
       : null;
 
     // Crops only on the best upright orientation (never on sideways pixels).
-    const baseForCrop = bestFull?.canvas ?? drawRotated(bitmap, 0);
+    const baseForCrop = bestFull?.canvas ?? drawRotated(prepared, 0);
     const needsCrop = !bestFull || bestFull.span < 0.08 || bestFull.roll > 35;
 
     if (needsCrop) {
@@ -388,8 +491,11 @@ export async function extractFaceLandmarksFromFile(
       if (!bestFull) {
         for (const q of turns) {
           if (q === 0) continue;
-          const oriented = drawRotated(bitmap, q);
-          for (const region of faceSearchCrops(oriented.width, oriented.height).slice(0, 4)) {
+          const oriented = drawRotated(prepared, q);
+          for (const region of faceSearchCrops(
+            oriented.width,
+            oriented.height,
+          ).slice(0, 4)) {
             const crop = cropAndUpscale(
               oriented,
               region.sx,
@@ -420,8 +526,8 @@ export async function extractFaceLandmarksFromFile(
 
     if (candidates.length === 0) {
       console.info("[MediaPipe] no face in any orientation", {
-        width: bitmap.width,
-        height: bitmap.height,
+        width: prepared.width,
+        height: prepared.height,
         type: file.type,
         name: file.name,
       });
@@ -449,8 +555,8 @@ export async function extractFaceLandmarksFromFile(
       tried: candidates.length,
     });
 
-    // Always re-encode so the preview is upright and pixels match landmarks
-    // (sideways WebPs / EXIF mismatches otherwise keep showing rotated).
+    // Always re-encode so preview is upright, opaque, and matches landmarks
+    // (transparent / ultra-wide cutouts otherwise break detection + display).
     let canvasOut = best.canvas;
     let landmarksOut = best.landmarks;
     let quartersOut = best.quarters;
@@ -481,12 +587,10 @@ export async function extractFaceLandmarksFromFile(
       rotationQuarters: quartersOut,
     };
   } finally {
-    for (const b of bitmapsToClose) {
-      try {
-        b.close();
-      } catch {
-        /* already closed */
-      }
+    try {
+      rawBitmap.close();
+    } catch {
+      /* already closed */
     }
   }
 }

@@ -17,13 +17,13 @@ export function PhotoExamplesGuide() {
       <GuideRow
         tone="good"
         title="Good photo examples"
-        description="Close-ups, same person, clear face, varied lighting and angles."
+        description="Close-ups facing the camera — eye, nose, and jawline visible."
         images={GOOD_EXAMPLES}
       />
       <GuideRow
         tone="bad"
         title="Bad photo examples"
-        description="Groups, full-length, covered faces, or anything that hides the face."
+        description="Profiles, tiny faces, covered features, groups, or extreme tilts."
         images={BAD_EXAMPLES}
       />
     </div>

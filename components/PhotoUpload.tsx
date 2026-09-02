@@ -11,6 +11,10 @@ import {
   USER_NOTE_MAX_LENGTH,
   type PriorityFeatureKey,
 } from "@/lib/personalization";
+import {
+  assessLandmarkQuality,
+  pickBestPortraitSlot,
+} from "@/lib/landmark-quality";
 import { PhotoExamplesGuide } from "@/components/upload/PhotoExamplesGuide";
 
 export type UploadSlotStatus =
@@ -28,6 +32,8 @@ export interface UploadSlot {
   fileId?: string;
   rejectReason?: string;
   landmarks?: LandmarkPoint[] | null;
+  /** 0–100 MediaPipe mesh quality; used to pick the report portrait */
+  landmarkScore?: number | null;
 }
 
 const MIN_PHOTOS = 3;
@@ -114,11 +120,13 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
 
       try {
         let landmarks: LandmarkPoint[] | null = null;
+        let landmarkScore: number | null = null;
         let fileForUpload = slot.file;
-        // MediaPipe is best-effort only — never block upload if it fails.
         try {
           const extracted = await extractFaceLandmarksFromFile(slot.file);
           landmarks = extracted.landmarks;
+          const quality = assessLandmarkQuality(landmarks);
+          landmarkScore = quality?.score ?? null;
           fileForUpload = extracted.fileForUpload;
           if (extracted.previewUrl) {
             URL.revokeObjectURL(slot.previewUrl);
@@ -127,16 +135,36 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
               previewUrl: extracted.previewUrl,
             });
           }
+
+          if (!quality?.usableForPortrait) {
+            updateSlot(slot.id, {
+              status: "rejected",
+              rejectReason:
+                quality?.rejectReason ??
+                (landmarks
+                  ? "Face mesh too weak — use a closer frontal photo with an eye, nose, and jawline visible."
+                  : "No face detected in this photo — try a clearer frontal selfie (avoid heavy cutouts if possible)."),
+              landmarks,
+              landmarkScore,
+            });
+            return;
+          }
         } catch (err) {
-          console.warn(
-            "[MediaPipe] optional — continuing upload without landmarks",
-            err,
-          );
+          console.warn("[MediaPipe] face mesh required for upload", err);
+          updateSlot(slot.id, {
+            status: "rejected",
+            rejectReason:
+              "Could not read face landmarks — try a clearer frontal selfie (JPG/PNG).",
+            landmarks: null,
+            landmarkScore: null,
+          });
+          return;
         }
 
         updateSlot(slot.id, {
           status: "uploading",
           landmarks,
+          landmarkScore,
           file: fileForUpload,
         });
 
@@ -166,6 +194,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
             status: "rejected",
             rejectReason: `Upload failed (${res.status}). Try again.`,
             landmarks,
+            landmarkScore,
           });
           return;
         }
@@ -178,6 +207,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
               data.reasons?.[0] ||
               `Photo did not pass the quality gate (${res.status}).`,
             landmarks,
+            landmarkScore,
           });
           return;
         }
@@ -186,6 +216,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           status: "accepted",
           fileId: data.fileId,
           landmarks,
+          landmarkScore,
         });
       } catch (err) {
         updateSlot(slot.id, {
@@ -256,12 +287,34 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
 
   const runAnalysis = useCallback(async () => {
     const accepted = slots.filter((s) => s.status === "accepted" && s.fileId);
-    const fileIds = accepted.map((s) => s.fileId as string);
 
-    if (fileIds.length < MIN_PHOTOS) {
+    if (accepted.length < MIN_PHOTOS) {
       setError(`Need at least ${MIN_PHOTOS} accepted photos to analyze.`);
       return;
     }
+
+    const portrait = pickBestPortraitSlot(accepted);
+    const portraitQuality = assessLandmarkQuality(portrait?.landmarks);
+    if (
+      !portrait ||
+      !portraitQuality?.usableForPortrait ||
+      !portrait.landmarks ||
+      portrait.landmarks.length < 400
+    ) {
+      setError(
+        "Need at least one clear frontal face photo with a strong face mesh — add a closer, upright shot looking at the camera.",
+      );
+      return;
+    }
+
+    // Portrait first: analyze keeps fileIds[0] as the report face (and
+    // deletes the rest when not retaining for tracking).
+    const fileIds = [
+      portrait.fileId as string,
+      ...accepted
+        .filter((s) => s.id !== portrait.id)
+        .map((s) => s.fileId as string),
+    ];
 
     const note = userNote.trim().slice(0, USER_NOTE_MAX_LENGTH);
     // Client-side distress stub — never feed flagged text into prioritization.
@@ -271,9 +324,6 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
       setError(null);
       return;
     }
-
-    // Portrait landmarks = first accepted photo (same as portraitFileId).
-    const portraitLandmarks = accepted[0]?.landmarks ?? null;
 
     setError(null);
     setAnalyzing(true);
@@ -291,7 +341,8 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           allowTraining: consent.allowTraining,
           priorityFeatures,
           userNote: note.length > 0 ? note : null,
-          landmarks: portraitLandmarks,
+          landmarks: portrait.landmarks,
+          portraitFileId: portrait.fileId,
         }),
       });
       const raw = await res.text();
@@ -350,7 +401,16 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
   const acceptedCount = slots.filter((s) => s.status === "accepted").length;
   const canAddMore = slots.length < MAX_PHOTOS;
   const hasIdle = slots.some((s) => s.status === "idle");
-  const readyToAnalyze = acceptedCount >= MIN_PHOTOS && !hasIdle;
+  const acceptedSlots = slots.filter(
+    (s) => s.status === "accepted" && s.fileId,
+  );
+  const bestPortrait = pickBestPortraitSlot(acceptedSlots);
+  const hasPortraitMesh =
+    Boolean(bestPortrait) &&
+    (assessLandmarkQuality(bestPortrait?.landmarks)?.usableForPortrait ??
+      false);
+  const readyToAnalyze =
+    acceptedCount >= MIN_PHOTOS && !hasIdle && hasPortraitMesh;
 
   if (supportMode) {
     return <SupportPauseCard />;
@@ -367,8 +427,9 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
             Place your portraits.
           </h2>
           <p className="mt-1 max-w-md text-[13px] leading-snug text-neutral-500">
-            {MIN_PHOTOS}–{MAX_PHOTOS} clear face photos. Drop them in, review
-            frames, then generate your report.
+            {MIN_PHOTOS}–{MAX_PHOTOS} clear face photos. Each needs a readable
+            face mesh (eye, nose, jawline) so scores can be measured — not just
+            accepted.
           </p>
 
           <div
@@ -465,7 +526,11 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
             {consent.retainForTracking
               ? " · photos retained for tracking"
               : " · photos deleted after report"}
-            {readyToAnalyze ? " — ready for analysis" : ""}
+            {acceptedCount >= MIN_PHOTOS && !hasPortraitMesh
+              ? " — need one clearer frontal face for the report"
+              : readyToAnalyze
+                ? " — ready for analysis"
+                : ""}
           </p>
         </div>
 
@@ -487,13 +552,21 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
                       <p className="text-[10px] uppercase tracking-[0.18em] text-white/55">
                         Frame {i + 1} of {slots.length} ·{" "}
                         {fileKindLabel(slot.file)}
+                        {slot.id === bestPortrait?.id && hasPortraitMesh
+                          ? " · Report face"
+                          : ""}
                       </p>
                       <p className="mt-0.5 truncate text-sm font-semibold text-white">
                         {slot.file.name}
                       </p>
                       <p className="mt-0.5 text-xs text-white/65">
                         {formatBytes(slot.file.size)} ·{" "}
-                        <StatusLabel slot={slot} />
+                        <StatusLabel
+                          slot={slot}
+                          isReportPortrait={
+                            slot.id === bestPortrait?.id && hasPortraitMesh
+                          }
+                        />
                       </p>
                     </div>
                   </div>
@@ -716,10 +789,23 @@ function SupportPauseCard() {
   );
 }
 
-function StatusLabel({ slot }: { slot: UploadSlot }) {
+function StatusLabel({
+  slot,
+  isReportPortrait = false,
+}: {
+  slot: UploadSlot;
+  isReportPortrait?: boolean;
+}) {
   if (slot.status === "uploading") return "Uploading…";
   if (slot.status === "quality-check-pending") return "Quality check…";
-  if (slot.status === "accepted") return "Accepted";
+  if (slot.status === "accepted") {
+    const mesh =
+      typeof slot.landmarkScore === "number"
+        ? ` · mesh ${slot.landmarkScore}`
+        : "";
+    if (isReportPortrait) return `Accepted · report face${mesh}`;
+    return `Accepted${mesh}`;
+  }
   if (slot.status === "rejected") {
     return slot.rejectReason ? `Rejected — ${slot.rejectReason}` : "Rejected";
   }
