@@ -10,16 +10,17 @@ import type {
 } from "@/lib/appearance-index";
 import { isLookSettled } from "@/lib/appearance-index";
 import { getAuthToken } from "@/lib/auth";
+import { deviceAuthHeaders } from "@/lib/device-id";
 
 const LOOK_SLOTS = [0] as const;
 const LOOK_COUNT = LOOK_SLOTS.length;
 
 function authHeaders(): HeadersInit {
   const token = getAuthToken();
-  return {
+  return deviceAuthHeaders({
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  });
 }
 
 type LookPhase =
@@ -619,6 +620,22 @@ export function LooksReveal({
               posted.status,
               posted.raw.slice(0, 200),
             );
+          }
+
+          if (!posted.ok && posted.status === 429) {
+            applyLookUpdate({
+              id: `look-${lookIndex}`,
+              index: lookIndex,
+              label: labelFor(lookIndex),
+              status: "failed",
+              fileId: null,
+              garmentFileId: existing?.garmentFileId ?? null,
+              recommendedStyle: initial[lookIndex]?.recommendedStyle ?? "",
+              error:
+                posted.error ||
+                "This device or network already used the free outfit generation.",
+            });
+            continue;
           }
 
           const settled = await pollLookUntilSettled(reportId, lookIndex, {

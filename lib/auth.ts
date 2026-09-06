@@ -1,5 +1,7 @@
 /** Client auth helpers — token in localStorage, API via Next /api rewrite. */
 
+import { deviceAuthHeaders } from "@/lib/device-id";
+
 export const AUTH_TOKEN_KEY = "zelko.authToken";
 
 export interface AuthUser {
@@ -44,9 +46,10 @@ export function setAuthToken(token: string | null) {
 
 function authHeaders(): HeadersInit {
   const token = getAuthToken();
-  return token
-    ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" };
+  return deviceAuthHeaders({
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  });
 }
 
 export async function registerAccount(input: {

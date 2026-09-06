@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import type { ReportViewModel } from "@/lib/types/report";
 import {
@@ -10,12 +9,13 @@ import {
   type AppearanceStage,
   type StylePreferences,
 } from "@/lib/appearance-index";
-import { getAuthToken, type AuthUser } from "@/lib/auth";
+import { fetchMe, getAuthToken, type AuthUser } from "@/lib/auth";
 import { useAuthUser } from "@/lib/use-auth-user";
 import { FaceGroomingReveal } from "./FaceGroomingReveal";
 import { StyleCollectStage } from "./StyleCollectStage";
 import { StyleProfileReveal } from "./StyleProfileReveal";
 import { LooksReveal } from "./LooksReveal";
+import { JourneyProPitch } from "./JourneyProPitch";
 import { JourneyProgressBar } from "./JourneyProgressBar";
 import { AppearanceAuthGate } from "./AppearanceAuthGate";
 import "@/components/report/report-dash.css";
@@ -50,6 +50,30 @@ export function AppearanceJourney({ report }: { report: ReportViewModel }) {
   useEffect(() => {
     if (user) setAuthUser(user);
   }, [user]);
+
+  // Return from Stripe Checkout on this page.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search).get("checkout");
+    if (q !== "success" && q !== "cancel") return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("checkout");
+    window.history.replaceState({}, "", url.pathname);
+
+    if (q === "cancel") return;
+
+    void (async () => {
+      for (let i = 0; i < 6; i++) {
+        const me = await fetchMe();
+        if (me?.isPro) {
+          setAuthUser(me);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -313,25 +337,11 @@ export function AppearanceJourney({ report }: { report: ReportViewModel }) {
             onFinish={() => void advance("complete")}
           />
         ) : (
-          <section className="ai-reveal">
-            <div className="ai-reveal__intro">
-              <p className="ai-reveal__eyebrow">Appearance Profile</p>
-              <h2>First pass complete</h2>
-              <p>
-                You’ve finished the free Appearance Profile cycle. Classic
-                feature detail stays available on the full report; Pro will
-                unlock ongoing rechecks and restocked looks after this moment.
-              </p>
-            </div>
-            <div className="ai-reveal__cta ai-reveal__cta--row">
-              <Link className="ai-btn" href={`/report/${report.id}`}>
-                Open full feature report
-              </Link>
-              <Link className="ai-btn ai-btn--ghost" href="/dashboard">
-                Go to dashboard
-              </Link>
-            </div>
-          </section>
+          <JourneyProPitch
+            reportId={report.id}
+            user={authUser ?? user}
+            onUserUpdate={(u) => setAuthUser(u)}
+          />
         )}
 
         {prefsError && stage === "face_reveal" ? (
