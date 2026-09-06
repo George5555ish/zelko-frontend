@@ -3793,32 +3793,65 @@ function ebaySearchHref(style) {
     const query = encodeURIComponent((style || "outfit").slice(0, 80));
     return "https://www.ebay.com/sch/i.html?_nkw=".concat(query);
 }
-function buildEbayShopLinks(recommendedStyle, prefs) {
-    const full = recommendedStyle.trim() || (prefs ? "".concat(prefs.vibe, " ").concat(prefs.silhouette, " ").concat(prefs.bottomPreference) : "women outfit");
-    const links = [
+/** Short color words that actually match eBay listing titles. */ const EBAY_COLOR = {
+    black: "black",
+    navy: "navy",
+    beige: "beige",
+    white: "white",
+    red: "red",
+    pink: "pink",
+    green: "green",
+    blue: "blue"
+};
+/**
+ * Shoppable eBay queries — one piece at a time.
+ * Dress / one-piece → single short query.
+ * Jeans / trousers / skirt → separate bottom + top searches (never the long outfit sentence).
+ */ function buildEbayShopLinks(_recommendedStyle, prefs) {
+    if (!prefs) {
+        const fallback = "women casual outfit";
+        return [
+            {
+                id: "piece",
+                label: "Shop",
+                query: fallback,
+                href: ebaySearchHref(fallback)
+            }
+        ];
+    }
+    const color = EBAY_COLOR[prefs.favoriteColor] || prefs.favoriteColor;
+    const sil = prefs.silhouette === "oversized" ? "oversized" : prefs.silhouette === "relaxed" ? "relaxed" : "fitted";
+    // One-piece looks: single short search.
+    if (prefs.bottomPreference === "dresses") {
+        const dressQuery = "".concat(sil, " ").concat(color, " midi dress");
+        return [
+            {
+                id: "dress",
+                label: "Dress",
+                query: dressQuery,
+                href: ebaySearchHref(dressQuery)
+            }
+        ];
+    }
+    const bottomNoun = prefs.bottomPreference === "jeans" ? "jeans" : prefs.bottomPreference === "trousers" ? "trousers" : "skirt";
+    const bottomLabel = prefs.bottomPreference === "jeans" ? "Jeans" : prefs.bottomPreference === "trousers" ? "Trousers" : "Skirt";
+    const topNoun = prefs.vibe === "polished" ? "blouse" : prefs.vibe === "street" ? "crop top" : prefs.vibe === "classic" ? "knit top" : "top";
+    const bottomQuery = "".concat(sil, " ").concat(color, " ").concat(bottomNoun).replace(/\s+/g, " ").trim();
+    const topQuery = "".concat(color, " ").concat(topNoun).replace(/\s+/g, " ").trim();
+    return [
         {
-            id: "full",
-            label: "Full look",
-            query: full,
-            href: ebaySearchHref(full)
+            id: "bottoms",
+            label: bottomLabel,
+            query: bottomQuery,
+            href: ebaySearchHref(bottomQuery)
+        },
+        {
+            id: "top",
+            label: "Top",
+            query: topQuery,
+            href: ebaySearchHref(topQuery)
         }
     ];
-    if (prefs) {
-        const colorBottom = "".concat(prefs.favoriteColor, " ").concat(prefs.bottomPreference);
-        links.push({
-            id: "piece",
-            label: "Main piece",
-            query: colorBottom,
-            href: ebaySearchHref(colorBottom)
-        });
-        links.push({
-            id: "silhouette",
-            label: "Silhouette",
-            query: "".concat(prefs.silhouette, " ").concat(prefs.bottomPreference, " ").concat(prefs.vibe),
-            href: ebaySearchHref("".concat(prefs.silhouette, " ").concat(prefs.bottomPreference, " ").concat(prefs.vibe))
-        });
-    }
-    return links;
 }
 /** Approximate hotspots on the after still — coaching upgrades, not landmark locks. */ function buildUpgradeHotspots(pillars, prefs, recommendedStyle) {
     const spots = [];
@@ -3873,7 +3906,7 @@ function LooksReveal(param) {
     const [retryingIndex, setRetryingIndex] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const [activeHotspot, setActiveHotspot] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const [shopOpen, setShopOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
-    const [shopLinkId, setShopLinkId] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("full");
+    const [shopLinkId, setShopLinkId] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const onJourneyUpdateRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(onJourneyUpdate);
     const prefsRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(journey.looks);
     const retryAbortRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
@@ -4182,14 +4215,14 @@ function LooksReveal(param) {
                         children: "Stage 3 · Prescription"
                     }, void 0, false, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 672,
+                        lineNumber: 731,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
                         children: "Before & after"
                     }, void 0, false, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 673,
+                        lineNumber: 732,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4199,13 +4232,13 @@ function LooksReveal(param) {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 674,
+                        lineNumber: 733,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                lineNumber: 671,
+                lineNumber: 730,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4224,7 +4257,7 @@ function LooksReveal(param) {
                                         className: "ai-look-card__img"
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 690,
+                                        lineNumber: 749,
                                         columnNumber: 15
                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "ai-look-card__pulse",
@@ -4233,12 +4266,12 @@ function LooksReveal(param) {
                                             children: "Your photo"
                                         }, void 0, false, {
                                             fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                            lineNumber: 693,
+                                            lineNumber: 752,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 692,
+                                        lineNumber: 751,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4246,13 +4279,13 @@ function LooksReveal(param) {
                                         children: "Before"
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 696,
+                                        lineNumber: 755,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 687,
+                                lineNumber: 746,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4262,26 +4295,26 @@ function LooksReveal(param) {
                                         children: "Original"
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 699,
+                                        lineNumber: 758,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                         children: "Baseline selfie for comparison."
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 700,
+                                        lineNumber: 759,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 698,
+                                lineNumber: 757,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 686,
+                        lineNumber: 745,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("article", {
@@ -4298,7 +4331,7 @@ function LooksReveal(param) {
                                                 className: "ai-look-card__img"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                lineNumber: 711,
+                                                lineNumber: 770,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4326,7 +4359,7 @@ function LooksReveal(param) {
                                                                 "aria-hidden": true
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                                lineNumber: 737,
+                                                                lineNumber: 796,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4338,32 +4371,32 @@ function LooksReveal(param) {
                                                                         children: spot.title
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                                        lineNumber: 743,
+                                                                        lineNumber: 802,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                                         children: spot.tip
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                                        lineNumber: 744,
+                                                                        lineNumber: 803,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                                lineNumber: 738,
+                                                                lineNumber: 797,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, spot.id, true, {
                                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                        lineNumber: 720,
+                                                        lineNumber: 779,
                                                         columnNumber: 23
                                                     }, this);
                                                 })
                                             }, void 0, false, {
                                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                lineNumber: 716,
+                                                lineNumber: 775,
                                                 columnNumber: 17
                                             }, this)
                                         ]
@@ -4376,7 +4409,7 @@ function LooksReveal(param) {
                                                 className: "ai-look-card__garment-thumb"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                lineNumber: 758,
+                                                lineNumber: 817,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4387,7 +4420,7 @@ function LooksReveal(param) {
                                                         className: "ai-look-card__pulse-ring"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                        lineNumber: 767,
+                                                        lineNumber: 826,
                                                         columnNumber: 30
                                                     }, this) : null,
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4395,19 +4428,19 @@ function LooksReveal(param) {
                                                         children: retryingIndex != null ? "Retrying…" : look ? phaseLabel(look.phase) : "Waiting…"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                        lineNumber: 768,
+                                                        lineNumber: 827,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                lineNumber: 763,
+                                                lineNumber: 822,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 756,
+                                        lineNumber: 815,
                                         columnNumber: 15
                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "ai-look-card__pulse",
@@ -4419,14 +4452,14 @@ function LooksReveal(param) {
                                                         className: "ai-look-card__pulse-ring"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                        lineNumber: 781,
+                                                        lineNumber: 840,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "ai-look-card__pulse-ring ai-look-card__pulse-ring--delay"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                        lineNumber: 782,
+                                                        lineNumber: 841,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
@@ -4436,13 +4469,13 @@ function LooksReveal(param) {
                                                 children: look ? phaseLabel(look.phase) : "Waiting…"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                lineNumber: 785,
+                                                lineNumber: 844,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 778,
+                                        lineNumber: 837,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -4450,13 +4483,13 @@ function LooksReveal(param) {
                                         children: "After"
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 790,
+                                        lineNumber: 849,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 707,
+                                lineNumber: 766,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4466,14 +4499,14 @@ function LooksReveal(param) {
                                         children: (_look_label = look === null || look === void 0 ? void 0 : look.label) !== null && _look_label !== void 0 ? _look_label : "Prescribed look"
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 793,
+                                        lineNumber: 852,
                                         columnNumber: 13
                                     }, this),
                                     (look === null || look === void 0 ? void 0 : look.recommendedStyle) ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                         children: look.recommendedStyle
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 794,
+                                        lineNumber: 853,
                                         columnNumber: 39
                                     }, this) : null,
                                     loading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4481,7 +4514,7 @@ function LooksReveal(param) {
                                         children: retryingIndex != null && (look === null || look === void 0 ? void 0 : look.garmentFileId) ? "Garment saved · retrying pose + try-on…" : (look === null || look === void 0 ? void 0 : look.phase) === "tryon" ? "Pose ready · styling via virtual try-on…" : (look === null || look === void 0 ? void 0 : look.phase) === "pose" ? "Garment ready · creating a fashion pose…" : phaseLabel((_look_phase = look === null || look === void 0 ? void 0 : look.phase) !== null && _look_phase !== void 0 ? _look_phase : "waiting")
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 796,
+                                        lineNumber: 855,
                                         columnNumber: 15
                                     }, this) : null,
                                     failed && (look === null || look === void 0 ? void 0 : look.error) ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4489,7 +4522,7 @@ function LooksReveal(param) {
                                         children: look.error
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 807,
+                                        lineNumber: 866,
                                         columnNumber: 15
                                     }, this) : null,
                                     failed && retryingIndex == null ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -4499,19 +4532,19 @@ function LooksReveal(param) {
                                         children: (look === null || look === void 0 ? void 0 : look.garmentFileId) ? "Retry pose + try-on" : "Retry look"
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 810,
+                                        lineNumber: 869,
                                         columnNumber: 15
                                     }, this) : null
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 792,
+                                lineNumber: 851,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 704,
+                        lineNumber: 763,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("aside", {
@@ -4522,21 +4555,21 @@ function LooksReveal(param) {
                                 children: "Shop the look"
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 822,
+                                lineNumber: 881,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
                                 children: "Check eBay prices"
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 823,
+                                lineNumber: 882,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 children: "Browse live listings that match this outfit prescription. Affiliate links stay free."
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 824,
+                                lineNumber: 883,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -4546,33 +4579,43 @@ function LooksReveal(param) {
                                 onClick: ()=>{
                                     var _ebayLinks_;
                                     var _ebayLinks__id;
-                                    setShopLinkId((_ebayLinks__id = (_ebayLinks_ = ebayLinks[0]) === null || _ebayLinks_ === void 0 ? void 0 : _ebayLinks_.id) !== null && _ebayLinks__id !== void 0 ? _ebayLinks__id : "full");
+                                    setShopLinkId((_ebayLinks__id = (_ebayLinks_ = ebayLinks[0]) === null || _ebayLinks_ === void 0 ? void 0 : _ebayLinks_.id) !== null && _ebayLinks__id !== void 0 ? _ebayLinks__id : null);
                                     setShopOpen(true);
                                 },
                                 children: ready ? "Browse eBay prices →" : "Available when look is ready"
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 828,
+                                lineNumber: 887,
                                 columnNumber: 11
                             }, this),
-                            (look === null || look === void 0 ? void 0 : look.recommendedStyle) ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                            ebayLinks.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "ai-ba__shop-query",
+                                children: [
+                                    "Searches: ",
+                                    ebayLinks.map((l)=>l.query).join(" · ")
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/appearance/LooksReveal.tsx",
+                                lineNumber: 899,
+                                columnNumber: 13
+                            }, this) : (look === null || look === void 0 ? void 0 : look.recommendedStyle) ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 className: "ai-ba__shop-query",
                                 children: look.recommendedStyle
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 840,
+                                lineNumber: 903,
                                 columnNumber: 13
                             }, this) : null
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 821,
+                        lineNumber: 880,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                lineNumber: 685,
+                lineNumber: 744,
                 columnNumber: 7
             }, this),
             shopOpen && activeShopLink ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(EbayShopModal, {
@@ -4582,7 +4625,7 @@ function LooksReveal(param) {
                 onClose: ()=>setShopOpen(false)
             }, void 0, false, {
                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                lineNumber: 846,
+                lineNumber: 909,
                 columnNumber: 9
             }, this) : null,
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4595,22 +4638,22 @@ function LooksReveal(param) {
                     children: allSettled || ready ? "Finish this pass" : "Continue while look finishes"
                 }, void 0, false, {
                     fileName: "[project]/components/appearance/LooksReveal.tsx",
-                    lineNumber: 855,
+                    lineNumber: 918,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                lineNumber: 854,
+                lineNumber: 917,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/appearance/LooksReveal.tsx",
-        lineNumber: 670,
+        lineNumber: 729,
         columnNumber: 5
     }, this);
 }
-_s(LooksReveal, "H8UbGUQponDZS2ToXIXkdJ26DWY=");
+_s(LooksReveal, "kPp+FNUG7Kx9eo8jJcGiqp6hgD8=");
 _c = LooksReveal;
 function EbayShopModal(param) {
     let { links, activeId, onSelect, onClose } = param;
@@ -4678,7 +4721,7 @@ function EbayShopModal(param) {
                 onClick: onClose
             }, void 0, false, {
                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                lineNumber: 934,
+                lineNumber: 997,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4697,7 +4740,7 @@ function EbayShopModal(param) {
                                         children: "eBay"
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 948,
+                                        lineNumber: 1011,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -4705,13 +4748,13 @@ function EbayShopModal(param) {
                                         children: "Shop this look"
                                     }, void 0, false, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 949,
+                                        lineNumber: 1012,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 947,
+                                lineNumber: 1010,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -4721,13 +4764,13 @@ function EbayShopModal(param) {
                                 children: "Close"
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 951,
+                                lineNumber: 1014,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 946,
+                        lineNumber: 1009,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4743,12 +4786,12 @@ function EbayShopModal(param) {
                                 children: link.label
                             }, link.id, false, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 962,
+                                lineNumber: 1025,
                                 columnNumber: 13
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 960,
+                        lineNumber: 1023,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4759,7 +4802,7 @@ function EbayShopModal(param) {
                                 children: active.query
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 976,
+                                lineNumber: 1039,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
@@ -4770,13 +4813,13 @@ function EbayShopModal(param) {
                                 children: "Open search on eBay"
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                lineNumber: 977,
+                                lineNumber: 1040,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 975,
+                        lineNumber: 1038,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4786,7 +4829,7 @@ function EbayShopModal(param) {
                             children: "Searching live listings…"
                         }, void 0, false, {
                             fileName: "[project]/components/appearance/LooksReveal.tsx",
-                            lineNumber: 989,
+                            lineNumber: 1052,
                             columnNumber: 13
                         }, this) : error ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "ai-ebay-modal__status ai-ebay-modal__status--error",
@@ -4795,7 +4838,7 @@ function EbayShopModal(param) {
                                     children: error
                                 }, void 0, false, {
                                     fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                    lineNumber: 992,
+                                    lineNumber: 1055,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
@@ -4805,13 +4848,13 @@ function EbayShopModal(param) {
                                     children: "Open this search on eBay →"
                                 }, void 0, false, {
                                     fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                    lineNumber: 993,
+                                    lineNumber: 1056,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/appearance/LooksReveal.tsx",
-                            lineNumber: 991,
+                            lineNumber: 1054,
                             columnNumber: 13
                         }, this) : items.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "ai-ebay-modal__status",
@@ -4820,7 +4863,7 @@ function EbayShopModal(param) {
                                     children: "No listings matched this query."
                                 }, void 0, false, {
                                     fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                    lineNumber: 1003,
+                                    lineNumber: 1066,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
@@ -4830,13 +4873,13 @@ function EbayShopModal(param) {
                                     children: "Try the full eBay search →"
                                 }, void 0, false, {
                                     fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                    lineNumber: 1004,
+                                    lineNumber: 1067,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/appearance/LooksReveal.tsx",
-                            lineNumber: 1002,
+                            lineNumber: 1065,
                             columnNumber: 13
                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
                             className: "ai-ebay-modal__grid",
@@ -4855,18 +4898,18 @@ function EbayShopModal(param) {
                                                     alt: ""
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                    lineNumber: 1025,
+                                                    lineNumber: 1088,
                                                     columnNumber: 25
                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                     className: "ai-ebay-modal__card-placeholder"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                    lineNumber: 1027,
+                                                    lineNumber: 1090,
                                                     columnNumber: 25
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                lineNumber: 1022,
+                                                lineNumber: 1085,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4877,7 +4920,7 @@ function EbayShopModal(param) {
                                                         children: item.title
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                        lineNumber: 1031,
+                                                        lineNumber: 1094,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4885,46 +4928,46 @@ function EbayShopModal(param) {
                                                         children: formatEbayPrice(item.price, item.currency)
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                        lineNumber: 1032,
+                                                        lineNumber: 1095,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                                lineNumber: 1030,
+                                                lineNumber: 1093,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                        lineNumber: 1016,
+                                        lineNumber: 1079,
                                         columnNumber: 19
                                     }, this)
                                 }, item.id, false, {
                                     fileName: "[project]/components/appearance/LooksReveal.tsx",
-                                    lineNumber: 1015,
+                                    lineNumber: 1078,
                                     columnNumber: 17
                                 }, this))
                         }, void 0, false, {
                             fileName: "[project]/components/appearance/LooksReveal.tsx",
-                            lineNumber: 1013,
+                            lineNumber: 1076,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/components/appearance/LooksReveal.tsx",
-                        lineNumber: 987,
+                        lineNumber: 1050,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/appearance/LooksReveal.tsx",
-                lineNumber: 940,
+                lineNumber: 1003,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/appearance/LooksReveal.tsx",
-        lineNumber: 933,
+        lineNumber: 996,
         columnNumber: 5
     }, this);
 }

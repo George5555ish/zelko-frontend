@@ -259,41 +259,100 @@ type EbayShopLink = {
   href: string;
 };
 
+/** Short color words that actually match eBay listing titles. */
+const EBAY_COLOR: Record<StylePreferences["favoriteColor"], string> = {
+  black: "black",
+  navy: "navy",
+  beige: "beige",
+  white: "white",
+  red: "red",
+  pink: "pink",
+  green: "green",
+  blue: "blue",
+};
+
+/**
+ * Shoppable eBay queries — one piece at a time.
+ * Dress / one-piece → single short query.
+ * Jeans / trousers / skirt → separate bottom + top searches (never the long outfit sentence).
+ */
 function buildEbayShopLinks(
-  recommendedStyle: string,
+  _recommendedStyle: string,
   prefs: StylePreferences | null,
 ): EbayShopLink[] {
-  const full =
-    recommendedStyle.trim() ||
-    (prefs
-      ? `${prefs.vibe} ${prefs.silhouette} ${prefs.bottomPreference}`
-      : "women outfit");
-  const links: EbayShopLink[] = [
+  if (!prefs) {
+    const fallback = "women casual outfit";
+    return [
+      {
+        id: "piece",
+        label: "Shop",
+        query: fallback,
+        href: ebaySearchHref(fallback),
+      },
+    ];
+  }
+
+  const color = EBAY_COLOR[prefs.favoriteColor] || prefs.favoriteColor;
+  const sil =
+    prefs.silhouette === "oversized"
+      ? "oversized"
+      : prefs.silhouette === "relaxed"
+        ? "relaxed"
+        : "fitted";
+
+  // One-piece looks: single short search.
+  if (prefs.bottomPreference === "dresses") {
+    const dressQuery = `${sil} ${color} midi dress`;
+    return [
+      {
+        id: "dress",
+        label: "Dress",
+        query: dressQuery,
+        href: ebaySearchHref(dressQuery),
+      },
+    ];
+  }
+
+  const bottomNoun =
+    prefs.bottomPreference === "jeans"
+      ? "jeans"
+      : prefs.bottomPreference === "trousers"
+        ? "trousers"
+        : "skirt";
+
+  const bottomLabel =
+    prefs.bottomPreference === "jeans"
+      ? "Jeans"
+      : prefs.bottomPreference === "trousers"
+        ? "Trousers"
+        : "Skirt";
+
+  const topNoun =
+    prefs.vibe === "polished"
+      ? "blouse"
+      : prefs.vibe === "street"
+        ? "crop top"
+        : prefs.vibe === "classic"
+          ? "knit top"
+          : "top";
+
+  const bottomQuery = `${sil} ${color} ${bottomNoun}`.replace(/\s+/g, " ").trim();
+  const topQuery = `${color} ${topNoun}`.replace(/\s+/g, " ").trim();
+
+  return [
     {
-      id: "full",
-      label: "Full look",
-      query: full,
-      href: ebaySearchHref(full),
+      id: "bottoms",
+      label: bottomLabel,
+      query: bottomQuery,
+      href: ebaySearchHref(bottomQuery),
+    },
+    {
+      id: "top",
+      label: "Top",
+      query: topQuery,
+      href: ebaySearchHref(topQuery),
     },
   ];
-  if (prefs) {
-    const colorBottom = `${prefs.favoriteColor} ${prefs.bottomPreference}`;
-    links.push({
-      id: "piece",
-      label: "Main piece",
-      query: colorBottom,
-      href: ebaySearchHref(colorBottom),
-    });
-    links.push({
-      id: "silhouette",
-      label: "Silhouette",
-      query: `${prefs.silhouette} ${prefs.bottomPreference} ${prefs.vibe}`,
-      href: ebaySearchHref(
-        `${prefs.silhouette} ${prefs.bottomPreference} ${prefs.vibe}`,
-      ),
-    });
-  }
-  return links;
 }
 
 /** Approximate hotspots on the after still — coaching upgrades, not landmark locks. */
@@ -373,7 +432,7 @@ export function LooksReveal({
   const [retryingIndex, setRetryingIndex] = useState<number | null>(null);
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
-  const [shopLinkId, setShopLinkId] = useState("full");
+  const [shopLinkId, setShopLinkId] = useState<string | null>(null);
   const onJourneyUpdateRef = useRef(onJourneyUpdate);
   const prefsRef = useRef(journey.looks);
   const retryAbortRef = useRef<AbortController | null>(null);
@@ -830,13 +889,17 @@ export function LooksReveal({
             className={`ai-ba__shop-cta${ready ? "" : " is-disabled"}`}
             disabled={!ready}
             onClick={() => {
-              setShopLinkId(ebayLinks[0]?.id ?? "full");
+              setShopLinkId(ebayLinks[0]?.id ?? null);
               setShopOpen(true);
             }}
           >
             {ready ? "Browse eBay prices →" : "Available when look is ready"}
           </button>
-          {look?.recommendedStyle ? (
+          {ebayLinks.length > 0 ? (
+            <p className="ai-ba__shop-query">
+              Searches: {ebayLinks.map((l) => l.query).join(" · ")}
+            </p>
+          ) : look?.recommendedStyle ? (
             <p className="ai-ba__shop-query">{look.recommendedStyle}</p>
           ) : null}
         </aside>
