@@ -1277,7 +1277,7 @@ function clamp(n, min, max) {
     };
 }
 function InteractivePortrait(param) {
-    let { report, faceSrc, usingUserPortrait, isUnlocked, topFeature, size = "default" } = param;
+    let { report, faceSrc, usingUserPortrait, isUnlocked, topFeature, size = "default", openOnHover = false } = param;
     var _report_featureOverlays;
     _s();
     const boxRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
@@ -1343,6 +1343,9 @@ function InteractivePortrait(param) {
                 onClick: (e)=>{
                     if (e.target === e.currentTarget) setSelectedId(null);
                 },
+                onMouseLeave: ()=>{
+                    if (openOnHover) setSelectedId(null);
+                },
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("img", {
                         ref: imgRef,
@@ -1353,7 +1356,7 @@ function InteractivePortrait(param) {
                         onClick: ()=>setSelectedId(null)
                     }, void 0, false, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 155,
+                        lineNumber: 161,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1361,7 +1364,7 @@ function InteractivePortrait(param) {
                         "aria-hidden": true
                     }, void 0, false, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 163,
+                        lineNumber: 169,
                         columnNumber: 9
                     }, this),
                     !usingUserPortrait && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1369,15 +1372,15 @@ function InteractivePortrait(param) {
                         children: "Demo portrait"
                     }, void 0, false, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 169,
+                        lineNumber: 175,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                         className: "pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-black/35 px-2.5 py-1 text-[10px] text-white/50 backdrop-blur-sm",
-                        children: "Tap a point"
+                        children: openOnHover ? "Hover a point" : "Tap a point"
                     }, void 0, false, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 174,
+                        lineNumber: 180,
                         columnNumber: 9
                     }, this),
                     overlays.map((dot)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(OverlayDot, {
@@ -1387,10 +1390,12 @@ function InteractivePortrait(param) {
                             active: selectedId === dot.id,
                             imgSize: imgSize,
                             boxSize: boxSize,
-                            onSelect: ()=>setSelectedId((prev)=>prev === dot.id ? null : dot.id)
+                            openOnHover: openOnHover,
+                            onSelect: ()=>setSelectedId((prev)=>prev === dot.id ? null : dot.id),
+                            onHoverOpen: ()=>setSelectedId(dot.id)
                         }, dot.id, false, {
                             fileName: "[project]/components/report/InteractivePortrait.tsx",
-                            lineNumber: 179,
+                            lineNumber: 185,
                             columnNumber: 11
                         }, this)),
                     isUnlocked(topFeature) && !selectedDot && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1401,7 +1406,7 @@ function InteractivePortrait(param) {
                                 children: "Strongest"
                             }, void 0, false, {
                                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                                lineNumber: 195,
+                                lineNumber: 203,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1414,19 +1419,19 @@ function InteractivePortrait(param) {
                                         children: report.features[topFeature].score
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                                        lineNumber: 200,
+                                        lineNumber: 208,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                                lineNumber: 198,
+                                lineNumber: 206,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 194,
+                        lineNumber: 202,
                         columnNumber: 11
                     }, this),
                     selectedDot && selectedScore && pop && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(FeatureBreakdownCard, {
@@ -1441,26 +1446,26 @@ function InteractivePortrait(param) {
                         onClose: ()=>setSelectedId(null)
                     }, void 0, false, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 208,
+                        lineNumber: 216,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                lineNumber: 147,
+                lineNumber: 150,
                 columnNumber: 12
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/report/InteractivePortrait.tsx",
-        lineNumber: 141,
+        lineNumber: 144,
         columnNumber: 5
     }, this);
 }
 _s(InteractivePortrait, "oY7FeZI5frJjmHXJTs5bAaaVrbo=");
 _c = InteractivePortrait;
 function OverlayDot(param) {
-    let { dot, score, unlocked, active, imgSize, boxSize, onSelect } = param;
+    let { dot, score, unlocked, active, imgSize, boxSize, openOnHover, onSelect, onHoverOpen } = param;
     const pos = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$object$2d$cover$2d$map$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["mapNormToCoverPercent"])(dot.x, dot.y, imgSize.w || 1, imgSize.h || 1, boxSize.w || 1, boxSize.h || 1, OBJECT_POS_X, OBJECT_POS_Y);
     const tone = !(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["isFeatureMeasurable"])(score.measurable) ? "bg-white/35" : (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["scoreToneClass"])(score.score, unlocked);
     function onKeyDown(e) {
@@ -1471,11 +1476,14 @@ function OverlayDot(param) {
     }
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
         type: "button",
-        "aria-label": "".concat(__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][dot.feature], " — tap for breakdown"),
+        "aria-label": "".concat(__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][dot.feature], " — ").concat(openOnHover ? "hover" : "tap", " for breakdown"),
         "aria-pressed": active,
         onClick: (e)=>{
             e.stopPropagation();
             onSelect();
+        },
+        onMouseEnter: ()=>{
+            if (openOnHover) onHoverOpen();
         },
         onKeyDown: onKeyDown,
         className: "report-face-dot absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 ".concat(active ? "report-face-dot--active" : ""),
@@ -1488,7 +1496,7 @@ function OverlayDot(param) {
                 className: "report-face-dot__core ".concat(tone)
             }, void 0, false, {
                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                lineNumber: 276,
+                lineNumber: 291,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1496,13 +1504,13 @@ function OverlayDot(param) {
                 "aria-hidden": true
             }, void 0, false, {
                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                lineNumber: 277,
+                lineNumber: 292,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/report/InteractivePortrait.tsx",
-        lineNumber: 262,
+        lineNumber: 274,
         columnNumber: 5
     }, this);
 }
@@ -1536,7 +1544,7 @@ function FeatureBreakdownCard(param) {
                                 children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MUTABILITY_LABELS"][mutability]
                             }, void 0, false, {
                                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                                lineNumber: 322,
+                                lineNumber: 337,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1544,13 +1552,13 @@ function FeatureBreakdownCard(param) {
                                 children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][feature]
                             }, void 0, false, {
                                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                                lineNumber: 325,
+                                lineNumber: 340,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 321,
+                        lineNumber: 336,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1561,13 +1569,13 @@ function FeatureBreakdownCard(param) {
                         children: "✕"
                     }, void 0, false, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 329,
+                        lineNumber: 344,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                lineNumber: 320,
+                lineNumber: 335,
                 columnNumber: 7
             }, this),
             !measurable ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -1577,7 +1585,7 @@ function FeatureBreakdownCard(param) {
                         children: "Not measured"
                     }, void 0, false, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 341,
+                        lineNumber: 356,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1585,7 +1593,7 @@ function FeatureBreakdownCard(param) {
                         children: (_packet_gateNote = packet.gateNote) !== null && _packet_gateNote !== void 0 ? _packet_gateNote : packet.observedSignal
                     }, void 0, false, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 344,
+                        lineNumber: 359,
                         columnNumber: 11
                     }, this)
                 ]
@@ -1603,13 +1611,13 @@ function FeatureBreakdownCard(param) {
                                         children: "/100"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                                        lineNumber: 353,
+                                        lineNumber: 368,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                                lineNumber: 351,
+                                lineNumber: 366,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1617,13 +1625,13 @@ function FeatureBreakdownCard(param) {
                                 children: packet.confidence
                             }, void 0, false, {
                                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                                lineNumber: 357,
+                                lineNumber: 372,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 350,
+                        lineNumber: 365,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1631,7 +1639,7 @@ function FeatureBreakdownCard(param) {
                         children: packet.observedSignal
                     }, void 0, false, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 361,
+                        lineNumber: 376,
                         columnNumber: 11
                     }, this),
                     tip && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1642,7 +1650,7 @@ function FeatureBreakdownCard(param) {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/InteractivePortrait.tsx",
-                        lineNumber: 365,
+                        lineNumber: 380,
                         columnNumber: 13
                     }, this)
                 ]
@@ -1651,13 +1659,13 @@ function FeatureBreakdownCard(param) {
                 children: "Locked on free — unlock to see this region's score and signal."
             }, void 0, false, {
                 fileName: "[project]/components/report/InteractivePortrait.tsx",
-                lineNumber: 371,
+                lineNumber: 386,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/report/InteractivePortrait.tsx",
-        lineNumber: 305,
+        lineNumber: 320,
         columnNumber: 5
     }, this);
 }
@@ -2535,6 +2543,9 @@ if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelper
 const FACE_MESH_COUNT = 468;
 /** MediaPipe eye outer corners — used to score “how upright” a detection is. */ const LEFT_EYE_OUTER = 33;
 const RIGHT_EYE_OUTER = 263;
+/** Forehead / chin — reject 180° flips that still have level eyes. */ const FOREHEAD = 10;
+const CHIN = 152;
+const NOSE_TIP = 1;
 let faceLandmarkerPromise = null;
 async function getFaceLandmarker() {
     if (!faceLandmarkerPromise) {
@@ -2597,6 +2608,43 @@ function eyeSpan(landmarks) {
     if (!L || !R) return 0;
     return Math.hypot(R.x - L.x, R.y - L.y);
 }
+/**
+ * How anatomically upright the face is in image space (y grows downward).
+ * Positive ⇒ chin below eyes / forehead above eyes. Near-zero or negative
+ * means the mesh was fit on an upside-down (or near-inverted) frame — the
+ * common failure mode when we only scored eye-line roll.
+ */ function faceUprightness(landmarks) {
+    const L = landmarks[LEFT_EYE_OUTER];
+    const R = landmarks[RIGHT_EYE_OUTER];
+    const chin = landmarks[CHIN];
+    const forehead = landmarks[FOREHEAD];
+    const nose = landmarks[NOSE_TIP];
+    if (!L || !R || !chin || !forehead) return -1;
+    const eyeY = (L.y + R.y) / 2;
+    // Chin should sit below the eyes; forehead above.
+    let score = chin.y - eyeY + (eyeY - forehead.y);
+    if (nose) {
+        // Nose tip should also sit below the eye line on an upright face.
+        score += Math.max(-0.05, nose.y - eyeY);
+    }
+    return score;
+}
+function isFaceUpright(landmarks) {
+    return faceUprightness(landmarks) >= 0.04;
+}
+/** Rank candidates: upright anatomy first, then size, then level eyes. */ function compareFaceCandidates(a, b) {
+    const aUp = isFaceUpright(a.landmarks);
+    const bUp = isFaceUpright(b.landmarks);
+    if (aUp !== bUp) return aUp ? -1 : 1;
+    const uprightDiff = faceUprightness(b.landmarks) - faceUprightness(a.landmarks);
+    if (Math.abs(uprightDiff) > 0.02) return uprightDiff;
+    const spanDiff = b.span - a.span;
+    if (Math.abs(spanDiff) > 0.03) return spanDiff;
+    const rollDiff = a.roll - b.roll;
+    if (Math.abs(rollDiff) > 8) return rollDiff;
+    // Prefer fewer quarter-turns when scores tie (avoid gratuitous 180° flips).
+    return a.quarters - b.quarters;
+}
 function toCanvas(source) {
     if (source instanceof HTMLCanvasElement) return source;
     const canvas = document.createElement("canvas");
@@ -2652,12 +2700,18 @@ function canvasToJpegFile(canvas, originalName) {
     });
 }
 async function fileToBitmap(file) {
-    // Prefer raw pixels — EXIF "from-image" can disagree with how WebPs are
-    // stored and fight our manual 90° search.
+    // Force raw pixels — EXIF "from-image" can disagree with how WebPs are
+    // stored and fight our manual 90°/180° search (double-rotate → upside down).
     try {
-        return await createImageBitmap(file);
+        return await createImageBitmap(file, {
+            imageOrientation: "none"
+        });
     } catch (e) {
-    /* fall through */ }
+        try {
+            return await createImageBitmap(file);
+        } catch (e) {
+        /* fall through */ }
+    }
     const url = URL.createObjectURL(file);
     try {
         const img = await new Promise((resolve, reject)=>{
@@ -2668,7 +2722,13 @@ async function fileToBitmap(file) {
             el.src = url;
         });
         await img.decode().catch(()=>undefined);
-        return await createImageBitmap(img);
+        try {
+            return await createImageBitmap(img, {
+                imageOrientation: "none"
+            });
+        } catch (e) {
+            return await createImageBitmap(img);
+        }
     } finally{
         URL.revokeObjectURL(url);
     }
@@ -2843,18 +2903,15 @@ async function extractFaceLandmarksFromFile(file) {
                 label: "full-q".concat(q)
             });
         }
-        // Prefer level eyes + larger face among full-frame hits.
+        // Prefer anatomically upright full-frame hits (chin below eyes), then
+        // level eyes / larger face. Eye-roll alone used to accept 180° flips.
         const bestFull = candidates.length ? [
             ...candidates
-        ].sort((a, b)=>{
-            const rollDiff = a.roll - b.roll;
-            if (Math.abs(rollDiff) > 8) return rollDiff;
-            return b.span - a.span;
-        })[0] : null;
+        ].sort(compareFaceCandidates)[0] : null;
         var _bestFull_canvas;
         // Crops only on the best upright orientation (never on sideways pixels).
         const baseForCrop = (_bestFull_canvas = bestFull === null || bestFull === void 0 ? void 0 : bestFull.canvas) !== null && _bestFull_canvas !== void 0 ? _bestFull_canvas : drawRotated(prepared, 0);
-        const needsCrop = !bestFull || bestFull.span < 0.08 || bestFull.roll > 35;
+        const needsCrop = !bestFull || bestFull.span < 0.08 || bestFull.roll > 35 || !isFaceUpright(bestFull.landmarks);
         if (needsCrop) {
             const w = baseForCrop.width;
             const h = baseForCrop.height;
@@ -2881,7 +2938,9 @@ async function extractFaceLandmarksFromFile(file) {
                     fromCrop: true,
                     label: region.label
                 });
-                if (span > 0.18 && roll < 30) break;
+                if (span > 0.18 && roll < 30 && isFaceUpright(landmarks)) {
+                    break;
+                }
             }
             // If no full-frame hit, also try crops on other orientations.
             if (!bestFull) {
@@ -2924,11 +2983,7 @@ async function extractFaceLandmarksFromFile(file) {
                 rotationQuarters: 0
             };
         }
-        candidates.sort((a, b)=>{
-            const spanDiff = b.span - a.span;
-            if (Math.abs(spanDiff) > 0.03) return spanDiff;
-            return a.roll - b.roll;
-        });
+        candidates.sort(compareFaceCandidates);
         const best = candidates[0];
         console.info("[MediaPipe] chose face pass", {
             label: best.label,
@@ -2936,6 +2991,7 @@ async function extractFaceLandmarksFromFile(file) {
             quarters: best.quarters,
             roll: Math.round(best.roll),
             eyeSpan: Number(best.span.toFixed(3)),
+            upright: Number(faceUprightness(best.landmarks).toFixed(3)),
             tried: candidates.length
         });
         // Always re-encode so preview is upright, opaque, and matches landmarks
@@ -2943,7 +2999,7 @@ async function extractFaceLandmarksFromFile(file) {
         let canvasOut = best.canvas;
         let landmarksOut = best.landmarks;
         let quartersOut = best.quarters;
-        if (best.fromCrop && bestFull && bestFull.span >= 0.08 && bestFull.roll <= 35) {
+        if (best.fromCrop && bestFull && bestFull.span >= 0.08 && bestFull.roll <= 35 && isFaceUpright(bestFull.landmarks)) {
             canvasOut = bestFull.canvas;
             landmarksOut = bestFull.landmarks;
             quartersOut = bestFull.quarters;

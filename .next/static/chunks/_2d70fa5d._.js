@@ -1,0 +1,4404 @@
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([typeof document === "object" ? document.currentScript : undefined,
+"[project]/lib/auth.ts [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+/** Client auth helpers — token in localStorage, API via Next /api rewrite. */ __turbopack_context__.s([
+    "AUTH_TOKEN_KEY",
+    ()=>AUTH_TOKEN_KEY,
+    "accountPortraitUrl",
+    ()=>accountPortraitUrl,
+    "analyzeTargetLook",
+    ()=>analyzeTargetLook,
+    "cancelProSubscription",
+    ()=>cancelProSubscription,
+    "deleteMyReport",
+    ()=>deleteMyReport,
+    "devUnlockPro",
+    ()=>devUnlockPro,
+    "ensureStandardizedPortrait",
+    ()=>ensureStandardizedPortrait,
+    "fetchMe",
+    ()=>fetchMe,
+    "fetchMyReports",
+    ()=>fetchMyReports,
+    "fetchOutfitStills",
+    ()=>fetchOutfitStills,
+    "fetchProfile",
+    ()=>fetchProfile,
+    "fetchTargetLookReport",
+    ()=>fetchTargetLookReport,
+    "generateOutfitStill",
+    ()=>generateOutfitStill,
+    "getAuthToken",
+    ()=>getAuthToken,
+    "linkReportToAccount",
+    ()=>linkReportToAccount,
+    "loginAccount",
+    ()=>loginAccount,
+    "portraitUrl",
+    ()=>portraitUrl,
+    "registerAccount",
+    ()=>registerAccount,
+    "saveProfile",
+    ()=>saveProfile,
+    "setAuthToken",
+    ()=>setAuthToken,
+    "startProCheckout",
+    ()=>startProCheckout
+]);
+const AUTH_TOKEN_KEY = "zelko.authToken";
+function getAuthToken() {
+    if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+    ;
+    try {
+        return localStorage.getItem(AUTH_TOKEN_KEY);
+    } catch (e) {
+        return null;
+    }
+}
+function setAuthToken(token) {
+    if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+    ;
+    try {
+        if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
+        else localStorage.removeItem(AUTH_TOKEN_KEY);
+    } catch (e) {
+    /* ignore */ }
+}
+function authHeaders() {
+    const token = getAuthToken();
+    return token ? {
+        Authorization: "Bearer ".concat(token),
+        "Content-Type": "application/json"
+    } : {
+        "Content-Type": "application/json"
+    };
+}
+async function registerAccount(input) {
+    const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(input)
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Registration failed.");
+    }
+    if (!(data === null || data === void 0 ? void 0 : data.token) || !data.user) {
+        throw new Error("Invalid registration response.");
+    }
+    setAuthToken(data.token);
+    return data;
+}
+async function loginAccount(input) {
+    const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(input)
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Login failed.");
+    }
+    if (!(data === null || data === void 0 ? void 0 : data.token) || !data.user) {
+        throw new Error("Invalid login response.");
+    }
+    setAuthToken(data.token);
+    return data;
+}
+async function linkReportToAccount(reportId) {
+    const res = await fetch("/api/auth/link-report", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+            reportId
+        })
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.user)) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Could not link report.");
+    }
+    return data.user;
+}
+async function fetchMe() {
+    const token = getAuthToken();
+    if (!token) return null;
+    const res = await fetch("/api/auth/me", {
+        headers: {
+            Authorization: "Bearer ".concat(token)
+        },
+        cache: "no-store"
+    });
+    if (res.status === 401) {
+        setAuthToken(null);
+        return null;
+    }
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.user;
+}
+async function fetchMyReports() {
+    const token = getAuthToken();
+    if (!token) throw new Error("Sign in required.");
+    const res = await fetch("/api/reports", {
+        headers: {
+            Authorization: "Bearer ".concat(token)
+        },
+        cache: "no-store"
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.user) || !data.reports) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Failed to load reports.");
+    }
+    return {
+        user: data.user,
+        reports: data.reports
+    };
+}
+async function deleteMyReport(reportId) {
+    const token = getAuthToken();
+    if (!token) throw new Error("Sign in required.");
+    const res = await fetch("/api/reports/".concat(reportId), {
+        method: "DELETE",
+        headers: {
+            Authorization: "Bearer ".concat(token)
+        }
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Failed to delete report.");
+    }
+}
+async function startProCheckout(input) {
+    const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(input !== null && input !== void 0 ? input : {})
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok) {
+        var _data_error;
+        return {
+            url: null,
+            error: (_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Checkout failed.",
+            devUnlock: data === null || data === void 0 ? void 0 : data.devUnlock
+        };
+    }
+    var _data_url;
+    return {
+        url: (_data_url = data === null || data === void 0 ? void 0 : data.url) !== null && _data_url !== void 0 ? _data_url : null,
+        alreadyPro: data === null || data === void 0 ? void 0 : data.alreadyPro,
+        devUnlock: data === null || data === void 0 ? void 0 : data.devUnlock
+    };
+}
+async function cancelProSubscription() {
+    const res = await fetch("/api/billing/cancel", {
+        method: "POST",
+        headers: authHeaders(),
+        body: "{}"
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.user)) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Could not cancel subscription.");
+    }
+    var _data_message, _data_currentPeriodEnd;
+    return {
+        user: data.user,
+        message: (_data_message = data.message) !== null && _data_message !== void 0 ? _data_message : "Subscription canceled.",
+        immediate: data.immediate,
+        currentPeriodEnd: (_data_currentPeriodEnd = data.currentPeriodEnd) !== null && _data_currentPeriodEnd !== void 0 ? _data_currentPeriodEnd : data.user.currentPeriodEnd
+    };
+}
+async function devUnlockPro() {
+    const res = await fetch("/api/billing/dev-unlock", {
+        method: "POST",
+        headers: authHeaders(),
+        body: "{}"
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.user)) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Dev unlock failed.");
+    }
+    return data.user;
+}
+function portraitUrl(portraitFileId) {
+    if (!portraitFileId) return null;
+    return "/api/files/".concat(portraitFileId);
+}
+function accountPortraitUrl(report) {
+    if (!report) return null;
+    var _portraitUrl;
+    return (_portraitUrl = portraitUrl(report.standardizedPortraitFileId)) !== null && _portraitUrl !== void 0 ? _portraitUrl : portraitUrl(report.portraitFileId);
+}
+async function ensureStandardizedPortrait(reportId) {
+    const res = await fetch("/api/reports/".concat(reportId, "/standardized-portrait"), {
+        method: "POST",
+        headers: authHeaders()
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.report)) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Could not generate standardized portrait.");
+    }
+    return data.report;
+}
+async function fetchProfile() {
+    const token = getAuthToken();
+    if (!token) throw new Error("Sign in required.");
+    const res = await fetch("/api/profile", {
+        headers: {
+            Authorization: "Bearer ".concat(token)
+        },
+        cache: "no-store"
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.user)) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Failed to load profile.");
+    }
+    var _data_profile, _data_outfitStillCount;
+    return {
+        user: data.user,
+        profile: (_data_profile = data.profile) !== null && _data_profile !== void 0 ? _data_profile : null,
+        profileComplete: data.profileComplete === true,
+        outfitStillCount: (_data_outfitStillCount = data.outfitStillCount) !== null && _data_outfitStillCount !== void 0 ? _data_outfitStillCount : 0
+    };
+}
+async function saveProfile(profile) {
+    const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({
+            profile
+        })
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.user) || !data.profile) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Failed to save profile.");
+    }
+    return {
+        user: data.user,
+        profile: data.profile
+    };
+}
+async function fetchTargetLookReport(baselineReportId) {
+    const token = getAuthToken();
+    if (!token) return null;
+    const res = await fetch("/api/reports/".concat(baselineReportId, "/target-look"), {
+        headers: {
+            Authorization: "Bearer ".concat(token)
+        },
+        cache: "no-store"
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.report;
+}
+async function analyzeTargetLook(input) {
+    const res = await fetch("/api/analyze/target-look", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(input)
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.report)) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Target-look analysis failed.");
+    }
+    var _data_recommendations;
+    return {
+        report: data.report,
+        recommendations: (_data_recommendations = data.recommendations) !== null && _data_recommendations !== void 0 ? _data_recommendations : []
+    };
+}
+async function fetchOutfitStills(baselineReportId) {
+    const token = getAuthToken();
+    if (!token) throw new Error("Sign in required.");
+    const res = await fetch("/api/outfits?baselineReportId=".concat(encodeURIComponent(baselineReportId)), {
+        headers: {
+            Authorization: "Bearer ".concat(token)
+        },
+        cache: "no-store"
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.user)) {
+        var _data_error;
+        throw new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Failed to load outfits.");
+    }
+    var _data_stills, _data_cap, _data_used, _data_remaining;
+    return {
+        stills: (_data_stills = data.stills) !== null && _data_stills !== void 0 ? _data_stills : [],
+        cap: (_data_cap = data.cap) !== null && _data_cap !== void 0 ? _data_cap : 1,
+        used: (_data_used = data.used) !== null && _data_used !== void 0 ? _data_used : 0,
+        remaining: (_data_remaining = data.remaining) !== null && _data_remaining !== void 0 ? _data_remaining : 0,
+        user: data.user
+    };
+}
+async function generateOutfitStill(baselineReportId) {
+    const res = await fetch("/api/outfits/generate", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+            baselineReportId
+        })
+    });
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !(data === null || data === void 0 ? void 0 : data.still) || !data.user) {
+        var _data_error;
+        const err = new Error((_data_error = data === null || data === void 0 ? void 0 : data.error) !== null && _data_error !== void 0 ? _data_error : "Outfit generation failed.");
+        err.needsPro = (data === null || data === void 0 ? void 0 : data.needsPro) === true || res.status === 402;
+        throw err;
+    }
+    var _data_recommendation, _data_cap, _data_used, _data_remaining;
+    return {
+        still: data.still,
+        recommendation: (_data_recommendation = data.recommendation) !== null && _data_recommendation !== void 0 ? _data_recommendation : null,
+        user: data.user,
+        cap: (_data_cap = data.cap) !== null && _data_cap !== void 0 ? _data_cap : 1,
+        used: (_data_used = data.used) !== null && _data_used !== void 0 ? _data_used : 0,
+        remaining: (_data_remaining = data.remaining) !== null && _data_remaining !== void 0 ? _data_remaining : 0,
+        needsPro: data.needsPro
+    };
+}
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/lib/site-nav.ts [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "SITE_NAV",
+    ()=>SITE_NAV,
+    "SITE_NAV_AUTH",
+    ()=>SITE_NAV_AUTH,
+    "SITE_NAV_GUEST",
+    ()=>SITE_NAV_GUEST,
+    "navForAuth",
+    ()=>navForAuth
+]);
+const SITE_NAV_GUEST = [
+    {
+        label: "How it works",
+        href: "/how-it-works"
+    },
+    {
+        label: "Your report",
+        href: "/your-report"
+    },
+    {
+        label: "Pricing",
+        href: "/pricing"
+    },
+    {
+        label: "FAQ",
+        href: "/faq"
+    }
+];
+const SITE_NAV_AUTH = [
+    {
+        label: "Dashboard",
+        href: "/dashboard"
+    },
+    {
+        label: "Assess",
+        href: "/upload"
+    },
+    {
+        label: "Tracking",
+        href: "/tracking"
+    },
+    {
+        label: "Pricing",
+        href: "/pricing"
+    }
+];
+const SITE_NAV = SITE_NAV_GUEST;
+function navForAuth(isAuthed) {
+    return isAuthed ? SITE_NAV_AUTH : SITE_NAV_GUEST;
+}
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/lib/use-auth-user.ts [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "useAuthUser",
+    ()=>useAuthUser
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/auth.ts [app-client] (ecmascript)");
+var _s = __turbopack_context__.k.signature();
+"use client";
+;
+;
+function useAuthUser() {
+    _s();
+    const [user, setUser] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [ready, setReady] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "useAuthUser.useEffect": ()=>{
+            let cancelled = false;
+            void (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["fetchMe"])().then({
+                "useAuthUser.useEffect": (me)=>{
+                    if (!cancelled) setUser(me);
+                }
+            }["useAuthUser.useEffect"]).finally({
+                "useAuthUser.useEffect": ()=>{
+                    if (!cancelled) setReady(true);
+                }
+            }["useAuthUser.useEffect"]);
+            return ({
+                "useAuthUser.useEffect": ()=>{
+                    cancelled = true;
+                }
+            })["useAuthUser.useEffect"];
+        }
+    }["useAuthUser.useEffect"], []);
+    return {
+        user,
+        ready,
+        isAuthed: Boolean(user)
+    };
+}
+_s(useAuthUser, "+Sxn/2xyjgQ+mofZRrejyh4YHrk=");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/site/MobileNavSheet.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "MenuToggleButton",
+    ()=>MenuToggleButton,
+    "MobileNavSheet",
+    ()=>MobileNavSheet
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/client/app-dir/link.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+;
+var _s = __turbopack_context__.k.signature();
+"use client";
+;
+;
+function MobileNavSheet(param) {
+    let { open, onClose, links, extras } = param;
+    _s();
+    const titleId = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useId"])();
+    const closeRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "MobileNavSheet.useEffect": ()=>{
+            var _closeRef_current;
+            if (!open) return;
+            const prev = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+            (_closeRef_current = closeRef.current) === null || _closeRef_current === void 0 ? void 0 : _closeRef_current.focus();
+            const onKey = {
+                "MobileNavSheet.useEffect.onKey": (e)=>{
+                    if (e.key === "Escape") onClose();
+                }
+            }["MobileNavSheet.useEffect.onKey"];
+            window.addEventListener("keydown", onKey);
+            return ({
+                "MobileNavSheet.useEffect": ()=>{
+                    document.body.style.overflow = prev;
+                    window.removeEventListener("keydown", onKey);
+                }
+            })["MobileNavSheet.useEffect"];
+        }
+    }["MobileNavSheet.useEffect"], [
+        open,
+        onClose
+    ]);
+    if (!open) return null;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        className: "nav-sheet fixed inset-0 z-[60] lg:hidden",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-labelledby": titleId,
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                type: "button",
+                className: "nav-sheet__backdrop absolute inset-0 cursor-pointer border-0 bg-neutral-950/25",
+                "aria-label": "Close menu",
+                onClick: onClose
+            }, void 0, false, {
+                fileName: "[project]/components/site/MobileNavSheet.tsx",
+                lineNumber: 51,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "nav-sheet__panel absolute inset-x-3 top-3 bottom-3 flex flex-col overflow-hidden rounded-[1.75rem] border border-white/40 bg-white/55 shadow-[0_24px_80px_rgba(20,12,40,0.18)] backdrop-blur-2xl sm:inset-x-5 sm:top-4 sm:bottom-4",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "flex items-center justify-between px-5 pb-2 pt-5",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                id: titleId,
+                                className: "nav-sheet__item text-xs uppercase tracking-[0.2em] text-neutral-500",
+                                style: {
+                                    animationDelay: "40ms"
+                                },
+                                children: "Menu"
+                            }, void 0, false, {
+                                fileName: "[project]/components/site/MobileNavSheet.tsx",
+                                lineNumber: 60,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                ref: closeRef,
+                                type: "button",
+                                onClick: onClose,
+                                className: "nav-sheet__item flex size-10 cursor-pointer items-center justify-center rounded-full border border-neutral-200/80 bg-white/70 text-neutral-800 transition hover:bg-white",
+                                style: {
+                                    animationDelay: "60ms"
+                                },
+                                "aria-label": "Close menu",
+                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(CloseIcon, {}, void 0, false, {
+                                    fileName: "[project]/components/site/MobileNavSheet.tsx",
+                                    lineNumber: 75,
+                                    columnNumber: 13
+                                }, this)
+                            }, void 0, false, {
+                                fileName: "[project]/components/site/MobileNavSheet.tsx",
+                                lineNumber: 67,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/site/MobileNavSheet.tsx",
+                        lineNumber: 59,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
+                        className: "flex flex-1 flex-col justify-center gap-1 px-5 pb-6",
+                        children: links.map((link, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                href: link.href,
+                                onClick: onClose,
+                                className: "nav-sheet__item rounded-2xl px-3 py-3.5 text-2xl font-semibold tracking-tight text-neutral-950 transition hover:bg-white/50 sm:text-3xl",
+                                style: {
+                                    animationDelay: "".concat(120 + i * 70, "ms")
+                                },
+                                children: link.label
+                            }, link.href, false, {
+                                fileName: "[project]/components/site/MobileNavSheet.tsx",
+                                lineNumber: 81,
+                                columnNumber: 13
+                            }, this))
+                    }, void 0, false, {
+                        fileName: "[project]/components/site/MobileNavSheet.tsx",
+                        lineNumber: 79,
+                        columnNumber: 9
+                    }, this),
+                    extras && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "nav-sheet__item border-t border-neutral-200/60 px-5 py-5",
+                        style: {
+                            animationDelay: "".concat(120 + links.length * 70 + 40, "ms")
+                        },
+                        children: extras
+                    }, void 0, false, {
+                        fileName: "[project]/components/site/MobileNavSheet.tsx",
+                        lineNumber: 94,
+                        columnNumber: 11
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/site/MobileNavSheet.tsx",
+                lineNumber: 58,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/site/MobileNavSheet.tsx",
+        lineNumber: 45,
+        columnNumber: 5
+    }, this);
+}
+_s(MobileNavSheet, "ql6Lh72VWmhQ+0SX8OkfwcMieNY=", false, function() {
+    return [
+        __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useId"]
+    ];
+});
+_c = MobileNavSheet;
+function MenuToggleButton(param) {
+    let { open, onClick, light } = param;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+        type: "button",
+        onClick: onClick,
+        "aria-expanded": open,
+        "aria-label": open ? "Close menu" : "Open menu",
+        className: "relative flex size-10 cursor-pointer items-center justify-center rounded-full border transition lg:hidden ".concat(light ? "border-white/35 bg-white/10 text-white hover:bg-white/20" : "border-neutral-200/80 bg-white/70 text-neutral-900 hover:bg-white"),
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                className: "sr-only",
+                children: open ? "Close" : "Menu"
+            }, void 0, false, {
+                fileName: "[project]/components/site/MobileNavSheet.tsx",
+                lineNumber: 128,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                className: "absolute h-[1.5px] w-4 rounded-full transition duration-300 ".concat(light ? "bg-white" : "bg-neutral-900", " ").concat(open ? "translate-y-0 rotate-45" : "-translate-y-[3.5px]")
+            }, void 0, false, {
+                fileName: "[project]/components/site/MobileNavSheet.tsx",
+                lineNumber: 129,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                className: "absolute h-[1.5px] w-4 rounded-full transition duration-300 ".concat(light ? "bg-white" : "bg-neutral-900", " ").concat(open ? "opacity-0" : "opacity-100")
+            }, void 0, false, {
+                fileName: "[project]/components/site/MobileNavSheet.tsx",
+                lineNumber: 134,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                className: "absolute h-[1.5px] w-4 rounded-full transition duration-300 ".concat(light ? "bg-white" : "bg-neutral-900", " ").concat(open ? "translate-y-0 -rotate-45" : "translate-y-[3.5px]")
+            }, void 0, false, {
+                fileName: "[project]/components/site/MobileNavSheet.tsx",
+                lineNumber: 139,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/site/MobileNavSheet.tsx",
+        lineNumber: 117,
+        columnNumber: 5
+    }, this);
+}
+_c1 = MenuToggleButton;
+function CloseIcon() {
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+        viewBox: "0 0 24 24",
+        className: "size-4",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: "2",
+        "aria-hidden": true,
+        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+            d: "M6 6l12 12M18 6L6 18",
+            strokeLinecap: "round"
+        }, void 0, false, {
+            fileName: "[project]/components/site/MobileNavSheet.tsx",
+            lineNumber: 158,
+            columnNumber: 7
+        }, this)
+    }, void 0, false, {
+        fileName: "[project]/components/site/MobileNavSheet.tsx",
+        lineNumber: 150,
+        columnNumber: 5
+    }, this);
+}
+_c2 = CloseIcon;
+var _c, _c1, _c2;
+__turbopack_context__.k.register(_c, "MobileNavSheet");
+__turbopack_context__.k.register(_c1, "MenuToggleButton");
+__turbopack_context__.k.register(_c2, "CloseIcon");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/site/SiteHeader.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "SiteHeader",
+    ()=>SiteHeader
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/client/app-dir/link.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/auth.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$site$2d$nav$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/site-nav.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$use$2d$auth$2d$user$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/use-auth-user.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$MobileNavSheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/site/MobileNavSheet.tsx [app-client] (ecmascript)");
+;
+var _s = __turbopack_context__.k.signature();
+"use client";
+;
+;
+;
+;
+;
+;
+function SiteHeader(param) {
+    let { variant = "solid" } = param;
+    _s();
+    const [scrolled, setScrolled] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [started, setStarted] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [menuOpen, setMenuOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const { user, isAuthed } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$use$2d$auth$2d$user$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAuthUser"])();
+    const links = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$site$2d$nav$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["navForAuth"])(isAuthed);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "SiteHeader.useEffect": ()=>{
+            const id = window.setTimeout({
+                "SiteHeader.useEffect.id": ()=>setStarted(true)
+            }["SiteHeader.useEffect.id"], 40);
+            return ({
+                "SiteHeader.useEffect": ()=>window.clearTimeout(id)
+            })["SiteHeader.useEffect"];
+        }
+    }["SiteHeader.useEffect"], []);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "SiteHeader.useEffect": ()=>{
+            const onScroll = {
+                "SiteHeader.useEffect.onScroll": ()=>setScrolled(window.scrollY >= 30)
+            }["SiteHeader.useEffect.onScroll"];
+            onScroll();
+            window.addEventListener("scroll", onScroll, {
+                passive: true
+            });
+            return ({
+                "SiteHeader.useEffect": ()=>window.removeEventListener("scroll", onScroll)
+            })["SiteHeader.useEffect"];
+        }
+    }["SiteHeader.useEffect"], []);
+    const isDark = variant === "dark";
+    const frosted = isDark ? scrolled ? "border-b border-white/10 bg-[#1a1c20]/85 backdrop-blur-md" : "border-b border-transparent bg-transparent" : variant === "solid" || scrolled ? "border-b border-neutral-200/40 bg-[color-mix(in_srgb,var(--hero-surface)_78%,transparent)] backdrop-blur-sm" : "border-b border-transparent bg-transparent";
+    const overlayLight = variant === "overlay" && !scrolled || isDark;
+    function signOut() {
+        (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["setAuthToken"])(null);
+        window.location.href = "/";
+    }
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("header", {
+                className: "fixed inset-x-0 top-0 z-50 transition-[background-color,backdrop-filter,border-color] duration-300 ".concat(frosted),
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    className: "mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-4 sm:px-6 sm:py-5 md:px-10",
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                            href: "/",
+                            className: "hero-word flex items-center gap-2.5 ".concat(started ? "is-in" : ""),
+                            style: {
+                                transitionDelay: "40ms"
+                            },
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LogoMark, {}, void 0, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 64,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "text-[1.25rem] font-semibold tracking-tight sm:text-[1.35rem] ".concat(overlayLight ? "text-white" : "text-neutral-950"),
+                                    children: "Zelko"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 65,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/site/SiteHeader.tsx",
+                            lineNumber: 59,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
+                            className: "hidden items-center gap-7 text-[0.92rem] lg:flex ".concat(overlayLight ? "text-white/85" : "text-neutral-700"),
+                            children: links.map((link, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                    href: link.href,
+                                    className: "hero-word transition ".concat(overlayLight ? "hover:text-white" : "hover:text-neutral-950", " ").concat(started ? "is-in" : ""),
+                                    style: {
+                                        transitionDelay: "".concat(120 + i * 70, "ms")
+                                    },
+                                    children: link.label
+                                }, link.href, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 80,
+                                    columnNumber: 15
+                                }, this))
+                        }, void 0, false, {
+                            fileName: "[project]/components/site/SiteHeader.tsx",
+                            lineNumber: 74,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "flex items-center gap-2.5 sm:gap-4",
+                            children: [
+                                isAuthed && (user === null || user === void 0 ? void 0 : user.isPro) ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "hidden rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] sm:inline ".concat(overlayLight ? "bg-white/15 text-white" : "bg-neutral-950 text-white"),
+                                    children: "Pro"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 95,
+                                    columnNumber: 15
+                                }, this) : null,
+                                !isAuthed ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                    href: "/contact",
+                                    className: "hero-word hidden rounded-lg border px-4 py-2 text-sm font-medium transition lg:inline-flex ".concat(overlayLight ? "border-white/80 text-white hover:bg-white/10" : "border-neutral-900/80 text-neutral-900 hover:bg-white/50", " ").concat(started ? "is-in" : ""),
+                                    style: {
+                                        transitionDelay: "".concat(120 + links.length * 70 + 40, "ms")
+                                    },
+                                    children: "Contact Us"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 107,
+                                    columnNumber: 15
+                                }, this) : null,
+                                isAuthed ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                    href: "/dashboard",
+                                    className: "hero-word hidden text-sm font-medium transition sm:inline ".concat(overlayLight ? "text-white/90 hover:text-white" : "text-neutral-800 hover:text-neutral-950", " ").concat(started ? "is-in" : ""),
+                                    style: {
+                                        transitionDelay: "".concat(120 + links.length * 70 + 110, "ms")
+                                    },
+                                    children: "Dashboard"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 123,
+                                    columnNumber: 15
+                                }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                    href: "/login",
+                                    className: "hero-word hidden text-sm font-medium transition sm:inline ".concat(overlayLight ? "text-white/90 hover:text-white" : "text-neutral-800 hover:text-neutral-950", " ").concat(started ? "is-in" : ""),
+                                    style: {
+                                        transitionDelay: "".concat(120 + links.length * 70 + 110, "ms")
+                                    },
+                                    children: "Log in"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 137,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$MobileNavSheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MenuToggleButton"], {
+                                    open: menuOpen,
+                                    onClick: ()=>setMenuOpen((v)=>!v),
+                                    light: overlayLight
+                                }, void 0, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 152,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/site/SiteHeader.tsx",
+                            lineNumber: 93,
+                            columnNumber: 11
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/components/site/SiteHeader.tsx",
+                    lineNumber: 58,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/components/site/SiteHeader.tsx",
+                lineNumber: 55,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$MobileNavSheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MobileNavSheet"], {
+                open: menuOpen,
+                onClose: ()=>setMenuOpen(false),
+                links: links,
+                extras: isAuthed ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    className: "flex flex-col gap-3",
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                            href: "/upload",
+                            onClick: ()=>setMenuOpen(false),
+                            className: "inline-flex w-full items-center justify-center rounded-xl bg-[#ebe4ff] px-5 py-3.5 text-sm font-semibold text-neutral-900",
+                            children: "New assessment"
+                        }, void 0, false, {
+                            fileName: "[project]/components/site/SiteHeader.tsx",
+                            lineNumber: 168,
+                            columnNumber: 15
+                        }, void 0),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "flex gap-3",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                    href: "/dashboard",
+                                    onClick: ()=>setMenuOpen(false),
+                                    className: "inline-flex flex-1 items-center justify-center rounded-xl border border-neutral-900/70 px-4 py-3 text-sm font-medium text-neutral-900",
+                                    children: "Dashboard"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 176,
+                                    columnNumber: 17
+                                }, void 0),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                    type: "button",
+                                    onClick: ()=>{
+                                        setMenuOpen(false);
+                                        signOut();
+                                    },
+                                    className: "inline-flex flex-1 cursor-pointer items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white",
+                                    children: "Sign out"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/site/SiteHeader.tsx",
+                                    lineNumber: 183,
+                                    columnNumber: 17
+                                }, void 0)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/site/SiteHeader.tsx",
+                            lineNumber: 175,
+                            columnNumber: 15
+                        }, void 0)
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/components/site/SiteHeader.tsx",
+                    lineNumber: 167,
+                    columnNumber: 13
+                }, void 0) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    className: "flex gap-3",
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                            href: "/contact",
+                            onClick: ()=>setMenuOpen(false),
+                            className: "inline-flex flex-1 items-center justify-center rounded-xl border border-neutral-900/70 px-4 py-3 text-sm font-medium text-neutral-900",
+                            children: "Contact"
+                        }, void 0, false, {
+                            fileName: "[project]/components/site/SiteHeader.tsx",
+                            lineNumber: 197,
+                            columnNumber: 15
+                        }, void 0),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                            href: "/login",
+                            onClick: ()=>setMenuOpen(false),
+                            className: "inline-flex flex-1 items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white",
+                            children: "Log in"
+                        }, void 0, false, {
+                            fileName: "[project]/components/site/SiteHeader.tsx",
+                            lineNumber: 204,
+                            columnNumber: 15
+                        }, void 0)
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/components/site/SiteHeader.tsx",
+                    lineNumber: 196,
+                    columnNumber: 13
+                }, void 0)
+            }, void 0, false, {
+                fileName: "[project]/components/site/SiteHeader.tsx",
+                lineNumber: 161,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true);
+}
+_s(SiteHeader, "2dmyVFJcrV6Rw4WlRIBl1dQ46l0=", false, function() {
+    return [
+        __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$use$2d$auth$2d$user$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAuthUser"]
+    ];
+});
+_c = SiteHeader;
+function LogoMark() {
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+        width: "22",
+        height: "22",
+        viewBox: "0 0 24 24",
+        fill: "none",
+        "aria-hidden": true,
+        className: "text-[#8b7cf6]",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M12 2.5 13.8 8.2 19.5 10 13.8 11.8 12 17.5 10.2 11.8 4.5 10 10.2 8.2 12 2.5Z",
+                fill: "currentColor",
+                opacity: "0.95"
+            }, void 0, false, {
+                fileName: "[project]/components/site/SiteHeader.tsx",
+                lineNumber: 229,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M18.2 14.2 19 16.6 21.4 17.4 19 18.2 18.2 20.6 17.4 18.2 15 17.4 17.4 16.6 18.2 14.2Z",
+                fill: "currentColor"
+            }, void 0, false, {
+                fileName: "[project]/components/site/SiteHeader.tsx",
+                lineNumber: 234,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M6.4 15.1 7 17 8.9 17.6 7 18.2 6.4 20.1 5.8 18.2 3.9 17.6 5.8 17 6.4 15.1Z",
+                fill: "currentColor",
+                opacity: "0.85"
+            }, void 0, false, {
+                fileName: "[project]/components/site/SiteHeader.tsx",
+                lineNumber: 238,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/site/SiteHeader.tsx",
+        lineNumber: 221,
+        columnNumber: 5
+    }, this);
+}
+_c1 = LogoMark;
+var _c, _c1;
+__turbopack_context__.k.register(_c, "SiteHeader");
+__turbopack_context__.k.register(_c1, "LogoMark");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/site/SiteFooter.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "SiteFooter",
+    ()=>SiteFooter
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/client/app-dir/link.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$site$2d$nav$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/site-nav.ts [app-client] (ecmascript)");
+;
+;
+;
+function SiteFooter() {
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("footer", {
+        className: "border-t border-neutral-200 bg-[var(--hero-surface)] px-6 py-16 md:px-10",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "mx-auto grid max-w-7xl gap-12 md:grid-cols-[1.2fr_1fr_1fr]",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "font-[family-name:var(--font-cursive)] text-3xl text-neutral-950",
+                                children: "Zelko"
+                            }, void 0, false, {
+                                fileName: "[project]/components/site/SiteFooter.tsx",
+                                lineNumber: 9,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "mt-3 max-w-sm text-sm leading-relaxed text-neutral-500",
+                                children: "Assess measurable features. Act on ranked recommendations. Prove cause-linked change — privately."
+                            }, void 0, false, {
+                                fileName: "[project]/components/site/SiteFooter.tsx",
+                                lineNumber: 12,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                href: "/upload",
+                                className: "mt-6 inline-flex rounded-xl bg-[#ebe4ff] px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-[#e0d6ff]",
+                                children: "Start your free report"
+                            }, void 0, false, {
+                                fileName: "[project]/components/site/SiteFooter.tsx",
+                                lineNumber: 16,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/site/SiteFooter.tsx",
+                        lineNumber: 8,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "text-xs uppercase tracking-[0.18em] text-neutral-400",
+                                children: "Navigate"
+                            }, void 0, false, {
+                                fileName: "[project]/components/site/SiteFooter.tsx",
+                                lineNumber: 25,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
+                                className: "mt-4 space-y-2.5",
+                                children: [
+                                    __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$site$2d$nav$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SITE_NAV"].map((link)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                                href: link.href,
+                                                className: "text-sm text-neutral-700 transition hover:text-neutral-950",
+                                                children: link.label
+                                            }, void 0, false, {
+                                                fileName: "[project]/components/site/SiteFooter.tsx",
+                                                lineNumber: 31,
+                                                columnNumber: 17
+                                            }, this)
+                                        }, link.href, false, {
+                                            fileName: "[project]/components/site/SiteFooter.tsx",
+                                            lineNumber: 30,
+                                            columnNumber: 15
+                                        }, this)),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                            href: "/upload",
+                                            className: "text-sm text-neutral-700 transition hover:text-neutral-950",
+                                            children: "Upload"
+                                        }, void 0, false, {
+                                            fileName: "[project]/components/site/SiteFooter.tsx",
+                                            lineNumber: 40,
+                                            columnNumber: 15
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/site/SiteFooter.tsx",
+                                        lineNumber: 39,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/site/SiteFooter.tsx",
+                                lineNumber: 28,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/site/SiteFooter.tsx",
+                        lineNumber: 24,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "text-xs uppercase tracking-[0.18em] text-neutral-400",
+                                children: "Product"
+                            }, void 0, false, {
+                                fileName: "[project]/components/site/SiteFooter.tsx",
+                                lineNumber: 51,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
+                                className: "mt-4 space-y-2.5 text-sm text-neutral-700",
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                        children: "Assess → Act → Prove"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/site/SiteFooter.tsx",
+                                        lineNumber: 55,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                        children: "8 measurable features"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/site/SiteFooter.tsx",
+                                        lineNumber: 56,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                        children: "Photos deleted by default"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/site/SiteFooter.tsx",
+                                        lineNumber: 57,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                            href: "/contact",
+                                            className: "transition hover:text-neutral-950",
+                                            children: "Contact"
+                                        }, void 0, false, {
+                                            fileName: "[project]/components/site/SiteFooter.tsx",
+                                            lineNumber: 59,
+                                            columnNumber: 15
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/site/SiteFooter.tsx",
+                                        lineNumber: 58,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                            href: "/privacy",
+                                            className: "transition hover:text-neutral-950",
+                                            children: "Privacy Policy"
+                                        }, void 0, false, {
+                                            fileName: "[project]/components/site/SiteFooter.tsx",
+                                            lineNumber: 64,
+                                            columnNumber: 15
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/site/SiteFooter.tsx",
+                                        lineNumber: 63,
+                                        columnNumber: 13
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/site/SiteFooter.tsx",
+                                lineNumber: 54,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/site/SiteFooter.tsx",
+                        lineNumber: 50,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/site/SiteFooter.tsx",
+                lineNumber: 7,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "mx-auto mt-14 flex max-w-7xl flex-col gap-2 border-t border-neutral-200/80 pt-6 text-xs text-neutral-400 sm:flex-row sm:justify-between",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        children: [
+                            "© ",
+                            new Date().getFullYear(),
+                            " Zelko. All rights reserved."
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/site/SiteFooter.tsx",
+                        lineNumber: 73,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        children: "No percentiles. No unmeasurable traits. Explainable only."
+                    }, void 0, false, {
+                        fileName: "[project]/components/site/SiteFooter.tsx",
+                        lineNumber: 74,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/site/SiteFooter.tsx",
+                lineNumber: 72,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/site/SiteFooter.tsx",
+        lineNumber: 6,
+        columnNumber: 5
+    }, this);
+}
+_c = SiteFooter;
+var _c;
+__turbopack_context__.k.register(_c, "SiteFooter");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/lib/appearance-index.ts [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+/**
+ * Appearance Index — staged pillars + style preference schema.
+ * Stage cycle: collect → reveal → next (not batch-then-one-report).
+ */ __turbopack_context__.s([
+    "BOTTOM_PREFERENCES",
+    ()=>BOTTOM_PREFERENCES,
+    "FAVORITE_COLORS",
+    ()=>FAVORITE_COLORS,
+    "GROOMING_FEATURE_KEYS",
+    ()=>GROOMING_FEATURE_KEYS,
+    "JOURNEY_FLOW_STEPS",
+    ()=>JOURNEY_FLOW_STEPS,
+    "SILHOUETTE_PREFERENCES",
+    ()=>SILHOUETTE_PREFERENCES,
+    "STAGE_LABELS",
+    ()=>STAGE_LABELS,
+    "STRUCTURE_FEATURE_KEYS",
+    ()=>STRUCTURE_FEATURE_KEYS,
+    "STYLE_BUDGETS",
+    ()=>STYLE_BUDGETS,
+    "STYLE_VIBES",
+    ()=>STYLE_VIBES,
+    "appearanceStageToFlowStep",
+    ()=>appearanceStageToFlowStep,
+    "buildStyleProfileSummary",
+    ()=>buildStyleProfileSummary,
+    "computePillarsFromFeatures",
+    ()=>computePillarsFromFeatures,
+    "journeyProgressPercent",
+    ()=>journeyProgressPercent,
+    "journeyStepIndex",
+    ()=>journeyStepIndex
+]);
+const STRUCTURE_FEATURE_KEYS = [
+    "face_symmetry",
+    "facial_proportions",
+    "eye_spacing",
+    "jawline_definition",
+    "eyebrow_shape"
+];
+const GROOMING_FEATURE_KEYS = [
+    "skin_clarity",
+    "grooming_signal"
+];
+const FAVORITE_COLORS = [
+    {
+        id: "black",
+        label: "Black",
+        hex: "#1a1a1a"
+    },
+    {
+        id: "navy",
+        label: "Navy",
+        hex: "#1e3a5f"
+    },
+    {
+        id: "beige",
+        label: "Beige",
+        hex: "#c4b09a"
+    },
+    {
+        id: "white",
+        label: "White",
+        hex: "#f5f5f5"
+    },
+    {
+        id: "red",
+        label: "Red",
+        hex: "#b91c1c"
+    },
+    {
+        id: "pink",
+        label: "Pink",
+        hex: "#e8a0bf"
+    },
+    {
+        id: "green",
+        label: "Green",
+        hex: "#3d6b4f"
+    },
+    {
+        id: "blue",
+        label: "Blue",
+        hex: "#3b82c4"
+    }
+];
+const BOTTOM_PREFERENCES = [
+    {
+        id: "dresses",
+        label: "Dresses",
+        hint: "One-piece looks"
+    },
+    {
+        id: "jeans",
+        label: "Jeans",
+        hint: "Denim everyday"
+    },
+    {
+        id: "skirts",
+        label: "Skirts",
+        hint: "Flow or pencil"
+    },
+    {
+        id: "trousers",
+        label: "Trousers",
+        hint: "Tailored pants"
+    }
+];
+const SILHOUETTE_PREFERENCES = [
+    {
+        id: "fitted",
+        label: "Fitted",
+        hint: "Close to the body"
+    },
+    {
+        id: "relaxed",
+        label: "Relaxed",
+        hint: "Easy, soft lines"
+    },
+    {
+        id: "oversized",
+        label: "Oversized",
+        hint: "Roomy layers"
+    }
+];
+const STYLE_VIBES = [
+    {
+        id: "casual",
+        label: "Casual",
+        hint: "Weekend easy"
+    },
+    {
+        id: "polished",
+        label: "Polished",
+        hint: "Clean & put-together"
+    },
+    {
+        id: "street",
+        label: "Street",
+        hint: "Edge & attitude"
+    },
+    {
+        id: "classic",
+        label: "Classic",
+        hint: "Timeless basics"
+    }
+];
+const STYLE_BUDGETS = [
+    {
+        id: "low",
+        label: "Budget-friendly",
+        hint: "Keep it affordable"
+    },
+    {
+        id: "mid",
+        label: "Mid-range",
+        hint: "Quality when it counts"
+    },
+    {
+        id: "flexible",
+        label: "Flexible",
+        hint: "Spend for the right piece"
+    }
+];
+function avgMeasurable(features, keys) {
+    const packets = [];
+    for (const k of keys){
+        const p = features[k];
+        if (p && p.measurable !== false) packets.push(p);
+    }
+    if (packets.length === 0) {
+        return {
+            score: null,
+            confidence: "Low",
+            measurable: false
+        };
+    }
+    const score = Math.round(packets.reduce((a, p)=>a + p.score, 0) / packets.length);
+    const highs = packets.filter((p)=>p.confidence === "High").length;
+    const lows = packets.filter((p)=>p.confidence === "Low").length;
+    const confidence = highs >= packets.length / 2 ? "High" : lows >= packets.length / 2 ? "Low" : "Medium";
+    return {
+        score,
+        confidence,
+        measurable: true
+    };
+}
+function structureTips(features, score) {
+    var _features_jawline_definition, _features_face_symmetry, _features_eyebrow_shape;
+    const tips = [];
+    if (score == null) {
+        return [
+            "Upload a clearer frontal face photo so structure can be measured."
+        ];
+    }
+    if (((_features_jawline_definition = features.jawline_definition) === null || _features_jawline_definition === void 0 ? void 0 : _features_jawline_definition.score) < 70) {
+        tips.push("Lighting from slightly above can sharpen how the jawline reads on camera.");
+    }
+    if (((_features_face_symmetry = features.face_symmetry) === null || _features_face_symmetry === void 0 ? void 0 : _features_face_symmetry.score) < 70) {
+        tips.push("Face the camera square-on — slight turns exaggerate asymmetry in photos.");
+    }
+    if (((_features_eyebrow_shape = features.eyebrow_shape) === null || _features_eyebrow_shape === void 0 ? void 0 : _features_eyebrow_shape.score) < 70) {
+        tips.push("Even brow grooming usually lifts how the upper face reads.");
+    }
+    if (tips.length === 0) {
+        tips.push("Strong structure read — keep framing consistent when you recheck.");
+    }
+    return tips.slice(0, 3);
+}
+function groomingTips(features, score) {
+    var _features_skin_clarity, _features_skin_clarity1, _features_grooming_signal, _features_grooming_signal1;
+    const tips = [];
+    if (score == null) {
+        return [
+            "Grooming needs a clearer face crop — soft front light helps skin + hair reads."
+        ];
+    }
+    if (((_features_skin_clarity = features.skin_clarity) === null || _features_skin_clarity === void 0 ? void 0 : _features_skin_clarity.measurable) === false) {
+        tips.push("Skin clarity was hard to read — try even daylight next time.");
+    } else if (((_features_skin_clarity1 = features.skin_clarity) === null || _features_skin_clarity1 === void 0 ? void 0 : _features_skin_clarity1.score) < 70) {
+        tips.push("A simple consistent skincare routine usually moves this pillar fastest.");
+    }
+    if (((_features_grooming_signal = features.grooming_signal) === null || _features_grooming_signal === void 0 ? void 0 : _features_grooming_signal.measurable) === false) {
+        var _features_grooming_signal2;
+        var _features_grooming_signal_gateNote;
+        tips.push((_features_grooming_signal_gateNote = (_features_grooming_signal2 = features.grooming_signal) === null || _features_grooming_signal2 === void 0 ? void 0 : _features_grooming_signal2.gateNote) !== null && _features_grooming_signal_gateNote !== void 0 ? _features_grooming_signal_gateNote : "Outfit/hair signal wasn’t clear enough — a mid-chest crop helps.");
+    } else if (((_features_grooming_signal1 = features.grooming_signal) === null || _features_grooming_signal1 === void 0 ? void 0 : _features_grooming_signal1.score) < 70) {
+        tips.push("Hair finish and collar/neckline grooming often lift this score quickly.");
+    }
+    if (tips.length === 0) {
+        tips.push("Grooming looks intentional — maintain the same finish on rechecks.");
+    }
+    return tips.slice(0, 3);
+}
+function computePillarsFromFeatures(features) {
+    const structureAvg = avgMeasurable(features, STRUCTURE_FEATURE_KEYS);
+    const groomingAvg = avgMeasurable(features, GROOMING_FEATURE_KEYS);
+    return {
+        structure: {
+            key: "structure",
+            label: "Structure",
+            score: structureAvg.score,
+            confidence: structureAvg.confidence,
+            featureKeys: STRUCTURE_FEATURE_KEYS,
+            tips: structureTips(features, structureAvg.score),
+            measurable: structureAvg.measurable
+        },
+        grooming: {
+            key: "grooming",
+            label: "Grooming",
+            score: groomingAvg.score,
+            confidence: groomingAvg.confidence,
+            featureKeys: GROOMING_FEATURE_KEYS,
+            tips: groomingTips(features, groomingAvg.score),
+            measurable: groomingAvg.measurable
+        },
+        style: null
+    };
+}
+function buildStyleProfileSummary(prefs) {
+    var _FAVORITE_COLORS_find, _BOTTOM_PREFERENCES_find, _SILHOUETTE_PREFERENCES_find, _STYLE_VIBES_find, _STYLE_BUDGETS_find;
+    var _FAVORITE_COLORS_find_label;
+    const color = (_FAVORITE_COLORS_find_label = (_FAVORITE_COLORS_find = FAVORITE_COLORS.find((c)=>c.id === prefs.favoriteColor)) === null || _FAVORITE_COLORS_find === void 0 ? void 0 : _FAVORITE_COLORS_find.label) !== null && _FAVORITE_COLORS_find_label !== void 0 ? _FAVORITE_COLORS_find_label : prefs.favoriteColor;
+    var _BOTTOM_PREFERENCES_find_label;
+    const bottom = (_BOTTOM_PREFERENCES_find_label = (_BOTTOM_PREFERENCES_find = BOTTOM_PREFERENCES.find((b)=>b.id === prefs.bottomPreference)) === null || _BOTTOM_PREFERENCES_find === void 0 ? void 0 : _BOTTOM_PREFERENCES_find.label) !== null && _BOTTOM_PREFERENCES_find_label !== void 0 ? _BOTTOM_PREFERENCES_find_label : prefs.bottomPreference;
+    var _SILHOUETTE_PREFERENCES_find_label;
+    const sil = (_SILHOUETTE_PREFERENCES_find_label = (_SILHOUETTE_PREFERENCES_find = SILHOUETTE_PREFERENCES.find((s)=>s.id === prefs.silhouette)) === null || _SILHOUETTE_PREFERENCES_find === void 0 ? void 0 : _SILHOUETTE_PREFERENCES_find.label) !== null && _SILHOUETTE_PREFERENCES_find_label !== void 0 ? _SILHOUETTE_PREFERENCES_find_label : prefs.silhouette;
+    var _STYLE_VIBES_find_label;
+    const vibe = (_STYLE_VIBES_find_label = (_STYLE_VIBES_find = STYLE_VIBES.find((v)=>v.id === prefs.vibe)) === null || _STYLE_VIBES_find === void 0 ? void 0 : _STYLE_VIBES_find.label) !== null && _STYLE_VIBES_find_label !== void 0 ? _STYLE_VIBES_find_label : prefs.vibe;
+    var _STYLE_BUDGETS_find_label;
+    const budget = (_STYLE_BUDGETS_find_label = (_STYLE_BUDGETS_find = STYLE_BUDGETS.find((b)=>b.id === prefs.budget)) === null || _STYLE_BUDGETS_find === void 0 ? void 0 : _STYLE_BUDGETS_find.label) !== null && _STYLE_BUDGETS_find_label !== void 0 ? _STYLE_BUDGETS_find_label : prefs.budget;
+    return {
+        preferences: prefs,
+        detectedSignals: [],
+        summary: "You lean ".concat(vibe.toLowerCase(), " with a ").concat(sil.toLowerCase(), " silhouette, favoring ").concat(bottom.toLowerCase(), " and ").concat(color.toLowerCase(), " tones — ").concat(budget.toLowerCase(), " spend."),
+        estimateNote: "Full-body measurements and outfit vision signals will refine this profile — preferences below are from your answers."
+    };
+}
+const STAGE_LABELS = {
+    face_reveal: "Face & Grooming",
+    style_collect: "Style preferences",
+    style_reveal: "Style Profile",
+    prescription_reveal: "Your looks",
+    complete: "Profile complete"
+};
+const JOURNEY_FLOW_STEPS = [
+    {
+        id: "upload",
+        label: "Upload photos",
+        shortLabel: "Upload"
+    },
+    {
+        id: "face_reveal",
+        label: "Face & Grooming",
+        shortLabel: "Face"
+    },
+    {
+        id: "style_collect",
+        label: "Style preferences",
+        shortLabel: "Prefs"
+    },
+    {
+        id: "style_reveal",
+        label: "Style Profile",
+        shortLabel: "Style"
+    },
+    {
+        id: "prescription_reveal",
+        label: "Prescribed looks",
+        shortLabel: "Looks"
+    }
+];
+function journeyStepIndex(step) {
+    if (step === "complete") return JOURNEY_FLOW_STEPS.length;
+    return JOURNEY_FLOW_STEPS.findIndex((s)=>s.id === step);
+}
+function journeyProgressPercent(current) {
+    let withinStep = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : 0;
+    const total = JOURNEY_FLOW_STEPS.length;
+    if (current === "complete") return 100;
+    const index = journeyStepIndex(current);
+    if (index < 0) return 0;
+    const clamped = Math.min(1, Math.max(0, withinStep));
+    return Math.round((index + clamped) / total * 100);
+}
+function appearanceStageToFlowStep(stage) {
+    if (stage === "complete") return "complete";
+    return stage;
+}
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/lib/types/report.ts [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+/**
+ * Feature keys from PRODUCT.md scoring rubric.
+ * Photo quality gates the pipeline; remaining features are scored post-acceptance.
+ */ __turbopack_context__.s([
+    "FEATURE_CONFIDENCE_TIER",
+    ()=>FEATURE_CONFIDENCE_TIER,
+    "FEATURE_KEYS",
+    ()=>FEATURE_KEYS,
+    "FEATURE_LABELS",
+    ()=>FEATURE_LABELS,
+    "SCORED_APPEARANCE_KEYS",
+    ()=>SCORED_APPEARANCE_KEYS
+]);
+const FEATURE_KEYS = [
+    "face_symmetry",
+    "facial_proportions",
+    "skin_clarity",
+    "jawline_definition",
+    "eyebrow_shape",
+    "eye_spacing",
+    "grooming_signal",
+    "photo_quality"
+];
+const SCORED_APPEARANCE_KEYS = FEATURE_KEYS.filter(_c = (k)=>k !== "photo_quality");
+_c1 = SCORED_APPEARANCE_KEYS;
+const FEATURE_LABELS = {
+    face_symmetry: "Face symmetry",
+    facial_proportions: "Facial proportions",
+    skin_clarity: "Skin clarity",
+    jawline_definition: "Jawline definition",
+    eyebrow_shape: "Eyebrow shape",
+    eye_spacing: "Eye spacing",
+    grooming_signal: "Grooming signal",
+    photo_quality: "Photo quality"
+};
+const FEATURE_CONFIDENCE_TIER = {
+    face_symmetry: "High",
+    facial_proportions: "Medium",
+    skin_clarity: "Medium-high",
+    jawline_definition: "Medium",
+    eyebrow_shape: "Medium-high",
+    eye_spacing: "High",
+    grooming_signal: "Low-medium",
+    photo_quality: "High"
+};
+var _c, _c1;
+__turbopack_context__.k.register(_c, "SCORED_APPEARANCE_KEYS$FEATURE_KEYS.filter");
+__turbopack_context__.k.register(_c1, "SCORED_APPEARANCE_KEYS");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/lib/object-cover-map.ts [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+/**
+ * Map a normalized image-space point (0–1) into CSS percent of a box
+ * that displays the image with object-fit: cover and object-position.
+ */ __turbopack_context__.s([
+    "mapNormToCoverPercent",
+    ()=>mapNormToCoverPercent
+]);
+function mapNormToCoverPercent(nx, ny, imgW, imgH, boxW, boxH) {
+    let objectPosX = arguments.length > 6 && arguments[6] !== void 0 ? arguments[6] : 0.5, objectPosY = arguments.length > 7 && arguments[7] !== void 0 ? arguments[7] : 0.18;
+    if (imgW <= 0 || imgH <= 0 || boxW <= 0 || boxH <= 0) {
+        return {
+            left: nx * 100,
+            top: ny * 100
+        };
+    }
+    const scale = Math.max(boxW / imgW, boxH / imgH);
+    const drawnW = imgW * scale;
+    const drawnH = imgH * scale;
+    const offsetX = (boxW - drawnW) * objectPosX;
+    const offsetY = (boxH - drawnH) * objectPosY;
+    const px = nx * drawnW + offsetX;
+    const py = ny * drawnH + offsetY;
+    return {
+        left: px / boxW * 100,
+        top: py / boxH * 100
+    };
+}
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/lib/feature-mutability.ts [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "FEATURE_MUTABILITY",
+    ()=>FEATURE_MUTABILITY,
+    "MUTABILITY_HINTS",
+    ()=>MUTABILITY_HINTS,
+    "MUTABILITY_LABELS",
+    ()=>MUTABILITY_LABELS,
+    "featureMutability",
+    ()=>featureMutability,
+    "isChecklistEligibleFeature",
+    ()=>isChecklistEligibleFeature
+]);
+const FEATURE_MUTABILITY = {
+    skin_clarity: "actionable",
+    grooming_signal: "actionable",
+    eyebrow_shape: "actionable",
+    photo_quality: "actionable",
+    face_symmetry: "photo_sensitive",
+    facial_proportions: "photo_sensitive",
+    jawline_definition: "photo_sensitive",
+    eye_spacing: "structural"
+};
+const MUTABILITY_LABELS = {
+    actionable: "You can act on this",
+    photo_sensitive: "Check photo conditions first",
+    structural: "Mostly fixed"
+};
+const MUTABILITY_HINTS = {
+    actionable: "Habits and grooming can move this score when you re-check under the same light.",
+    photo_sensitive: "Lighting and angle often drive this read — re-shoot cleanly before treating it as fixed anatomy.",
+    structural: "This is largely structural. We won’t put it on your weekly checklist — use it for styling and reference-look context."
+};
+function featureMutability(feature) {
+    return FEATURE_MUTABILITY[feature];
+}
+function isChecklistEligibleFeature(feature) {
+    return FEATURE_MUTABILITY[feature] === "actionable";
+}
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/lib/recommendations.ts [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "RECOMMENDATION_LOOKUP",
+    ()=>RECOMMENDATION_LOOKUP,
+    "checklistRecommendationsForScore",
+    ()=>checklistRecommendationsForScore,
+    "recommendationsForScore",
+    ()=>recommendationsForScore
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/feature-mutability.ts [app-client] (ecmascript)");
+;
+const RECOMMENDATION_LOOKUP = {
+    skin_clarity: {
+        if_score: "below_70",
+        observed_signal: [
+            "texture_unevenness",
+            "redness_detected"
+        ],
+        recommendations: [
+            {
+                action: "Consistent skincare routine",
+                effort: "low",
+                confidence: "high"
+            },
+            {
+                action: "Reduce harsh overhead lighting in future photos",
+                effort: "low",
+                confidence: "high"
+            },
+            {
+                action: "Dermatologist consult if persistent",
+                effort: "medium",
+                confidence: "medium"
+            }
+        ]
+    },
+    face_symmetry: {
+        if_score: "below_70",
+        observed_signal: [
+            "mirror_pair_deviation"
+        ],
+        recommendations: [
+            {
+                action: "Re-shoot with face centered and camera at eye level",
+                effort: "low",
+                confidence: "high"
+            },
+            {
+                action: "Check for uneven lighting that exaggerates asymmetry",
+                effort: "low",
+                confidence: "high"
+            }
+        ]
+    },
+    facial_proportions: {
+        if_score: "below_70",
+        observed_signal: [
+            "thirds_ratio_drift"
+        ],
+        recommendations: [
+            {
+                action: "Use a straight-on angle; avoid wide-angle close-ups",
+                effort: "low",
+                confidence: "high"
+            },
+            {
+                action: "Keep chin level — tilt changes perceived proportions",
+                effort: "low",
+                confidence: "medium"
+            }
+        ]
+    },
+    jawline_definition: {
+        if_score: "below_70",
+        observed_signal: [
+            "low_edge_contrast"
+        ],
+        recommendations: [
+            {
+                action: "Side lighting to increase jaw contour contrast in photos",
+                effort: "low",
+                confidence: "high"
+            },
+            {
+                action: "Reduce soft frontal fill that flattens the jaw edge",
+                effort: "low",
+                confidence: "medium"
+            }
+        ]
+    },
+    eyebrow_shape: {
+        if_score: "below_70",
+        observed_signal: [
+            "arch_asymmetry",
+            "thickness_mismatch"
+        ],
+        recommendations: [
+            {
+                action: "Groom brows to match arch height across both sides",
+                effort: "low",
+                confidence: "high"
+            },
+            {
+                action: "Avoid over-plucking the outer third",
+                effort: "low",
+                confidence: "medium"
+            }
+        ]
+    },
+    eye_spacing: {
+        if_score: "below_70",
+        observed_signal: [
+            "inter_eye_ratio_outlier"
+        ],
+        recommendations: [
+            {
+                action: "Confirm the camera is centered — off-axis shots can skew spacing reads",
+                effort: "low",
+                confidence: "high"
+            },
+            {
+                action: "This spacing read is largely structural. We won’t put it on your weekly checklist — use it for styling and reference-look context.",
+                effort: "low",
+                confidence: "high"
+            }
+        ]
+    },
+    grooming_signal: {
+        if_score: "below_70",
+        observed_signal: [
+            "visible_stubble_unevenness",
+            "brow_untidiness"
+        ],
+        recommendations: [
+            {
+                action: "Clean up edges (neckline, brows) before the next shoot",
+                effort: "low",
+                confidence: "high"
+            },
+            {
+                action: "Keep a consistent grooming schedule for tracking photos",
+                effort: "medium",
+                confidence: "medium"
+            }
+        ]
+    },
+    photo_quality: {
+        if_score: "below_70",
+        observed_signal: [
+            "soft_focus",
+            "uneven_lighting"
+        ],
+        recommendations: [
+            {
+                action: "Reshoot in even daylight facing a window",
+                effort: "low",
+                confidence: "high"
+            },
+            {
+                action: "Hold the camera steady; avoid digital zoom",
+                effort: "low",
+                confidence: "high"
+            }
+        ]
+    }
+};
+function withMutability(feature, rec) {
+    const mutability = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["featureMutability"])(feature);
+    return {
+        ...rec,
+        mutability,
+        checklistEligible: (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["isChecklistEligibleFeature"])(feature)
+    };
+}
+function recommendationsForScore(feature, score) {
+    var _RECOMMENDATION_LOOKUP_feature;
+    if (score >= 70) return [];
+    const mutability = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["featureMutability"])(feature);
+    var _RECOMMENDATION_LOOKUP_feature_recommendations;
+    const raw = (_RECOMMENDATION_LOOKUP_feature_recommendations = (_RECOMMENDATION_LOOKUP_feature = RECOMMENDATION_LOOKUP[feature]) === null || _RECOMMENDATION_LOOKUP_feature === void 0 ? void 0 : _RECOMMENDATION_LOOKUP_feature.recommendations) !== null && _RECOMMENDATION_LOOKUP_feature_recommendations !== void 0 ? _RECOMMENDATION_LOOKUP_feature_recommendations : [];
+    if (mutability === "structural") {
+        // Prefer the structural context note; keep a single framing check first if present.
+        const tagged = raw.map((r)=>withMutability(feature, r));
+        return tagged.map((r)=>({
+                ...r,
+                checklistEligible: false
+            }));
+    }
+    return raw.map((r)=>withMutability(feature, r));
+}
+function checklistRecommendationsForScore(feature, score) {
+    return recommendationsForScore(feature, score).filter((r)=>r.checklistEligible);
+}
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/lib/score-tone.ts [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+/** Shared score → color mapping for report dots / scatter. */ __turbopack_context__.s([
+    "isFeatureMeasurable",
+    ()=>isFeatureMeasurable,
+    "scoreToneClass",
+    ()=>scoreToneClass
+]);
+function scoreToneClass(score, unlocked) {
+    if (!unlocked) return "bg-white/40";
+    // Highest → light green; medium → blue; weakest → amber/orange
+    if (score >= 75) return "bg-emerald-300";
+    if (score >= 60) return "bg-sky-400";
+    return "bg-amber-400";
+}
+function isFeatureMeasurable(measurable) {
+    return measurable !== false;
+}
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/report/InteractivePortrait.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "InteractivePortrait",
+    ()=>InteractivePortrait
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$object$2d$cover$2d$map$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/object-cover-map.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$recommendations$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/recommendations.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/feature-mutability.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/score-tone.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/types/report.ts [app-client] (ecmascript)");
+;
+var _s = __turbopack_context__.k.signature();
+"use client";
+;
+;
+;
+;
+;
+;
+const OBJECT_POS_X = 0.5;
+const OBJECT_POS_Y = 0.18;
+const POPOVER_W = 188;
+const POPOVER_H = 168;
+const POPOVER_GAP = 14;
+const FALLBACK_OVERLAYS = [
+    {
+        id: "brow_l",
+        feature: "eyebrow_shape",
+        x: 0.38,
+        y: 0.28
+    },
+    {
+        id: "brow_r",
+        feature: "eyebrow_shape",
+        x: 0.62,
+        y: 0.28
+    },
+    {
+        id: "eye_l",
+        feature: "eye_spacing",
+        x: 0.37,
+        y: 0.36
+    },
+    {
+        id: "eye_r",
+        feature: "eye_spacing",
+        x: 0.63,
+        y: 0.36
+    },
+    {
+        id: "cheek_l",
+        feature: "skin_clarity",
+        x: 0.3,
+        y: 0.48
+    },
+    {
+        id: "cheek_r",
+        feature: "skin_clarity",
+        x: 0.7,
+        y: 0.48
+    },
+    {
+        id: "nose",
+        feature: "facial_proportions",
+        x: 0.5,
+        y: 0.5
+    },
+    {
+        id: "sym_l",
+        feature: "face_symmetry",
+        x: 0.28,
+        y: 0.52
+    },
+    {
+        id: "sym_r",
+        feature: "face_symmetry",
+        x: 0.72,
+        y: 0.52
+    },
+    {
+        id: "jaw_l",
+        feature: "jawline_definition",
+        x: 0.34,
+        y: 0.72
+    },
+    {
+        id: "jaw_r",
+        feature: "jawline_definition",
+        x: 0.66,
+        y: 0.72
+    },
+    {
+        id: "chin",
+        feature: "jawline_definition",
+        x: 0.5,
+        y: 0.82
+    }
+];
+function clamp(n, min, max) {
+    return Math.min(max, Math.max(min, n));
+}
+/** Place a compact card beside the dot, flipped to stay on the portrait. */ function popoverOrigin(leftPct, topPct, boxW, boxH) {
+    const cx = leftPct / 100 * boxW;
+    const cy = topPct / 100 * boxH;
+    const placeRight = leftPct < 52;
+    let left = placeRight ? cx + POPOVER_GAP : cx - POPOVER_GAP - POPOVER_W;
+    let top = cy - POPOVER_H / 2;
+    left = clamp(left, 8, Math.max(8, boxW - POPOVER_W - 8));
+    top = clamp(top, 8, Math.max(8, boxH - POPOVER_H - 8));
+    return {
+        left,
+        top,
+        placeRight
+    };
+}
+function InteractivePortrait(param) {
+    let { report, faceSrc, usingUserPortrait, isUnlocked, topFeature, size = "default", openOnHover = false } = param;
+    var _report_featureOverlays;
+    _s();
+    const boxRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const imgRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const [boxSize, setBoxSize] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({
+        w: 0,
+        h: 0
+    });
+    const [imgSize, setImgSize] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({
+        w: 0,
+        h: 0
+    });
+    const [selectedId, setSelectedId] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const overlays = (((_report_featureOverlays = report.featureOverlays) === null || _report_featureOverlays === void 0 ? void 0 : _report_featureOverlays.length) > 0 ? report.featureOverlays : FALLBACK_OVERLAYS).filter((d)=>d.feature !== "grooming_signal");
+    const measure = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "InteractivePortrait.useCallback[measure]": ()=>{
+            const box = boxRef.current;
+            const img = imgRef.current;
+            if (box) {
+                const r = box.getBoundingClientRect();
+                setBoxSize({
+                    w: r.width,
+                    h: r.height
+                });
+            }
+            if (img && img.naturalWidth > 0) {
+                setImgSize({
+                    w: img.naturalWidth,
+                    h: img.naturalHeight
+                });
+            }
+        }
+    }["InteractivePortrait.useCallback[measure]"], []);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "InteractivePortrait.useEffect": ()=>{
+            measure();
+            const box = boxRef.current;
+            if (!box || typeof ResizeObserver === "undefined") return;
+            const ro = new ResizeObserver({
+                "InteractivePortrait.useEffect": ()=>measure()
+            }["InteractivePortrait.useEffect"]);
+            ro.observe(box);
+            return ({
+                "InteractivePortrait.useEffect": ()=>ro.disconnect()
+            })["InteractivePortrait.useEffect"];
+        }
+    }["InteractivePortrait.useEffect"], [
+        measure,
+        faceSrc
+    ]);
+    var _overlays_find;
+    const selectedDot = (_overlays_find = overlays.find((d)=>d.id === selectedId)) !== null && _overlays_find !== void 0 ? _overlays_find : null;
+    const selectedScore = selectedDot ? report.features[selectedDot.feature] : null;
+    const selectedPos = selectedDot ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$object$2d$cover$2d$map$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["mapNormToCoverPercent"])(selectedDot.x, selectedDot.y, imgSize.w || 1, imgSize.h || 1, boxSize.w || 1, boxSize.h || 1, OBJECT_POS_X, OBJECT_POS_Y) : null;
+    const pop = selectedPos && boxSize.w > 0 ? popoverOrigin(selectedPos.left, selectedPos.top, boxSize.w, boxSize.h) : null;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        className: size === "hero" ? "relative mx-auto w-full max-w-none" : "relative mx-auto w-full max-w-md lg:max-w-none",
+        children: [
+            "      ",
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                ref: boxRef,
+                className: "report-glass relative aspect-[3/4] overflow-hidden rounded-[2rem]",
+                onClick: (e)=>{
+                    if (e.target === e.currentTarget) setSelectedId(null);
+                },
+                onMouseLeave: ()=>{
+                    if (openOnHover) setSelectedId(null);
+                },
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("img", {
+                        ref: imgRef,
+                        src: faceSrc,
+                        alt: "",
+                        className: "absolute inset-0 h-full w-full object-cover object-[50%_18%] opacity-90",
+                        onLoad: measure,
+                        onClick: ()=>setSelectedId(null)
+                    }, void 0, false, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 161,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30",
+                        "aria-hidden": true
+                    }, void 0, false, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 169,
+                        columnNumber: 9
+                    }, this),
+                    !usingUserPortrait && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-black/40 px-2.5 py-1 text-[10px] uppercase tracking-[0.12em] text-white/55 backdrop-blur-sm",
+                        children: "Demo portrait"
+                    }, void 0, false, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 175,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-black/35 px-2.5 py-1 text-[10px] text-white/50 backdrop-blur-sm",
+                        children: openOnHover ? "Hover a point" : "Tap a point"
+                    }, void 0, false, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 180,
+                        columnNumber: 9
+                    }, this),
+                    overlays.map((dot)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(OverlayDot, {
+                            dot: dot,
+                            score: report.features[dot.feature],
+                            unlocked: isUnlocked(dot.feature),
+                            active: selectedId === dot.id,
+                            imgSize: imgSize,
+                            boxSize: boxSize,
+                            openOnHover: openOnHover,
+                            onSelect: ()=>setSelectedId((prev)=>prev === dot.id ? null : dot.id),
+                            onHoverOpen: ()=>setSelectedId(dot.id)
+                        }, dot.id, false, {
+                            fileName: "[project]/components/report/InteractivePortrait.tsx",
+                            lineNumber: 185,
+                            columnNumber: 11
+                        }, this)),
+                    isUnlocked(topFeature) && !selectedDot && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "pointer-events-none absolute left-3 top-12 z-10 report-glass-chip rounded-2xl px-3 py-2",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "text-[10px] uppercase tracking-[0.14em] text-white/45",
+                                children: "Strongest"
+                            }, void 0, false, {
+                                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                                lineNumber: 203,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "text-sm font-semibold text-white",
+                                children: [
+                                    __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][topFeature],
+                                    " ",
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "text-white/70",
+                                        children: report.features[topFeature].score
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                                        lineNumber: 208,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                                lineNumber: 206,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 202,
+                        columnNumber: 11
+                    }, this),
+                    selectedDot && selectedScore && pop && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(FeatureBreakdownCard, {
+                        feature: selectedDot.feature,
+                        packet: selectedScore,
+                        unlocked: isUnlocked(selectedDot.feature),
+                        placeRight: pop.placeRight,
+                        style: {
+                            left: pop.left,
+                            top: pop.top
+                        },
+                        onClose: ()=>setSelectedId(null)
+                    }, void 0, false, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 216,
+                        columnNumber: 11
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                lineNumber: 150,
+                columnNumber: 12
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/report/InteractivePortrait.tsx",
+        lineNumber: 144,
+        columnNumber: 5
+    }, this);
+}
+_s(InteractivePortrait, "oY7FeZI5frJjmHXJTs5bAaaVrbo=");
+_c = InteractivePortrait;
+function OverlayDot(param) {
+    let { dot, score, unlocked, active, imgSize, boxSize, openOnHover, onSelect, onHoverOpen } = param;
+    const pos = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$object$2d$cover$2d$map$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["mapNormToCoverPercent"])(dot.x, dot.y, imgSize.w || 1, imgSize.h || 1, boxSize.w || 1, boxSize.h || 1, OBJECT_POS_X, OBJECT_POS_Y);
+    const tone = !(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["isFeatureMeasurable"])(score.measurable) ? "bg-white/35" : (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["scoreToneClass"])(score.score, unlocked);
+    function onKeyDown(e) {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect();
+        }
+    }
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+        type: "button",
+        "aria-label": "".concat(__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][dot.feature], " — ").concat(openOnHover ? "hover" : "tap", " for breakdown"),
+        "aria-pressed": active,
+        onClick: (e)=>{
+            e.stopPropagation();
+            onSelect();
+        },
+        onMouseEnter: ()=>{
+            if (openOnHover) onHoverOpen();
+        },
+        onKeyDown: onKeyDown,
+        className: "report-face-dot absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 ".concat(active ? "report-face-dot--active" : ""),
+        style: {
+            left: "".concat(pos.left, "%"),
+            top: "".concat(pos.top, "%")
+        },
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                className: "report-face-dot__core ".concat(tone)
+            }, void 0, false, {
+                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                lineNumber: 291,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                className: "report-face-dot__ring ".concat(tone),
+                "aria-hidden": true
+            }, void 0, false, {
+                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                lineNumber: 292,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/report/InteractivePortrait.tsx",
+        lineNumber: 274,
+        columnNumber: 5
+    }, this);
+}
+_c1 = OverlayDot;
+function FeatureBreakdownCard(param) {
+    let { feature, packet, unlocked, placeRight, style, onClose } = param;
+    var _recommendationsForScore_;
+    const measurable = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["isFeatureMeasurable"])(packet.measurable);
+    const mutability = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FEATURE_MUTABILITY"][feature];
+    const tip = unlocked && measurable ? (_recommendationsForScore_ = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$recommendations$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["recommendationsForScore"])(feature, packet.score)[0]) === null || _recommendationsForScore_ === void 0 ? void 0 : _recommendationsForScore_.action : null;
+    var _packet_gateNote;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        role: "dialog",
+        "aria-label": "".concat(__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][feature], " breakdown"),
+        className: "report-face-popover absolute z-30 report-glass-chip rounded-xl px-3 py-2.5 ".concat(placeRight ? "report-face-popover--from-left" : "report-face-popover--from-right"),
+        style: {
+            left: style.left,
+            top: style.top,
+            width: POPOVER_W
+        },
+        onClick: (e)=>e.stopPropagation(),
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "flex items-start justify-between gap-2",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "min-w-0",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "text-[9px] uppercase tracking-[0.14em] text-white/45",
+                                children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MUTABILITY_LABELS"][mutability]
+                            }, void 0, false, {
+                                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                                lineNumber: 337,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "mt-0.5 truncate text-[13px] font-semibold text-white",
+                                children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][feature]
+                            }, void 0, false, {
+                                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                                lineNumber: 340,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 336,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                        type: "button",
+                        onClick: onClose,
+                        className: "cursor-pointer rounded-full px-1.5 py-0.5 text-[10px] text-white/50 transition hover:bg-white/10 hover:text-white",
+                        "aria-label": "Close breakdown",
+                        children: "✕"
+                    }, void 0, false, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 344,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                lineNumber: 335,
+                columnNumber: 7
+            }, this),
+            !measurable ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "mt-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-amber-300/90",
+                        children: "Not measured"
+                    }, void 0, false, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 356,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "mt-1 line-clamp-4 text-[11px] leading-snug text-white/75",
+                        children: (_packet_gateNote = packet.gateNote) !== null && _packet_gateNote !== void 0 ? _packet_gateNote : packet.observedSignal
+                    }, void 0, false, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 359,
+                        columnNumber: 11
+                    }, this)
+                ]
+            }, void 0, true) : unlocked ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "mt-1.5 flex flex-wrap items-baseline gap-x-1.5",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "text-xl font-semibold tracking-tight text-white",
+                                children: [
+                                    packet.score,
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "ml-0.5 text-[11px] font-normal text-white/35",
+                                        children: "/100"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                                        lineNumber: 368,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                                lineNumber: 366,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-white/55",
+                                children: packet.confidence
+                            }, void 0, false, {
+                                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                                lineNumber: 372,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 365,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "mt-1.5 line-clamp-3 text-[11px] leading-snug text-white/75",
+                        children: packet.observedSignal
+                    }, void 0, false, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 376,
+                        columnNumber: 11
+                    }, this),
+                    tip && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "mt-1.5 border-t border-white/10 pt-1.5 text-[10px] leading-snug text-white/55",
+                        children: [
+                            "Tip: ",
+                            tip
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/report/InteractivePortrait.tsx",
+                        lineNumber: 380,
+                        columnNumber: 13
+                    }, this)
+                ]
+            }, void 0, true) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                className: "mt-1.5 text-[11px] leading-snug text-white/55",
+                children: "Locked on free — unlock to see this region's score and signal."
+            }, void 0, false, {
+                fileName: "[project]/components/report/InteractivePortrait.tsx",
+                lineNumber: 386,
+                columnNumber: 9
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/report/InteractivePortrait.tsx",
+        lineNumber: 320,
+        columnNumber: 5
+    }, this);
+}
+_c2 = FeatureBreakdownCard;
+var _c, _c1, _c2;
+__turbopack_context__.k.register(_c, "InteractivePortrait");
+__turbopack_context__.k.register(_c1, "OverlayDot");
+__turbopack_context__.k.register(_c2, "FeatureBreakdownCard");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/appearance/FaceGroomingReveal.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "FaceGroomingReveal",
+    ()=>FaceGroomingReveal
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/types/report.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$report$2f$InteractivePortrait$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/report/InteractivePortrait.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/score-tone.ts [app-client] (ecmascript)");
+;
+var _s = __turbopack_context__.k.signature();
+"use client";
+;
+;
+;
+;
+;
+function PillarCard(param) {
+    let { pillar, features, delay = 0 } = param;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("article", {
+        className: "ai-pillar report-glass",
+        style: {
+            animationDelay: "".concat(delay, "ms")
+        },
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("header", {
+                className: "ai-pillar__head",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
+                        children: pillar.label
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 30,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-pillar__conf",
+                        children: [
+                            pillar.confidence,
+                            " confidence"
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 31,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                lineNumber: 29,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                className: "ai-pillar__score",
+                children: pillar.measurable && pillar.score != null ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                            children: (pillar.score / 10).toFixed(1)
+                        }, void 0, false, {
+                            fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                            lineNumber: 36,
+                            columnNumber: 13
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("small", {
+                            children: "/10"
+                        }, void 0, false, {
+                            fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                            lineNumber: 37,
+                            columnNumber: 13
+                        }, this)
+                    ]
+                }, void 0, true) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                    className: "ai-pillar__na",
+                    children: "Not measured"
+                }, void 0, false, {
+                    fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                    lineNumber: 40,
+                    columnNumber: 11
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                lineNumber: 33,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
+                className: "ai-pillar__features",
+                children: pillar.featureKeys.map((key)=>{
+                    const packet = features[key];
+                    if (!packet) return null;
+                    const ok = packet.measurable !== false;
+                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][key]
+                            }, void 0, false, {
+                                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                                lineNumber: 50,
+                                columnNumber: 15
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
+                                children: ok ? Math.round(packet.score) : "—"
+                            }, void 0, false, {
+                                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                                lineNumber: 51,
+                                columnNumber: 15
+                            }, this)
+                        ]
+                    }, key, true, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 49,
+                        columnNumber: 13
+                    }, this);
+                })
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                lineNumber: 43,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
+                className: "ai-pillar__tips",
+                children: pillar.tips.map((tip)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                        children: tip
+                    }, tip, false, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 58,
+                        columnNumber: 11
+                    }, this))
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                lineNumber: 56,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+        lineNumber: 25,
+        columnNumber: 5
+    }, this);
+}
+_c = PillarCard;
+function FaceGroomingReveal(param) {
+    let { report, pillars, onContinue } = param;
+    _s();
+    const portraitId = report.standardizedPortraitFileId || report.portraitFileId;
+    const faceSrc = portraitId ? "/api/files/".concat(portraitId) : "/woman1.png";
+    const usingUserPortrait = Boolean(portraitId);
+    const topFeature = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
+        "FaceGroomingReveal.useMemo[topFeature]": ()=>{
+            const ranked = [
+                ...__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SCORED_APPEARANCE_KEYS"]
+            ].filter({
+                "FaceGroomingReveal.useMemo[topFeature].ranked": (k)=>{
+                    var _report_features_k;
+                    return (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["isFeatureMeasurable"])((_report_features_k = report.features[k]) === null || _report_features_k === void 0 ? void 0 : _report_features_k.measurable);
+                }
+            }["FaceGroomingReveal.useMemo[topFeature].ranked"]).sort({
+                "FaceGroomingReveal.useMemo[topFeature].ranked": (a, b)=>{
+                    var _report_features_b, _report_features_a;
+                    var _report_features_b_score, _report_features_a_score;
+                    return ((_report_features_b_score = (_report_features_b = report.features[b]) === null || _report_features_b === void 0 ? void 0 : _report_features_b.score) !== null && _report_features_b_score !== void 0 ? _report_features_b_score : 0) - ((_report_features_a_score = (_report_features_a = report.features[a]) === null || _report_features_a === void 0 ? void 0 : _report_features_a.score) !== null && _report_features_a_score !== void 0 ? _report_features_a_score : 0);
+                }
+            }["FaceGroomingReveal.useMemo[topFeature].ranked"]);
+            var _ranked_;
+            return (_ranked_ = ranked[0]) !== null && _ranked_ !== void 0 ? _ranked_ : "face_symmetry";
+        }
+    }["FaceGroomingReveal.useMemo[topFeature]"], [
+        report.features
+    ]);
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
+        className: "ai-reveal",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-reveal__intro",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-reveal__eyebrow",
+                        children: "Stage 1 · Face & Grooming Index"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 94,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                        children: "Your first reveal"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 95,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        children: "Two separate pillars — structure from your face mesh, grooming from skin and finish. Hover the landmark dots for feature details."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 96,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                lineNumber: 93,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-reveal__grid",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "ai-reveal__portrait-wrap",
+                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$report$2f$InteractivePortrait$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["InteractivePortrait"], {
+                            report: report,
+                            faceSrc: faceSrc,
+                            usingUserPortrait: usingUserPortrait,
+                            isUnlocked: ()=>true,
+                            topFeature: topFeature,
+                            openOnHover: true
+                        }, void 0, false, {
+                            fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                            lineNumber: 104,
+                            columnNumber: 11
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 103,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "ai-reveal__pillars",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(PillarCard, {
+                                pillar: pillars.structure,
+                                features: report.features,
+                                delay: 80
+                            }, void 0, false, {
+                                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                                lineNumber: 114,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(PillarCard, {
+                                pillar: pillars.grooming,
+                                features: report.features,
+                                delay: 200
+                            }, void 0, false, {
+                                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                                lineNumber: 119,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 113,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                lineNumber: 102,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-reveal__cta",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                        type: "button",
+                        className: "ai-btn",
+                        onClick: onContinue,
+                        children: "Continue to style profile"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 128,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-reveal__note",
+                        children: "Next: a few visual style choices (and later, a full-body photo)."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                        lineNumber: 131,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+                lineNumber: 127,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/FaceGroomingReveal.tsx",
+        lineNumber: 92,
+        columnNumber: 5
+    }, this);
+}
+_s(FaceGroomingReveal, "3FtEOdW29UD78BWXtqrRcget9ic=");
+_c1 = FaceGroomingReveal;
+var _c, _c1;
+__turbopack_context__.k.register(_c, "PillarCard");
+__turbopack_context__.k.register(_c1, "FaceGroomingReveal");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/appearance/StyleIllustrations.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "DressIllustration",
+    ()=>DressIllustration,
+    "JeansIllustration",
+    ()=>JeansIllustration,
+    "SilhouetteIllustration",
+    ()=>SilhouetteIllustration,
+    "SkirtIllustration",
+    ()=>SkirtIllustration,
+    "TrousersIllustration",
+    ()=>TrousersIllustration
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+"use client";
+;
+function DressIllustration(param) {
+    let { className = "" } = param;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+        className: className,
+        viewBox: "0 0 80 96",
+        fill: "none",
+        "aria-hidden": true,
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M28 14c0-6 5-10 12-10s12 4 12 10v6l8 4-4 14h-32l-4-14 8-4v-6z",
+                fill: "currentColor",
+                opacity: "0.85"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 13,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M24 38h32l10 48H14L24 38z",
+                fill: "currentColor",
+                opacity: "0.55"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 18,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
+                cx: "40",
+                cy: "10",
+                r: "5",
+                fill: "currentColor",
+                opacity: "0.9"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 23,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+        lineNumber: 7,
+        columnNumber: 5
+    }, this);
+}
+_c = DressIllustration;
+function JeansIllustration(param) {
+    let { className = "" } = param;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+        className: className,
+        viewBox: "0 0 80 96",
+        fill: "none",
+        "aria-hidden": true,
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M26 18h28v10l4 4v54H42V52h-4v34H22V32l4-4V18z",
+                fill: "currentColor",
+                opacity: "0.7"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 36,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M30 28h20",
+                stroke: "currentColor",
+                strokeWidth: "2",
+                opacity: "0.4"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 41,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M40 32v20",
+                stroke: "currentColor",
+                strokeWidth: "2",
+                opacity: "0.35"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 42,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
+                cx: "40",
+                cy: "12",
+                r: "5",
+                fill: "currentColor",
+                opacity: "0.85"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 43,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+        lineNumber: 30,
+        columnNumber: 5
+    }, this);
+}
+_c1 = JeansIllustration;
+function SkirtIllustration(param) {
+    let { className = "" } = param;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+        className: className,
+        viewBox: "0 0 80 96",
+        fill: "none",
+        "aria-hidden": true,
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
+                cx: "40",
+                cy: "12",
+                r: "5",
+                fill: "currentColor",
+                opacity: "0.85"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 56,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M30 18h20v16H30z",
+                fill: "currentColor",
+                opacity: "0.75"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 57,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M28 34h24l14 46H14L28 34z",
+                fill: "currentColor",
+                opacity: "0.5"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 62,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+        lineNumber: 50,
+        columnNumber: 5
+    }, this);
+}
+_c2 = SkirtIllustration;
+function TrousersIllustration(param) {
+    let { className = "" } = param;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+        className: className,
+        viewBox: "0 0 80 96",
+        fill: "none",
+        "aria-hidden": true,
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
+                cx: "40",
+                cy: "12",
+                r: "5",
+                fill: "currentColor",
+                opacity: "0.85"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 83,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                d: "M28 18h24v12l3 4v52H42V48h-4v38H25V34l3-4V18z",
+                fill: "currentColor",
+                opacity: "0.65"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 84,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+        lineNumber: 77,
+        columnNumber: 5
+    }, this);
+}
+_c3 = TrousersIllustration;
+function SilhouetteIllustration(param) {
+    let { variant, className = "" } = param;
+    const width = variant === "fitted" ? 22 : variant === "relaxed" ? 30 : 40;
+    const x = 40 - width / 2;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+        className: className,
+        viewBox: "0 0 80 96",
+        fill: "none",
+        "aria-hidden": true,
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
+                cx: "40",
+                cy: "14",
+                r: "8",
+                fill: "currentColor",
+                opacity: "0.8"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 110,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("rect", {
+                x: x,
+                y: "26",
+                width: width,
+                height: "52",
+                rx: variant === "fitted" ? 6 : 10,
+                fill: "currentColor",
+                opacity: "0.55"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+                lineNumber: 111,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/StyleIllustrations.tsx",
+        lineNumber: 104,
+        columnNumber: 5
+    }, this);
+}
+_c4 = SilhouetteIllustration;
+var _c, _c1, _c2, _c3, _c4;
+__turbopack_context__.k.register(_c, "DressIllustration");
+__turbopack_context__.k.register(_c1, "JeansIllustration");
+__turbopack_context__.k.register(_c2, "SkirtIllustration");
+__turbopack_context__.k.register(_c3, "TrousersIllustration");
+__turbopack_context__.k.register(_c4, "SilhouetteIllustration");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/appearance/StylePrefsForm.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "StylePrefsForm",
+    ()=>StylePrefsForm,
+    "stylePrefsComplete",
+    ()=>stylePrefsComplete
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/appearance-index.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleIllustrations$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/appearance/StyleIllustrations.tsx [app-client] (ecmascript)");
+"use client";
+;
+;
+;
+function bottomArt(id) {
+    const cls = "h-16 w-14 text-current";
+    switch(id){
+        case "dresses":
+            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleIllustrations$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DressIllustration"], {
+                className: cls
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                lineNumber: 33,
+                columnNumber: 14
+            }, this);
+        case "jeans":
+            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleIllustrations$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["JeansIllustration"], {
+                className: cls
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                lineNumber: 35,
+                columnNumber: 14
+            }, this);
+        case "skirts":
+            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleIllustrations$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SkirtIllustration"], {
+                className: cls
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                lineNumber: 37,
+                columnNumber: 14
+            }, this);
+        case "trousers":
+            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleIllustrations$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TrousersIllustration"], {
+                className: cls
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                lineNumber: 39,
+                columnNumber: 14
+            }, this);
+    }
+}
+function StylePrefsForm(param) {
+    let { value, onChange } = param;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        className: "style-prefs",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("fieldset", {
+                className: "style-prefs__block",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("legend", {
+                        className: "style-prefs__legend",
+                        children: "Favorite color"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 47,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "style-prefs__hint",
+                        children: "Pick the tone you reach for most."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 48,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "style-prefs__swatches",
+                        children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FAVORITE_COLORS"].map((c)=>{
+                            const selected = value.favoriteColor === c.id;
+                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                type: "button",
+                                className: "style-prefs__swatch".concat(selected ? " is-selected" : ""),
+                                style: {
+                                    background: c.hex
+                                },
+                                "aria-pressed": selected,
+                                "aria-label": c.label,
+                                onClick: ()=>onChange({
+                                        ...value,
+                                        favoriteColor: c.id
+                                    }),
+                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "style-prefs__swatch-label",
+                                    children: c.label
+                                }, void 0, false, {
+                                    fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                    lineNumber: 67,
+                                    columnNumber: 17
+                                }, this)
+                            }, c.id, false, {
+                                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                lineNumber: 53,
+                                columnNumber: 15
+                            }, this);
+                        })
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 49,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                lineNumber: 46,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("fieldset", {
+                className: "style-prefs__block",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("legend", {
+                        className: "style-prefs__legend",
+                        children: "What do you prefer?"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 75,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "style-prefs__hint",
+                        children: "Dresses, jeans, or something else — tap the look that feels like you."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 76,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "style-prefs__cards",
+                        children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["BOTTOM_PREFERENCES"].map((opt)=>{
+                            const selected = value.bottomPreference === opt.id;
+                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                type: "button",
+                                className: "style-prefs__card".concat(selected ? " is-selected" : ""),
+                                "aria-pressed": selected,
+                                onClick: ()=>onChange({
+                                        ...value,
+                                        bottomPreference: opt.id
+                                    }),
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "style-prefs__card-art",
+                                        "aria-hidden": true,
+                                        children: bottomArt(opt.id)
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 95,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "style-prefs__card-label",
+                                        children: opt.label
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 98,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "style-prefs__card-hint",
+                                        children: opt.hint
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 99,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, opt.id, true, {
+                                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                lineNumber: 83,
+                                columnNumber: 15
+                            }, this);
+                        })
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 79,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                lineNumber: 74,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("fieldset", {
+                className: "style-prefs__block",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("legend", {
+                        className: "style-prefs__legend",
+                        children: "Silhouette"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 107,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "style-prefs__hint",
+                        children: "How do clothes usually sit on you?"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 108,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "style-prefs__cards style-prefs__cards--3",
+                        children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SILHOUETTE_PREFERENCES"].map((opt)=>{
+                            const selected = value.silhouette === opt.id;
+                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                type: "button",
+                                className: "style-prefs__card".concat(selected ? " is-selected" : ""),
+                                "aria-pressed": selected,
+                                onClick: ()=>onChange({
+                                        ...value,
+                                        silhouette: opt.id
+                                    }),
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "style-prefs__card-art",
+                                        "aria-hidden": true,
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleIllustrations$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SilhouetteIllustration"], {
+                                            variant: opt.id,
+                                            className: "h-16 w-14 text-current"
+                                        }, void 0, false, {
+                                            fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                            lineNumber: 126,
+                                            columnNumber: 19
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 125,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "style-prefs__card-label",
+                                        children: opt.label
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 131,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "style-prefs__card-hint",
+                                        children: opt.hint
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 132,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, opt.id, true, {
+                                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                lineNumber: 113,
+                                columnNumber: 15
+                            }, this);
+                        })
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 109,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                lineNumber: 106,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("fieldset", {
+                className: "style-prefs__block",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("legend", {
+                        className: "style-prefs__legend",
+                        children: "Overall vibe"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 140,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "style-prefs__hint",
+                        children: "The energy you want your looks to send."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 141,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "style-prefs__chips",
+                        children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["STYLE_VIBES"].map((opt)=>{
+                            const selected = value.vibe === opt.id;
+                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                type: "button",
+                                className: "style-prefs__chip".concat(selected ? " is-selected" : ""),
+                                "aria-pressed": selected,
+                                onClick: ()=>onChange({
+                                        ...value,
+                                        vibe: opt.id
+                                    }),
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
+                                        children: opt.label
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 155,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        children: opt.hint
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 156,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, opt.id, true, {
+                                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                lineNumber: 146,
+                                columnNumber: 15
+                            }, this);
+                        })
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 142,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                lineNumber: 139,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("fieldset", {
+                className: "style-prefs__block",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("legend", {
+                        className: "style-prefs__legend",
+                        children: "Budget for pieces"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 164,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "style-prefs__hint",
+                        children: "Used later for shoppable looks — not a judgment."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 165,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "style-prefs__chips",
+                        children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["STYLE_BUDGETS"].map((opt)=>{
+                            const selected = value.budget === opt.id;
+                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                type: "button",
+                                className: "style-prefs__chip".concat(selected ? " is-selected" : ""),
+                                "aria-pressed": selected,
+                                onClick: ()=>onChange({
+                                        ...value,
+                                        budget: opt.id
+                                    }),
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
+                                        children: opt.label
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 181,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        children: opt.hint
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                        lineNumber: 182,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, opt.id, true, {
+                                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                                lineNumber: 172,
+                                columnNumber: 15
+                            }, this);
+                        })
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                        lineNumber: 168,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+                lineNumber: 163,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/StylePrefsForm.tsx",
+        lineNumber: 45,
+        columnNumber: 5
+    }, this);
+}
+_c = StylePrefsForm;
+function stylePrefsComplete(value) {
+    return Boolean(value.favoriteColor && value.bottomPreference && value.silhouette && value.vibe && value.budget);
+}
+var _c;
+__turbopack_context__.k.register(_c, "StylePrefsForm");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/appearance/StyleCollectStage.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "StyleCollectStage",
+    ()=>StyleCollectStage
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StylePrefsForm$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/appearance/StylePrefsForm.tsx [app-client] (ecmascript)");
+;
+var _s = __turbopack_context__.k.signature();
+"use client";
+;
+;
+function StyleCollectStage(param) {
+    let { onSubmit, saving, error } = param;
+    _s();
+    const [prefs, setPrefs] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({});
+    const ready = (0, __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StylePrefsForm$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["stylePrefsComplete"])(prefs);
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
+        className: "ai-reveal",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-reveal__intro",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-reveal__eyebrow",
+                        children: "Stage 2 · Style preferences"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+                        lineNumber: 25,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                        children: "What do you actually wear?"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+                        lineNumber: 26,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        children: "Quick visual picks — favorite color, dresses vs jeans, silhouette, vibe, and budget. Full-body photo analysis comes next; these answers already shape your Style Profile."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+                        lineNumber: 27,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+                lineNumber: 24,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StylePrefsForm$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["StylePrefsForm"], {
+                value: prefs,
+                onChange: setPrefs
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+                lineNumber: 34,
+                columnNumber: 7
+            }, this),
+            error ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                className: "ai-error",
+                children: error
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+                lineNumber: 36,
+                columnNumber: 16
+            }, this) : null,
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-reveal__cta",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                        type: "button",
+                        className: "ai-btn",
+                        disabled: !ready || saving,
+                        onClick: ()=>{
+                            if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StylePrefsForm$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["stylePrefsComplete"])(prefs)) onSubmit(prefs);
+                        },
+                        children: saving ? "Saving…" : "See my Style Profile"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+                        lineNumber: 39,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-reveal__note",
+                        children: "Full-body upload for height/build estimates will plug in here next — any estimates will be labeled as AI estimates, not measurements."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+                        lineNumber: 49,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+                lineNumber: 38,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/StyleCollectStage.tsx",
+        lineNumber: 23,
+        columnNumber: 5
+    }, this);
+}
+_s(StyleCollectStage, "X1+k0eUHHk3F+nFg9TVzgkVaEZo=");
+_c = StyleCollectStage;
+var _c;
+__turbopack_context__.k.register(_c, "StyleCollectStage");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/appearance/StyleProfileReveal.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "StyleProfileReveal",
+    ()=>StyleProfileReveal
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/appearance-index.ts [app-client] (ecmascript)");
+"use client";
+;
+;
+function StyleProfileReveal(param) {
+    let { journey, onContinue } = param;
+    var _FAVORITE_COLORS_find, _FAVORITE_COLORS_find1, _BOTTOM_PREFERENCES_find, _SILHOUETTE_PREFERENCES_find, _STYLE_VIBES_find, _STYLE_BUDGETS_find;
+    const profile = journey.styleProfile;
+    var _profile_preferences;
+    const prefs = (_profile_preferences = profile === null || profile === void 0 ? void 0 : profile.preferences) !== null && _profile_preferences !== void 0 ? _profile_preferences : journey.stylePreferences;
+    var _profile_summary, _FAVORITE_COLORS_find_hex;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
+        className: "ai-reveal",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-reveal__intro",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-reveal__eyebrow",
+                        children: "Stage 2 · Style Profile"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                        lineNumber: 25,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                        children: "Your style read"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                        lineNumber: 26,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        children: "Built from your answers. Vision signals from a full-body photo will refine this later."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                        lineNumber: 27,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                lineNumber: 24,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("article", {
+                className: "ai-style-card report-glass",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-style-card__summary",
+                        children: (_profile_summary = profile === null || profile === void 0 ? void 0 : profile.summary) !== null && _profile_summary !== void 0 ? _profile_summary : "Style preferences saved."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                        lineNumber: 34,
+                        columnNumber: 9
+                    }, this),
+                    (profile === null || profile === void 0 ? void 0 : profile.estimateNote) ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-style-card__estimate",
+                        children: profile.estimateNote
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                        lineNumber: 38,
+                        columnNumber: 11
+                    }, this) : null,
+                    prefs ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dl", {
+                        className: "ai-style-card__grid",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dt", {
+                                        children: "Color"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 44,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dd", {
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                className: "ai-style-card__dot",
+                                                style: {
+                                                    background: (_FAVORITE_COLORS_find_hex = (_FAVORITE_COLORS_find = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FAVORITE_COLORS"].find((c)=>c.id === prefs.favoriteColor)) === null || _FAVORITE_COLORS_find === void 0 ? void 0 : _FAVORITE_COLORS_find.hex) !== null && _FAVORITE_COLORS_find_hex !== void 0 ? _FAVORITE_COLORS_find_hex : "#888"
+                                                }
+                                            }, void 0, false, {
+                                                fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                                lineNumber: 46,
+                                                columnNumber: 17
+                                            }, this),
+                                            (_FAVORITE_COLORS_find1 = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FAVORITE_COLORS"].find((c)=>c.id === prefs.favoriteColor)) === null || _FAVORITE_COLORS_find1 === void 0 ? void 0 : _FAVORITE_COLORS_find1.label
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 45,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                lineNumber: 43,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dt", {
+                                        children: "Prefer"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 61,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dd", {
+                                        children: (_BOTTOM_PREFERENCES_find = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["BOTTOM_PREFERENCES"].find((b)=>b.id === prefs.bottomPreference)) === null || _BOTTOM_PREFERENCES_find === void 0 ? void 0 : _BOTTOM_PREFERENCES_find.label
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 62,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                lineNumber: 60,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dt", {
+                                        children: "Silhouette"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 71,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dd", {
+                                        children: (_SILHOUETTE_PREFERENCES_find = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SILHOUETTE_PREFERENCES"].find((s)=>s.id === prefs.silhouette)) === null || _SILHOUETTE_PREFERENCES_find === void 0 ? void 0 : _SILHOUETTE_PREFERENCES_find.label
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 72,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                lineNumber: 70,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dt", {
+                                        children: "Vibe"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 80,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dd", {
+                                        children: (_STYLE_VIBES_find = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["STYLE_VIBES"].find((v)=>v.id === prefs.vibe)) === null || _STYLE_VIBES_find === void 0 ? void 0 : _STYLE_VIBES_find.label
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 81,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                lineNumber: 79,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dt", {
+                                        children: "Budget"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 86,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("dd", {
+                                        children: (_STYLE_BUDGETS_find = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["STYLE_BUDGETS"].find((b)=>b.id === prefs.budget)) === null || _STYLE_BUDGETS_find === void 0 ? void 0 : _STYLE_BUDGETS_find.label
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                        lineNumber: 87,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                                lineNumber: 85,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                        lineNumber: 42,
+                        columnNumber: 11
+                    }, this) : null
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                lineNumber: 33,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-reveal__cta",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                        type: "button",
+                        className: "ai-btn",
+                        onClick: onContinue,
+                        children: "Continue to prescribed looks"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                        lineNumber: 96,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-reveal__note",
+                        children: "Next stage combines Face + Style into shoppable “looks” (eBay coming soon)."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                        lineNumber: 99,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+                lineNumber: 95,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/StyleProfileReveal.tsx",
+        lineNumber: 23,
+        columnNumber: 5
+    }, this);
+}
+_c = StyleProfileReveal;
+var _c;
+__turbopack_context__.k.register(_c, "StyleProfileReveal");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/appearance/PrescriptionPlaceholder.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "PrescriptionPlaceholder",
+    ()=>PrescriptionPlaceholder
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+"use client";
+;
+function PrescriptionPlaceholder(param) {
+    let { journey, onFinish } = param;
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
+        className: "ai-reveal",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-reveal__intro",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-reveal__eyebrow",
+                        children: "Stage 3 · Prescribed looks"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+                        lineNumber: 15,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                        children: "Looks engine coming next"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+                        lineNumber: 16,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        children: "We’ll combine your Structure + Grooming pillars with this Style Profile into named looks — grooming tips paired with real eBay listings. Links stay free; ongoing restocking is Pro after your first full profile."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+                        lineNumber: 17,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+                lineNumber: 14,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("article", {
+                className: "ai-style-card report-glass",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-style-card__summary",
+                        children: [
+                            "Face & Style are ready",
+                            journey.pillars.structure.score != null ? " · Structure ".concat((journey.pillars.structure.score / 10).toFixed(1)) : "",
+                            journey.pillars.grooming.score != null ? " · Grooming ".concat((journey.pillars.grooming.score / 10).toFixed(1)) : "",
+                            "."
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+                        lineNumber: 26,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-style-card__estimate",
+                        children: "This free first-pass profile is unlocked. Pro will pitch after this complete pass — for rechecks, restocked looks, and seasonal drops — not to blur what you just earned."
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+                        lineNumber: 36,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+                lineNumber: 25,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-reveal__cta",
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                    type: "button",
+                    className: "ai-btn",
+                    onClick: onFinish,
+                    children: "Finish this pass"
+                }, void 0, false, {
+                    fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+                    lineNumber: 44,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+                lineNumber: 43,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/PrescriptionPlaceholder.tsx",
+        lineNumber: 13,
+        columnNumber: 5
+    }, this);
+}
+_c = PrescriptionPlaceholder;
+var _c;
+__turbopack_context__.k.register(_c, "PrescriptionPlaceholder");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/appearance/JourneyProgressBar.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "JourneyProgressBar",
+    ()=>JourneyProgressBar
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/appearance-index.ts [app-client] (ecmascript)");
+"use client";
+;
+;
+function JourneyProgressBar(param) {
+    let { current, withinStep = 0, detail, variant = "light" } = param;
+    const total = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["JOURNEY_FLOW_STEPS"].length;
+    const index = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["journeyStepIndex"])(current);
+    const percent = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["journeyProgressPercent"])(current, withinStep);
+    const currentMeta = current === "complete" ? {
+        label: "Profile complete",
+        shortLabel: "Done"
+    } : __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["JOURNEY_FLOW_STEPS"][index];
+    var _currentMeta_label;
+    const stepLabel = (_currentMeta_label = currentMeta === null || currentMeta === void 0 ? void 0 : currentMeta.label) !== null && _currentMeta_label !== void 0 ? _currentMeta_label : "In progress";
+    const stepsLeft = current === "complete" ? 0 : Math.max(0, total - index - (withinStep >= 1 ? 1 : 0));
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        className: "journey-progress journey-progress--".concat(variant),
+        role: "group",
+        "aria-label": "Appearance Index progress",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "journey-progress__top",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "journey-progress__label",
+                        children: current === "complete" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+                            children: "All steps done"
+                        }, void 0, false) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+                            children: [
+                                "Step ",
+                                Math.min(index + 1, total),
+                                " of ",
+                                total,
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "journey-progress__sep",
+                                    "aria-hidden": true,
+                                    children: "·"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                                    lineNumber: 49,
+                                    columnNumber: 15
+                                }, this),
+                                stepLabel
+                            ]
+                        }, void 0, true)
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                        lineNumber: 43,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "journey-progress__pct",
+                        "aria-hidden": true,
+                        children: [
+                            percent,
+                            "%"
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                        lineNumber: 56,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                lineNumber: 42,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "journey-progress__track",
+                role: "progressbar",
+                "aria-valuemin": 0,
+                "aria-valuemax": 100,
+                "aria-valuenow": percent,
+                "aria-valuetext": "".concat(percent, "% — ").concat(stepLabel),
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    className: "journey-progress__fill",
+                    style: {
+                        width: "".concat(percent, "%")
+                    }
+                }, void 0, false, {
+                    fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                    lineNumber: 69,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                lineNumber: 61,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ol", {
+                className: "journey-progress__steps",
+                children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["JOURNEY_FLOW_STEPS"].map((step, i)=>{
+                    const done = current === "complete" || i < index || i === index && withinStep >= 1;
+                    const active = current !== "complete" && i === index;
+                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                        className: "journey-progress__step".concat(done ? " is-done" : "").concat(active ? " is-active" : ""),
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "journey-progress__dot",
+                                "aria-hidden": true
+                            }, void 0, false, {
+                                fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                                lineNumber: 85,
+                                columnNumber: 15
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "journey-progress__step-label",
+                                children: step.shortLabel
+                            }, void 0, false, {
+                                fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                                lineNumber: 86,
+                                columnNumber: 15
+                            }, this)
+                        ]
+                    }, step.id, true, {
+                        fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                        lineNumber: 81,
+                        columnNumber: 13
+                    }, this);
+                })
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                lineNumber: 75,
+                columnNumber: 7
+            }, this),
+            (detail || stepsLeft > 0) && current !== "complete" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                className: "journey-progress__detail",
+                children: detail !== null && detail !== void 0 ? detail : stepsLeft === 1 ? "1 stage left after this" : "".concat(stepsLeft, " stages left after this")
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+                lineNumber: 95,
+                columnNumber: 9
+            }, this) : null
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
+        lineNumber: 37,
+        columnNumber: 5
+    }, this);
+}
+_c = JourneyProgressBar;
+var _c;
+__turbopack_context__.k.register(_c, "JourneyProgressBar");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/components/appearance/AppearanceJourney.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "AppearanceJourney",
+    ()=>AppearanceJourney
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/client/app-dir/link.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$SiteHeader$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/site/SiteHeader.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$SiteFooter$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/site/SiteFooter.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/appearance-index.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/auth.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$FaceGroomingReveal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/appearance/FaceGroomingReveal.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleCollectStage$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/appearance/StyleCollectStage.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleProfileReveal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/appearance/StyleProfileReveal.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$PrescriptionPlaceholder$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/appearance/PrescriptionPlaceholder.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$JourneyProgressBar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/appearance/JourneyProgressBar.tsx [app-client] (ecmascript)");
+;
+var _s = __turbopack_context__.k.signature();
+"use client";
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+function AppearanceJourney(param) {
+    let { report } = param;
+    _s();
+    const [journey, setJourney] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [loadError, setLoadError] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [saving, setSaving] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [prefsError, setPrefsError] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const authHeaders = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "AppearanceJourney.useCallback[authHeaders]": ()=>{
+            const token = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getAuthToken"])();
+            return {
+                "Content-Type": "application/json",
+                ...token ? {
+                    Authorization: "Bearer ".concat(token)
+                } : {}
+            };
+        }
+    }["AppearanceJourney.useCallback[authHeaders]"], []);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "AppearanceJourney.useEffect": ()=>{
+            let cancelled = false;
+            ({
+                "AppearanceJourney.useEffect": async ()=>{
+                    try {
+                        const res = await fetch("/api/appearance/".concat(report.id), {
+                            headers: authHeaders(),
+                            cache: "no-store"
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.journey) {
+                            if (!cancelled) {
+                                var _data_error;
+                                setLoadError((_data_error = data.error) !== null && _data_error !== void 0 ? _data_error : "Could not load appearance journey.");
+                            }
+                            return;
+                        }
+                        if (!cancelled) setJourney(data.journey);
+                    } catch (e) {
+                        if (!cancelled) setLoadError("Could not load appearance journey.");
+                    }
+                }
+            })["AppearanceJourney.useEffect"]();
+            return ({
+                "AppearanceJourney.useEffect": ()=>{
+                    cancelled = true;
+                }
+            })["AppearanceJourney.useEffect"];
+        }
+    }["AppearanceJourney.useEffect"], [
+        authHeaders,
+        report.id
+    ]);
+    const advance = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "AppearanceJourney.useCallback[advance]": async (stage)=>{
+            setSaving(true);
+            setPrefsError(null);
+            try {
+                const res = await fetch("/api/appearance/".concat(report.id, "/advance"), {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        stage
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.journey) {
+                    var _data_error;
+                    setPrefsError((_data_error = data.error) !== null && _data_error !== void 0 ? _data_error : "Could not continue.");
+                    return;
+                }
+                setJourney(data.journey);
+            } finally{
+                setSaving(false);
+            }
+        }
+    }["AppearanceJourney.useCallback[advance]"], [
+        authHeaders,
+        report.id
+    ]);
+    const submitPrefs = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "AppearanceJourney.useCallback[submitPrefs]": async (preferences)=>{
+            setSaving(true);
+            setPrefsError(null);
+            try {
+                const res = await fetch("/api/appearance/".concat(report.id, "/style-preferences"), {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        preferences
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.journey) {
+                    var _data_error;
+                    setPrefsError((_data_error = data.error) !== null && _data_error !== void 0 ? _data_error : "Could not save preferences.");
+                    return;
+                }
+                setJourney(data.journey);
+            } finally{
+                setSaving(false);
+            }
+        }
+    }["AppearanceJourney.useCallback[submitPrefs]"], [
+        authHeaders,
+        report.id
+    ]);
+    var _journey_stage;
+    const stage = (_journey_stage = journey === null || journey === void 0 ? void 0 : journey.stage) !== null && _journey_stage !== void 0 ? _journey_stage : "face_reveal";
+    const flowStep = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["appearanceStageToFlowStep"])(stage);
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
+        className: "ai-page",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$SiteHeader$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SiteHeader"], {
+                variant: "dark"
+            }, void 0, false, {
+                fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                lineNumber: 126,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "ai-shell pt-20 sm:pt-24",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$JourneyProgressBar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["JourneyProgressBar"], {
+                        current: flowStep,
+                        withinStep: flowStep === "complete" ? 1 : 0.35,
+                        variant: "dark",
+                        detail: flowStep === "complete" ? undefined : flowStep === "face_reveal" ? "Upload done · reviewing Structure & Grooming" : flowStep === "style_collect" ? "Pick your visual style preferences" : flowStep === "style_reveal" ? "Style Profile ready — looks are next" : "Almost done — prescribed looks"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                        lineNumber: 129,
+                        columnNumber: 9
+                    }, this),
+                    loadError ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-error",
+                        children: loadError
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                        lineNumber: 147,
+                        columnNumber: 11
+                    }, this) : !journey ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "ai-loading",
+                        children: "Loading your Appearance Index…"
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                        lineNumber: 149,
+                        columnNumber: 11
+                    }, this) : stage === "face_reveal" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$FaceGroomingReveal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FaceGroomingReveal"], {
+                        report: report,
+                        pillars: journey.pillars,
+                        onContinue: ()=>void advance("style_collect")
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                        lineNumber: 151,
+                        columnNumber: 11
+                    }, this) : stage === "style_collect" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleCollectStage$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["StyleCollectStage"], {
+                        onSubmit: (p)=>void submitPrefs(p),
+                        saving: saving,
+                        error: prefsError
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                        lineNumber: 157,
+                        columnNumber: 11
+                    }, this) : stage === "style_reveal" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$StyleProfileReveal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["StyleProfileReveal"], {
+                        journey: journey,
+                        onContinue: ()=>void advance("prescription_reveal")
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                        lineNumber: 163,
+                        columnNumber: 11
+                    }, this) : stage === "prescription_reveal" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$appearance$2f$PrescriptionPlaceholder$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PrescriptionPlaceholder"], {
+                        journey: journey,
+                        onFinish: ()=>void advance("complete")
+                    }, void 0, false, {
+                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                        lineNumber: 168,
+                        columnNumber: 11
+                    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
+                        className: "ai-reveal",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "ai-reveal__intro",
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                        className: "ai-reveal__eyebrow",
+                                        children: "Appearance Profile"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                                        lineNumber: 175,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
+                                        children: "First pass complete"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                                        lineNumber: 176,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                        children: "You’ve finished the free Appearance Profile cycle. Classic feature detail stays available on the full report; Pro will unlock ongoing rechecks and restocked looks after this moment."
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                                        lineNumber: 177,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                                lineNumber: 174,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "ai-reveal__cta ai-reveal__cta--row",
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                        className: "ai-btn",
+                                        href: "/report/".concat(report.id),
+                                        children: "Open full feature report"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                                        lineNumber: 184,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                        className: "ai-btn ai-btn--ghost",
+                                        href: "/dashboard",
+                                        children: "Go to dashboard"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                                        lineNumber: 187,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                                lineNumber: 183,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                        lineNumber: 173,
+                        columnNumber: 11
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                lineNumber: 128,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$SiteFooter$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SiteFooter"], {}, void 0, false, {
+                fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+                lineNumber: 195,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/appearance/AppearanceJourney.tsx",
+        lineNumber: 125,
+        columnNumber: 5
+    }, this);
+}
+_s(AppearanceJourney, "b3X9BQmRABh6tq3VG2jZCVF4FYc=");
+_c = AppearanceJourney;
+var _c;
+__turbopack_context__.k.register(_c, "AppearanceJourney");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+]);
+
+//# sourceMappingURL=_2d70fa5d._.js.map

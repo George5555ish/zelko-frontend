@@ -73,6 +73,7 @@ export function InteractivePortrait({
   isUnlocked,
   topFeature,
   size = "default",
+  openOnHover = false,
 }: {
   report: ReportViewModel;
   faceSrc: string;
@@ -80,6 +81,8 @@ export function InteractivePortrait({
   isUnlocked: (key: FeatureKey) => boolean;
   topFeature: FeatureKey;
   size?: "default" | "hero";
+  /** Prefer hover to open breakdowns (click still works for touch). */
+  openOnHover?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -150,6 +153,9 @@ export function InteractivePortrait({
         onClick={(e) => {
           if (e.target === e.currentTarget) setSelectedId(null);
         }}
+        onMouseLeave={() => {
+          if (openOnHover) setSelectedId(null);
+        }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -172,7 +178,7 @@ export function InteractivePortrait({
         )}
 
         <p className="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-black/35 px-2.5 py-1 text-[10px] text-white/50 backdrop-blur-sm">
-          Tap a point
+          {openOnHover ? "Hover a point" : "Tap a point"}
         </p>
 
         {overlays.map((dot) => (
@@ -184,9 +190,11 @@ export function InteractivePortrait({
             active={selectedId === dot.id}
             imgSize={imgSize}
             boxSize={boxSize}
+            openOnHover={openOnHover}
             onSelect={() =>
               setSelectedId((prev) => (prev === dot.id ? null : dot.id))
             }
+            onHoverOpen={() => setSelectedId(dot.id)}
           />
         ))}
 
@@ -226,7 +234,9 @@ function OverlayDot({
   active,
   imgSize,
   boxSize,
+  openOnHover,
   onSelect,
+  onHoverOpen,
 }: {
   dot: FeatureOverlayPoint;
   score: FeatureScore;
@@ -234,7 +244,9 @@ function OverlayDot({
   active: boolean;
   imgSize: { w: number; h: number };
   boxSize: { w: number; h: number };
+  openOnHover: boolean;
   onSelect: () => void;
+  onHoverOpen: () => void;
 }) {
   const pos = mapNormToCoverPercent(
     dot.x,
@@ -261,11 +273,14 @@ function OverlayDot({
   return (
     <button
       type="button"
-      aria-label={`${FEATURE_LABELS[dot.feature]} — tap for breakdown`}
+      aria-label={`${FEATURE_LABELS[dot.feature]} — ${openOnHover ? "hover" : "tap"} for breakdown`}
       aria-pressed={active}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
+      }}
+      onMouseEnter={() => {
+        if (openOnHover) onHoverOpen();
       }}
       onKeyDown={onKeyDown}
       className={`report-face-dot absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 ${

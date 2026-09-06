@@ -656,8 +656,8 @@ function checklistRecommendationsForScore(feature, score) {
  * The task model returns 478 points (468 face mesh + 10 iris). We keep the
  * classic 468-point mesh per PRODUCT.md.
  *
- * Also tries 90° rotations when the first pass fails or the face is heavily
- * tilted — phone photos often arrive sideways / Dutch-tilted.
+ * Also tries 90° rotations when the first pass fails — phone photos often
+ * arrive sideways without usable EXIF.
  */ __turbopack_context__.s([
     "extractFaceLandmarks",
     ()=>extractFaceLandmarks,
@@ -667,53 +667,58 @@ function checklistRecommendationsForScore(feature, score) {
 const FACE_MESH_COUNT = 468;
 /** MediaPipe eye outer corners — used to score “how upright” a detection is. */ const LEFT_EYE_OUTER = 33;
 const RIGHT_EYE_OUTER = 263;
+/** Forehead / chin — reject 180° flips that still have level eyes. */ const FOREHEAD = 10;
+const CHIN = 152;
+const NOSE_TIP = 1;
 let faceLandmarkerPromise = null;
 async function getFaceLandmarker() {
     if (!faceLandmarkerPromise) {
         faceLandmarkerPromise = (async ()=>{
             const { FaceLandmarker, FilesetResolver } = await __turbopack_context__.A("[project]/node_modules/@mediapipe/tasks-vision/vision_bundle.mjs [app-ssr] (ecmascript, async loader)");
-            const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
+            // MUST match installed @mediapipe/tasks-vision version (package.json).
+            // Mismatched CDN wasm (e.g. 0.10.18 vs 0.10.35) often returns empty faces.
+            const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm");
             const baseOptions = {
                 modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
             };
             const shared = {
                 runningMode: "IMAGE",
-                numFaces: 1,
+                numFaces: 2,
+                minFaceDetectionConfidence: 0.3,
+                minFacePresenceConfidence: 0.3,
+                minTrackingConfidence: 0.3,
                 outputFaceBlendshapes: false,
                 outputFacialTransformationMatrixes: false
             };
+            // CPU first — GPU can "succeed" then return empty landmark sets on some GPUs.
             try {
-                return await FaceLandmarker.createFromOptions(vision, {
-                    ...shared,
-                    baseOptions: {
-                        ...baseOptions,
-                        delegate: "GPU"
-                    }
-                });
-            } catch  {
-                return FaceLandmarker.createFromOptions(vision, {
+                const cpu = await FaceLandmarker.createFromOptions(vision, {
                     ...shared,
                     baseOptions: {
                         ...baseOptions,
                         delegate: "CPU"
                     }
                 });
+                console.info("[MediaPipe] FaceLandmarker ready (CPU)");
+                return cpu;
+            } catch (cpuErr) {
+                console.warn("[MediaPipe] CPU delegate failed, trying GPU", cpuErr);
+                const gpu = await FaceLandmarker.createFromOptions(vision, {
+                    ...shared,
+                    baseOptions: {
+                        ...baseOptions,
+                        delegate: "GPU"
+                    }
+                });
+                console.info("[MediaPipe] FaceLandmarker ready (GPU)");
+                return gpu;
             }
-        })();
+        })().catch((err)=>{
+            faceLandmarkerPromise = null;
+            throw err;
+        });
     }
     return faceLandmarkerPromise;
-}
-async function extractFaceLandmarks(image) {
-    const landmarker = await getFaceLandmarker();
-    const result = landmarker.detect(image);
-    const raw = result.faceLandmarks[0] ?? null;
-    const landmarks = raw ? raw.slice(0, FACE_MESH_COUNT) : null;
-    console.log("[MediaPipe] face landmark output (468-point mesh):", {
-        faceCount: result.faceLandmarks.length,
-        rawLandmarkCount: raw?.length ?? 0,
-        landmarkCount: landmarks?.length ?? 0
-    });
-    return landmarks;
 }
 /** Absolute roll (degrees) from eye line — 0 is level. */ function eyeLineRollAbs(landmarks) {
     const L = landmarks[LEFT_EYE_OUTER];
@@ -727,11 +732,66 @@ function eyeSpan(landmarks) {
     if (!L || !R) return 0;
     return Math.hypot(R.x - L.x, R.y - L.y);
 }
-function drawRotated(source, quarterTurns) {
+/**
+ * How anatomically upright the face is in image space (y grows downward).
+ * Positive ⇒ chin below eyes / forehead above eyes. Near-zero or negative
+ * means the mesh was fit on an upside-down (or near-inverted) frame — the
+ * common failure mode when we only scored eye-line roll.
+ */ function faceUprightness(landmarks) {
+    const L = landmarks[LEFT_EYE_OUTER];
+    const R = landmarks[RIGHT_EYE_OUTER];
+    const chin = landmarks[CHIN];
+    const forehead = landmarks[FOREHEAD];
+    const nose = landmarks[NOSE_TIP];
+    if (!L || !R || !chin || !forehead) return -1;
+    const eyeY = (L.y + R.y) / 2;
+    // Chin should sit below the eyes; forehead above.
+    let score = chin.y - eyeY + (eyeY - forehead.y);
+    if (nose) {
+        // Nose tip should also sit below the eye line on an upright face.
+        score += Math.max(-0.05, nose.y - eyeY);
+    }
+    return score;
+}
+function isFaceUpright(landmarks) {
+    return faceUprightness(landmarks) >= 0.04;
+}
+/** Rank candidates: upright anatomy first, then size, then level eyes. */ function compareFaceCandidates(a, b) {
+    const aUp = isFaceUpright(a.landmarks);
+    const bUp = isFaceUpright(b.landmarks);
+    if (aUp !== bUp) return aUp ? -1 : 1;
+    const uprightDiff = faceUprightness(b.landmarks) - faceUprightness(a.landmarks);
+    if (Math.abs(uprightDiff) > 0.02) return uprightDiff;
+    const spanDiff = b.span - a.span;
+    if (Math.abs(spanDiff) > 0.03) return spanDiff;
+    const rollDiff = a.roll - b.roll;
+    if (Math.abs(rollDiff) > 8) return rollDiff;
+    // Prefer fewer quarter-turns when scores tie (avoid gratuitous 180° flips).
+    return a.quarters - b.quarters;
+}
+function toCanvas(source) {
+    if (source instanceof HTMLCanvasElement) return source;
     const canvas = document.createElement("canvas");
-    const w = source.width;
-    const h = source.height;
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not create canvas.");
+    // Opaque backdrop — transparent cutouts otherwise confuse MediaPipe.
+    ctx.fillStyle = "#d4d0cc";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(source, 0, 0);
+    return canvas;
+}
+/**
+ * Rotate clockwise by quarter-turns. MediaPipe Face Landmarker is unreliable
+ * on raw ImageBitmap in some browsers — always detect from a canvas.
+ */ function drawRotated(source, quarterTurns) {
+    const src = toCanvas(source);
+    const w = src.width;
+    const h = src.height;
     const turns = (quarterTurns % 4 + 4) % 4;
+    if (turns === 0) return src;
+    const canvas = document.createElement("canvas");
     if (turns % 2 === 0) {
         canvas.width = w;
         canvas.height = h;
@@ -743,7 +803,7 @@ function drawRotated(source, quarterTurns) {
     if (!ctx) throw new Error("Could not create canvas for rotation.");
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.rotate(turns * Math.PI / 2);
-    ctx.drawImage(source, -w / 2, -h / 2);
+    ctx.drawImage(src, -w / 2, -h / 2);
     return canvas;
 }
 function canvasToJpegFile(canvas, originalName, suffix = "oriented") {
@@ -761,6 +821,133 @@ function canvasToJpegFile(canvas, originalName, suffix = "oriented") {
             }));
         }, "image/jpeg", 0.92);
     });
+}
+async function fileToBitmap(file) {
+    // Force raw pixels — EXIF "from-image" can disagree with how WebPs are
+    // stored and fight our manual 90°/180° search (double-rotate → upside down).
+    try {
+        return await createImageBitmap(file, {
+            imageOrientation: "none"
+        });
+    } catch  {
+        try {
+            return await createImageBitmap(file);
+        } catch  {
+        /* fall through */ }
+    }
+    const url = URL.createObjectURL(file);
+    try {
+        const img = await new Promise((resolve, reject)=>{
+            const el = new Image();
+            el.onload = ()=>resolve(el);
+            el.onerror = ()=>reject(new Error("Could not decode image."));
+            el.decoding = "async";
+            el.src = url;
+        });
+        await img.decode().catch(()=>undefined);
+        try {
+            return await createImageBitmap(img, {
+                imageOrientation: "none"
+            });
+        } catch  {
+            return await createImageBitmap(img);
+        }
+    } finally{
+        URL.revokeObjectURL(url);
+    }
+}
+/**
+ * MediaPipe is unreliable on transparent PNGs (cutouts). Paint onto an opaque
+ * neutral backdrop, then for ultra-wide / ultra-tall canvases crop toward a
+ * portrait window so the face isn't a tiny strip after downscale.
+ */ function prepareCanvasForFaceDetect(source) {
+    const w = source.width;
+    const h = source.height;
+    const aspect = w / Math.max(1, h);
+    let sx = 0;
+    let sy = 0;
+    let sw = w;
+    let sh = h;
+    // Ultra-wide cutouts (common studio PNGs): keep a portrait window on center.
+    if (aspect > 1.35) {
+        const targetAspect = 3 / 4;
+        sw = Math.min(w, Math.round(h * targetAspect * 1.15));
+        sh = h;
+        sx = Math.max(0, Math.round((w - sw) / 2));
+    } else if (aspect < 0.55) {
+        // Ultra-tall: keep upper-body band where faces usually sit.
+        const targetAspect = 3 / 4;
+        sh = Math.min(h, Math.round(w / targetAspect));
+        sw = w;
+        sy = Math.max(0, Math.round(h * 0.08));
+        if (sy + sh > h) sy = Math.max(0, h - sh);
+    }
+    const maxEdge = 1600;
+    const scale = Math.min(1, maxEdge / Math.max(sw, sh));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(sw * scale));
+    canvas.height = Math.max(1, Math.round(sh * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not create detection canvas.");
+    // Opaque fill — transparent pixels become soft gray, not checker noise.
+    ctx.fillStyle = "#d4d0cc";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    return canvas;
+}
+/** Downscale / flatten / reframe before MediaPipe. */ async function bitmapForDetection(bitmap) {
+    const prepared = prepareCanvasForFaceDetect(bitmap);
+    const changed = prepared.width !== bitmap.width || prepared.height !== bitmap.height;
+    return {
+        source: prepared,
+        scaled: changed
+    };
+}
+function landmarksFromDetect(landmarker, canvas) {
+    const result = landmarker.detect(canvas);
+    const raw = result.faceLandmarks[0] ?? null;
+    if (!raw) {
+        console.info("[MediaPipe] detect: no face", {
+            w: canvas.width,
+            h: canvas.height,
+            faces: result.faceLandmarks.length
+        });
+        return null;
+    }
+    return raw.slice(0, FACE_MESH_COUNT).map((p)=>({
+            x: p.x,
+            y: p.y,
+            z: p.z ?? 0
+        }));
+}
+/** Re-draw onto a solid backdrop (helps transparent cutouts / noisy studio mats). */ function withBackdrop(source, color) {
+    const canvas = document.createElement("canvas");
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return source;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(source, 0, 0);
+    return canvas;
+}
+async function extractFaceLandmarks(image) {
+    const landmarker = await getFaceLandmarker();
+    const canvas = toCanvas(image);
+    let landmarks = landmarksFromDetect(landmarker, canvas);
+    if (landmarks) return landmarks;
+    // Retry on alternate backdrops — cutouts / checker mats confuse the detector.
+    for (const color of [
+        "#f0eeea",
+        "#2a2a2a",
+        "#ffffff"
+    ]){
+        landmarks = landmarksFromDetect(landmarker, withBackdrop(canvas, color));
+        if (landmarks) return landmarks;
+    }
+    return null;
 }
 /**
  * Crop a region and upscale so small faces in full-body shots become
@@ -792,20 +979,22 @@ function canvasToJpegFile(canvas, originalName, suffix = "oriented") {
             label
         });
     };
-    // Full-length portraits: face sits in the top band.
     push(width * 0.5, height * 0.18, 0.55, 0.32, "upper-tight");
     push(width * 0.5, height * 0.2, 0.7, 0.4, "upper-mid");
     push(width * 0.5, height * 0.22, 0.85, 0.48, "upper-wide");
     push(width * 0.5, height * 0.15, 0.42, 0.28, "head-zoom");
-    // Slight left/right for off-center subjects.
+    push(width * 0.5, height * 0.45, 0.85, 0.75, "center-face");
+    push(width * 0.5, height * 0.4, 1, 0.7, "center-wide");
     push(width * 0.42, height * 0.18, 0.5, 0.34, "upper-left");
     push(width * 0.58, height * 0.18, 0.5, 0.34, "upper-right");
     return crops;
 }
 async function extractFaceLandmarksFromFile(file) {
-    const bitmap = await createImageBitmap(file);
+    const rawBitmap = await fileToBitmap(file);
+    const { source: prepared } = await bitmapForDetection(rawBitmap);
     try {
         const candidates = [];
+        // Always try every orientation — sideways phone WebPs often have no EXIF.
         const turns = [
             0,
             1,
@@ -813,9 +1002,14 @@ async function extractFaceLandmarksFromFile(file) {
             2
         ];
         for (const q of turns){
-            const canvas = q === 0 ? null : drawRotated(bitmap, q);
-            const source = canvas ?? bitmap;
-            const landmarks = await extractFaceLandmarks(source);
+            const canvas = drawRotated(prepared, q);
+            let landmarks = null;
+            try {
+                landmarks = await extractFaceLandmarks(canvas);
+            } catch (err) {
+                console.warn("[MediaPipe] detect failed for q" + q, err);
+                continue;
+            }
             if (!landmarks || landmarks.length < 100) continue;
             candidates.push({
                 landmarks,
@@ -826,45 +1020,78 @@ async function extractFaceLandmarksFromFile(file) {
                 fromCrop: false,
                 label: `full-q${q}`
             });
-            if (q === 0 && eyeLineRollAbs(landmarks) < 25 && eyeSpan(landmarks) > 0.08) {
-                break;
-            }
         }
+        // Prefer anatomically upright full-frame hits (chin below eyes), then
+        // level eyes / larger face. Eye-roll alone used to accept 180° flips.
         const bestFull = candidates.length ? [
             ...candidates
-        ].sort((a, b)=>{
-            const rollDiff = a.roll - b.roll;
-            if (Math.abs(rollDiff) > 8) return rollDiff;
-            return b.span - a.span;
-        })[0] : null;
-        // Full-body / distant faces: eye span under ~8% of frame usually fails
-        // downstream quality — try zoomed upper crops.
-        const needsCrop = !bestFull || bestFull.span < 0.08 || bestFull.roll > 35;
+        ].sort(compareFaceCandidates)[0] : null;
+        // Crops only on the best upright orientation (never on sideways pixels).
+        const baseForCrop = bestFull?.canvas ?? drawRotated(prepared, 0);
+        const needsCrop = !bestFull || bestFull.span < 0.08 || bestFull.roll > 35 || !isFaceUpright(bestFull.landmarks);
         if (needsCrop) {
-            const oriented = bestFull?.canvas && bestFull.quarters > 0 ? bestFull.canvas : bitmap;
-            const w = oriented.width;
-            const h = oriented.height;
+            const w = baseForCrop.width;
+            const h = baseForCrop.height;
+            const cropQuarters = bestFull?.quarters ?? 0;
             for (const region of faceSearchCrops(w, h)){
-                const crop = cropAndUpscale(oriented, region.sx, region.sy, region.sw, region.sh);
-                const landmarks = await extractFaceLandmarks(crop);
+                const crop = cropAndUpscale(baseForCrop, region.sx, region.sy, region.sw, region.sh);
+                let landmarks = null;
+                try {
+                    landmarks = await extractFaceLandmarks(crop);
+                } catch (err) {
+                    console.warn("[MediaPipe] crop detect failed", region.label, err);
+                    continue;
+                }
                 if (!landmarks || landmarks.length < 100) continue;
                 const span = eyeSpan(landmarks);
                 const roll = eyeLineRollAbs(landmarks);
                 candidates.push({
                     landmarks,
-                    quarters: bestFull?.quarters ?? 0,
+                    quarters: cropQuarters,
                     canvas: crop,
                     roll,
                     span,
                     fromCrop: true,
                     label: region.label
                 });
-                // Strong face fill in crop — stop early.
-                if (span > 0.18 && roll < 30) break;
+                if (span > 0.18 && roll < 30 && isFaceUpright(landmarks)) {
+                    break;
+                }
+            }
+            // If no full-frame hit, also try crops on other orientations.
+            if (!bestFull) {
+                for (const q of turns){
+                    if (q === 0) continue;
+                    const oriented = drawRotated(prepared, q);
+                    for (const region of faceSearchCrops(oriented.width, oriented.height).slice(0, 4)){
+                        const crop = cropAndUpscale(oriented, region.sx, region.sy, region.sw, region.sh);
+                        let landmarks = null;
+                        try {
+                            landmarks = await extractFaceLandmarks(crop);
+                        } catch  {
+                            continue;
+                        }
+                        if (!landmarks || landmarks.length < 100) continue;
+                        candidates.push({
+                            landmarks,
+                            quarters: q,
+                            canvas: crop,
+                            roll: eyeLineRollAbs(landmarks),
+                            span: eyeSpan(landmarks),
+                            fromCrop: true,
+                            label: `q${q}-${region.label}`
+                        });
+                    }
+                }
             }
         }
         if (candidates.length === 0) {
-            console.info("[MediaPipe] no face in full frame or upper crops");
+            console.info("[MediaPipe] no face in any orientation", {
+                width: prepared.width,
+                height: prepared.height,
+                type: file.type,
+                name: file.name
+            });
             return {
                 landmarks: null,
                 fileForUpload: file,
@@ -872,12 +1099,7 @@ async function extractFaceLandmarksFromFile(file) {
                 rotationQuarters: 0
             };
         }
-        // Prefer larger face (crops win for full-body), then level eyes.
-        candidates.sort((a, b)=>{
-            const spanDiff = b.span - a.span;
-            if (Math.abs(spanDiff) > 0.03) return spanDiff;
-            return a.roll - b.roll;
-        });
+        candidates.sort(compareFaceCandidates);
         const best = candidates[0];
         console.info("[MediaPipe] chose face pass", {
             label: best.label,
@@ -885,34 +1107,33 @@ async function extractFaceLandmarksFromFile(file) {
             quarters: best.quarters,
             roll: Math.round(best.roll),
             eyeSpan: Number(best.span.toFixed(3)),
+            upright: Number(faceUprightness(best.landmarks).toFixed(3)),
             tried: candidates.length
         });
-        if (!best.fromCrop && (best.quarters === 0 || !best.canvas)) {
-            return {
-                landmarks: best.landmarks,
-                fileForUpload: file,
-                previewUrl: null,
-                rotationQuarters: 0
-            };
+        // Always re-encode so preview is upright, opaque, and matches landmarks
+        // (transparent / ultra-wide cutouts otherwise break detection + display).
+        let canvasOut = best.canvas;
+        let landmarksOut = best.landmarks;
+        let quartersOut = best.quarters;
+        if (best.fromCrop && bestFull && bestFull.span >= 0.08 && bestFull.roll <= 35 && isFaceUpright(bestFull.landmarks)) {
+            canvasOut = bestFull.canvas;
+            landmarksOut = bestFull.landmarks;
+            quartersOut = bestFull.quarters;
         }
-        if (!best.canvas) {
-            return {
-                landmarks: best.landmarks,
-                fileForUpload: file,
-                previewUrl: null,
-                rotationQuarters: best.quarters
-            };
-        }
-        const fileForUpload = await canvasToJpegFile(best.canvas, file.name, best.fromCrop ? "face-crop" : "oriented");
+        const suffix = best.fromCrop && canvasOut === best.canvas ? "face-crop" : quartersOut ? "oriented" : "normalized";
+        const fileForUpload = await canvasToJpegFile(canvasOut, file.name, suffix);
         const previewUrl = URL.createObjectURL(fileForUpload);
         return {
-            landmarks: best.landmarks,
+            landmarks: landmarksOut,
             fileForUpload,
             previewUrl,
-            rotationQuarters: best.quarters
+            rotationQuarters: quartersOut
         };
     } finally{
-        bitmap.close();
+        try {
+            rawBitmap.close();
+        } catch  {
+        /* already closed */ }
     }
 }
 }),
@@ -2614,6 +2835,8 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
     const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRouter"])();
     const searchParams = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useSearchParams"])();
     const modeParam = searchParams.get("mode");
+    const viewParam = searchParams.get("view");
+    const dashView = viewParam === "outfits" ? "outfits" : "overview";
     const [analysisMode, setAnalysisMode] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(modeParam === "target" ? "target" : "assistant");
     const [reports, setReports] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
     const [loading, setLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
@@ -2630,8 +2853,22 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
     function selectMode(mode) {
         setAnalysisMode(mode);
         const params = new URLSearchParams(searchParams.toString());
+        params.delete("view");
         if (mode === "target") params.set("mode", "target");
         else params.delete("mode");
+        const q = params.toString();
+        router.replace(q ? `/dashboard?${q}` : "/dashboard", {
+            scroll: false
+        });
+    }
+    function goOutfits() {
+        router.replace("/dashboard?view=outfits", {
+            scroll: false
+        });
+    }
+    function goOverview() {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("view");
         const q = params.toString();
         router.replace(q ? `/dashboard?${q}` : "/dashboard", {
             scroll: false
@@ -2843,105 +3080,12 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconHome, {}, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 307,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                    className: "account-dash__rail-label",
-                                    children: "Home"
-                                }, void 0, false, {
-                                    fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 308,
-                                    columnNumber: 13
-                                }, this)
-                            ]
-                        }, void 0, true, {
-                            fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 306,
-                            columnNumber: 11
-                        }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-                            href: "/dashboard",
-                            title: "Dashboard",
-                            "data-active": "true",
-                            children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconGrid, {}, void 0, false, {
-                                    fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 311,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                    className: "account-dash__rail-label",
-                                    children: "Dashboard"
-                                }, void 0, false, {
-                                    fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 312,
-                                    columnNumber: 13
-                                }, this)
-                            ]
-                        }, void 0, true, {
-                            fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 310,
-                            columnNumber: 11
-                        }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-                            href: "/upload",
-                            title: "New scan",
-                            children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconScan, {}, void 0, false, {
-                                    fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 315,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                    className: "account-dash__rail-label",
-                                    children: "New scan"
-                                }, void 0, false, {
-                                    fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 316,
-                                    columnNumber: 13
-                                }, this)
-                            ]
-                        }, void 0, true, {
-                            fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 314,
-                            columnNumber: 11
-                        }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-                            href: "/tracking",
-                            title: "Progress",
-                            children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconHeart, {}, void 0, false, {
-                                    fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 319,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                    className: "account-dash__rail-label",
-                                    children: "Progress"
-                                }, void 0, false, {
-                                    fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 320,
-                                    columnNumber: 13
-                                }, this)
-                            ]
-                        }, void 0, true, {
-                            fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 318,
-                            columnNumber: 11
-                        }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-                            href: "/pricing",
-                            title: user.isPro ? "Plan" : "Upgrade",
-                            children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconSpark, {}, void 0, false, {
-                                    fileName: "[project]/components/AccountDashboard.tsx",
                                     lineNumber: 323,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                     className: "account-dash__rail-label",
-                                    children: user.isPro ? "Plan" : "Upgrade"
+                                    children: "Home"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
                                     lineNumber: 324,
@@ -2953,6 +3097,125 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                             lineNumber: 322,
                             columnNumber: 11
                         }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                            type: "button",
+                            title: "Dashboard",
+                            "data-active": dashView === "overview" ? "true" : undefined,
+                            onClick: goOverview,
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconGrid, {}, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 332,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "account-dash__rail-label",
+                                    children: "Dashboard"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 333,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/AccountDashboard.tsx",
+                            lineNumber: 326,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                            type: "button",
+                            title: "Outfits",
+                            "data-active": dashView === "outfits" ? "true" : undefined,
+                            onClick: goOutfits,
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconOutfit, {}, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 341,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "account-dash__rail-label",
+                                    children: "Outfits"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 342,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/AccountDashboard.tsx",
+                            lineNumber: 335,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                            href: "/upload",
+                            title: "New scan",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconScan, {}, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 345,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "account-dash__rail-label",
+                                    children: "New scan"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 346,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/AccountDashboard.tsx",
+                            lineNumber: 344,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                            href: "/tracking",
+                            title: "Progress",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconHeart, {}, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 349,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "account-dash__rail-label",
+                                    children: "Progress"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 350,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/AccountDashboard.tsx",
+                            lineNumber: 348,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                            href: "/pricing",
+                            title: user.isPro ? "Plan" : "Upgrade",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconSpark, {}, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 353,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "account-dash__rail-label",
+                                    children: user.isPro ? "Plan" : "Upgrade"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/AccountDashboard.tsx",
+                                    lineNumber: 354,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/AccountDashboard.tsx",
+                            lineNumber: 352,
+                            columnNumber: 11
+                        }, this),
                         onToggleTheme ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                             type: "button",
                             title: theme === "dark" ? "Light mode" : "Dark mode",
@@ -2961,11 +3224,11 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                             children: [
                                 theme === "dark" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconSun, {}, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 337,
+                                    lineNumber: 367,
                                     columnNumber: 35
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconMoon, {}, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 337,
+                                    lineNumber: 367,
                                     columnNumber: 49
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2973,13 +3236,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: theme === "dark" ? "Light" : "Dark"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 338,
+                                    lineNumber: 368,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 329,
+                            lineNumber: 359,
                             columnNumber: 13
                         }, this) : null,
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2989,7 +3252,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconOut, {}, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 344,
+                                    lineNumber: 374,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2997,19 +3260,19 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Sign out"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 345,
+                                    lineNumber: 375,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 343,
+                            lineNumber: 373,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/AccountDashboard.tsx",
-                    lineNumber: 305,
+                    lineNumber: 321,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3026,7 +3289,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: firstName.slice(0, 1)
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 352,
+                                            lineNumber: 382,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3034,28 +3297,24 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: [
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                     className: "truncate text-sm font-semibold text-white",
-                                                    children: [
-                                                        greeting,
-                                                        ", ",
-                                                        firstName
-                                                    ]
-                                                }, void 0, true, {
+                                                    children: dashView === "outfits" ? "Your outfits" : `${greeting}, ${firstName}`
+                                                }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 356,
+                                                    lineNumber: 386,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                     className: "truncate text-xs text-white/45",
-                                                    children: user.email
+                                                    children: dashView === "outfits" ? "Prescribed looks, AI stills, and eBay matches" : user.email
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 359,
+                                                    lineNumber: 391,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 355,
+                                            lineNumber: 385,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -3063,13 +3322,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: user.isPro ? user.cancelAtPeriodEnd ? "Pro · ending" : "Pro" : "Free"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 361,
+                                            lineNumber: 397,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 351,
+                                    lineNumber: 381,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3081,7 +3340,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Upgrade to Pro"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 377,
+                                            lineNumber: 413,
                                             columnNumber: 17
                                         }, this) : null,
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -3090,7 +3349,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "New assessment"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 384,
+                                            lineNumber: 420,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -3099,22 +3358,22 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Open report"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 390,
+                                            lineNumber: 426,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 375,
+                                    lineNumber: 411,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 350,
+                            lineNumber: 380,
                             columnNumber: 11
                         }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        dashView === "overview" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "flex flex-wrap gap-1 rounded-2xl border border-white/15 bg-white/[0.04] p-1 shadow-[0_8px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.06)]",
                             role: "tablist",
                             "aria-label": "Analysis mode",
@@ -3131,7 +3390,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "AI appearance"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 415,
+                                            lineNumber: 452,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3139,13 +3398,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Default scores & coaching"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 416,
+                                            lineNumber: 453,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 404,
+                                    lineNumber: 441,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -3160,7 +3419,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Toward your look"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 437,
+                                            lineNumber: 474,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3168,27 +3427,27 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Diff vs a reference photo"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 438,
+                                            lineNumber: 475,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 426,
+                                    lineNumber: 463,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 399,
+                            lineNumber: 436,
                             columnNumber: 11
-                        }, this),
+                        }, this) : null,
                         error ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                             className: "rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200",
                             children: error
                         }, void 0, false, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 451,
+                            lineNumber: 489,
                             columnNumber: 13
                         }, this) : null,
                         !user.isPro ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -3202,7 +3461,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Free plan"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 459,
+                                            lineNumber: 497,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -3210,7 +3469,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Unlock Pro for full coaching"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 462,
+                                            lineNumber: 500,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3218,13 +3477,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Full feature breakdown, confidence labels, weekly tracking, and checklist — £9.99/mo."
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 465,
+                                            lineNumber: 503,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 458,
+                                    lineNumber: 496,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3236,7 +3495,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Upgrade to Pro"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 471,
+                                            lineNumber: 509,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -3245,19 +3504,19 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "See plans"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 477,
+                                            lineNumber: 515,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 470,
+                                    lineNumber: 508,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 457,
+                            lineNumber: 495,
                             columnNumber: 13
                         }, this) : null,
                         user.isPro && reports.length === 0 && !loading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3268,7 +3527,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Upload your first report to use Pro"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 489,
+                                    lineNumber: 527,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3276,13 +3535,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Progress and checklist unlock after your first linked assessment."
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 492,
+                                    lineNumber: 530,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 488,
+                            lineNumber: 526,
                             columnNumber: 13
                         }, this) : null,
                         analysisMode === "target" ? latest ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$report$2f$LookTrackPanel$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LookTrackPanel"], {
@@ -3293,7 +3552,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                             onUserChange: onUserChange
                         }, void 0, false, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 500,
+                            lineNumber: 538,
                             columnNumber: 15
                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
                             className: "account-dash__card p-5 sm:p-6",
@@ -3303,7 +3562,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Toward your look"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 509,
+                                    lineNumber: 547,
                                     columnNumber: 17
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
@@ -3311,7 +3570,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Need a baseline first"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 512,
+                                    lineNumber: 550,
                                     columnNumber: 17
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3319,7 +3578,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Complete a free appearance scan, then upload a reference photo to compare alignment."
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 515,
+                                    lineNumber: 553,
                                     columnNumber: 17
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -3328,13 +3587,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Start assessment"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 519,
+                                    lineNumber: 557,
                                     columnNumber: 17
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 508,
+                            lineNumber: 546,
                             columnNumber: 15
                         }, this) : null,
                         analysisMode === "assistant" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3352,7 +3611,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                 alt: "Standardized appearance portrait"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                lineNumber: 536,
+                                                lineNumber: 574,
                                                 columnNumber: 19
                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "flex h-full flex-col items-center justify-center gap-2 px-6 text-center",
@@ -3362,7 +3621,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                         children: loading ? "Loading your portrait…" : "Complete an assessment to generate your clinical avatar."
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/AccountDashboard.tsx",
-                                                        lineNumber: 542,
+                                                        lineNumber: 580,
                                                         columnNumber: 21
                                                     }, this),
                                                     !loading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -3371,13 +3630,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                         children: "Start assessment"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/AccountDashboard.tsx",
-                                                        lineNumber: 548,
+                                                        lineNumber: 586,
                                                         columnNumber: 23
                                                     }, this) : null
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                lineNumber: 541,
+                                                lineNumber: 579,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3385,7 +3644,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                 "aria-hidden": true
                                             }, void 0, false, {
                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                lineNumber: 557,
+                                                lineNumber: 595,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3393,7 +3652,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                 children: avatarBusy ? "Generating…" : "Zelko scan"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                lineNumber: 558,
+                                                lineNumber: 596,
                                                 columnNumber: 17
                                             }, this),
                                             latest ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3404,7 +3663,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                lineNumber: 562,
+                                                lineNumber: 600,
                                                 columnNumber: 19
                                             }, this) : null,
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3414,7 +3673,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                         children: "Low"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/AccountDashboard.tsx",
-                                                        lineNumber: 567,
+                                                        lineNumber: 605,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3426,36 +3685,36 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             }
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 569,
+                                                            lineNumber: 607,
                                                             columnNumber: 21
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/AccountDashboard.tsx",
-                                                        lineNumber: 568,
+                                                        lineNumber: 606,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         children: "High"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/AccountDashboard.tsx",
-                                                        lineNumber: 574,
+                                                        lineNumber: 612,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                lineNumber: 566,
+                                                lineNumber: 604,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/AccountDashboard.tsx",
-                                        lineNumber: 533,
+                                        lineNumber: 571,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 532,
+                                    lineNumber: 570,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3474,7 +3733,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                     children: "Appearance overview"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 584,
+                                                                    lineNumber: 622,
                                                                     columnNumber: 21
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -3482,13 +3741,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                     children: "Measured signals"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 587,
+                                                                    lineNumber: 625,
                                                                     columnNumber: 21
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 583,
+                                                            lineNumber: 621,
                                                             columnNumber: 19
                                                         }, this),
                                                         latest ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3496,13 +3755,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: new Date(latest.createdAt).toLocaleDateString("en-GB")
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 592,
+                                                            lineNumber: 630,
                                                             columnNumber: 21
                                                         }, this) : null
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 582,
+                                                    lineNumber: 620,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3515,19 +3774,19 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             value: locked ? null : value
                                                         }, item.key, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 608,
+                                                            lineNumber: 646,
                                                             columnNumber: 23
                                                         }, this);
                                                     })
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 597,
+                                                    lineNumber: 635,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 581,
+                                            lineNumber: 619,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -3538,7 +3797,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                     children: "Focus areas"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 619,
+                                                    lineNumber: 657,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -3546,7 +3805,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                     children: "Where to act"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 622,
+                                                    lineNumber: 660,
                                                     columnNumber: 17
                                                 }, this),
                                                 !latest ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3554,14 +3813,14 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                     children: "Soft spots appear here after your first report."
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 626,
+                                                    lineNumber: 664,
                                                     columnNumber: 19
                                                 }, this) : focusAreas.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                     className: "mt-3 text-sm text-white/45",
                                                     children: "No soft spots below 70 — keep the routine consistent."
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 630,
+                                                    lineNumber: 668,
                                                     columnNumber: 19
                                                 }, this) : focusAreas.map((item)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         className: "account-dash__bar-row",
@@ -3571,7 +3830,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                 children: item.label
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                                lineNumber: 636,
+                                                                lineNumber: 674,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3583,12 +3842,12 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                     }
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 640,
+                                                                    lineNumber: 678,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                                lineNumber: 639,
+                                                                lineNumber: 677,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3596,19 +3855,19 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                 children: item.level
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                                lineNumber: 645,
+                                                                lineNumber: 683,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, item.key, true, {
                                                         fileName: "[project]/components/AccountDashboard.tsx",
-                                                        lineNumber: 635,
+                                                        lineNumber: 673,
                                                         columnNumber: 21
                                                     }, this))
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 618,
+                                            lineNumber: 656,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -3619,7 +3878,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                     children: "Recommendations"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 654,
+                                                    lineNumber: 692,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3632,7 +3891,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                     children: rec.title
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 660,
+                                                                    lineNumber: 698,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3640,24 +3899,24 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                     children: rec.body
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 663,
+                                                                    lineNumber: 701,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, rec.title + rec.body, true, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 659,
+                                                            lineNumber: 697,
                                                             columnNumber: 21
                                                         }, this))
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 657,
+                                                    lineNumber: 695,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 653,
+                                            lineNumber: 691,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3671,7 +3930,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: "Next check-in"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 673,
+                                                            lineNumber: 711,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3679,7 +3938,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: "Weekly re-upload window"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 676,
+                                                            lineNumber: 714,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3687,7 +3946,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: "Tracking compares under consistent lighting — never a decline callout."
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 679,
+                                                            lineNumber: 717,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -3696,13 +3955,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: "Schedule scan"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 683,
+                                                            lineNumber: 721,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 672,
+                                                    lineNumber: 710,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -3713,7 +3972,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: "Your progress"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 691,
+                                                            lineNumber: 729,
                                                             columnNumber: 19
                                                         }, this),
                                                         progress ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -3728,13 +3987,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                             children: "composite"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                                            lineNumber: 699,
+                                                                            lineNumber: 737,
                                                                             columnNumber: 25
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 696,
+                                                                    lineNumber: 734,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3742,7 +4001,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                     children: progress.label
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 703,
+                                                                    lineNumber: 741,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
@@ -3753,7 +4012,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                     children: "—"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 707,
+                                                                    lineNumber: 745,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3761,7 +4020,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                     children: "Needs a second linked session to compare."
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 710,
+                                                                    lineNumber: 748,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
@@ -3772,7 +4031,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: "Open tracking →"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 716,
+                                                            lineNumber: 754,
                                                             columnNumber: 21
                                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
                                                             href: "/pricing",
@@ -3780,25 +4039,25 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: "Unlock tracking →"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 723,
+                                                            lineNumber: 761,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 690,
+                                                    lineNumber: 728,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 671,
+                                            lineNumber: 709,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 580,
+                                    lineNumber: 618,
                                     columnNumber: 13
                                 }, this),
                                 latest ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -3811,18 +4070,18 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                         onUserChange: onUserChange
                                     }, void 0, false, {
                                         fileName: "[project]/components/AccountDashboard.tsx",
-                                        lineNumber: 736,
+                                        lineNumber: 774,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 735,
+                                    lineNumber: 773,
                                     columnNumber: 15
                                 }, this) : null
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 530,
+                            lineNumber: 568,
                             columnNumber: 11
                         }, this) : null,
                         user.isPro ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -3833,7 +4092,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Billing"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 750,
+                                    lineNumber: 788,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3841,7 +4100,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: user.cancelAtPeriodEnd && user.currentPeriodEnd ? `Pro stays active until ${new Date(user.currentPeriodEnd).toLocaleDateString("en-GB")}.` : "£9.99 GBP / month. Cancel anytime."
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 753,
+                                    lineNumber: 791,
                                     columnNumber: 15
                                 }, this),
                                 billingMessage ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3849,7 +4108,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: billingMessage
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 759,
+                                    lineNumber: 797,
                                     columnNumber: 17
                                 }, this) : null,
                                 !user.cancelAtPeriodEnd ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -3860,13 +4119,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: billingBusy ? "Canceling…" : "Cancel subscription"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 762,
+                                    lineNumber: 800,
                                     columnNumber: 17
                                 }, this) : null
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 749,
+                            lineNumber: 787,
                             columnNumber: 13
                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
                             className: "account-dash__card p-4 sm:p-5",
@@ -3876,7 +4135,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Plan"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 774,
+                                    lineNumber: 812,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -3884,7 +4143,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "You're on Free"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 777,
+                                    lineNumber: 815,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -3894,14 +4153,14 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Composite score + strongest features preview"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 781,
+                                            lineNumber: 819,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
                                             children: "Up to 3 outfit stills"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 782,
+                                            lineNumber: 820,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
@@ -3909,13 +4168,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Pro adds full breakdown, tracking, and checklist"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 783,
+                                            lineNumber: 821,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 780,
+                                    lineNumber: 818,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -3924,13 +4183,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Upgrade to Pro — £9.99/mo"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 787,
+                                    lineNumber: 825,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 773,
+                            lineNumber: 811,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -3946,7 +4205,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                     children: "Reports"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 799,
+                                                    lineNumber: 837,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -3954,13 +4213,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                     children: "Your assessments"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 802,
+                                                    lineNumber: 840,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 798,
+                                            lineNumber: 836,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -3969,13 +4228,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "New assessment"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 806,
+                                            lineNumber: 844,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 797,
+                                    lineNumber: 835,
                                     columnNumber: 13
                                 }, this),
                                 loading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3983,7 +4242,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                     children: "Loading…"
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 815,
+                                    lineNumber: 853,
                                     columnNumber: 15
                                 }, this) : baselineReports.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-5 py-8 text-center",
@@ -3993,7 +4252,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "No reports linked yet."
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 818,
+                                            lineNumber: 856,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -4002,13 +4261,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                             children: "Start free report"
                                         }, void 0, false, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 819,
+                                            lineNumber: 857,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 817,
+                                    lineNumber: 855,
                                     columnNumber: 15
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
                                     className: "mt-5 space-y-2.5",
@@ -4030,19 +4289,19 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                 className: "h-full w-full object-cover object-top"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                                lineNumber: 840,
+                                                                lineNumber: 878,
                                                                 columnNumber: 29
                                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                                 className: "flex h-full items-center justify-center text-xs text-white/35",
                                                                 children: "—"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                                                lineNumber: 846,
+                                                                lineNumber: 884,
                                                                 columnNumber: 29
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 837,
+                                                            lineNumber: 875,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4058,13 +4317,13 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                             children: "Latest"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                                            lineNumber: 855,
+                                                                            lineNumber: 893,
                                                                             columnNumber: 31
                                                                         }, this) : null
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 852,
+                                                                    lineNumber: 890,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4075,19 +4334,19 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                                    lineNumber: 860,
+                                                                    lineNumber: 898,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 851,
+                                                            lineNumber: 889,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 836,
+                                                    lineNumber: 874,
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4099,7 +4358,7 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: "Open"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 869,
+                                                            lineNumber: 907,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -4110,48 +4369,48 @@ function AccountDashboard({ user, theme = "dark", onToggleTheme, onUserChange, o
                                                             children: deletingId === report.id ? "Deleting…" : "Delete"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                                            lineNumber: 875,
+                                                            lineNumber: 913,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                                    lineNumber: 868,
+                                                    lineNumber: 906,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, report.id, true, {
                                             fileName: "[project]/components/AccountDashboard.tsx",
-                                            lineNumber: 832,
+                                            lineNumber: 870,
                                             columnNumber: 21
                                         }, this);
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/components/AccountDashboard.tsx",
-                                    lineNumber: 827,
+                                    lineNumber: 865,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/AccountDashboard.tsx",
-                            lineNumber: 796,
+                            lineNumber: 834,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/AccountDashboard.tsx",
-                    lineNumber: 349,
+                    lineNumber: 379,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/AccountDashboard.tsx",
-            lineNumber: 304,
+            lineNumber: 320,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 303,
+        lineNumber: 319,
         columnNumber: 5
     }, this);
 }
@@ -4179,7 +4438,7 @@ function ScoreRing({ label, value }) {
                                 strokeWidth: "6"
                             }, void 0, false, {
                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                lineNumber: 912,
+                                lineNumber: 950,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -4193,26 +4452,26 @@ function ScoreRing({ label, value }) {
                                 strokeDasharray: dash
                             }, void 0, false, {
                                 fileName: "[project]/components/AccountDashboard.tsx",
-                                lineNumber: 920,
+                                lineNumber: 958,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/AccountDashboard.tsx",
-                        lineNumber: 911,
+                        lineNumber: 949,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                         children: value == null ? "—" : value
                     }, void 0, false, {
                         fileName: "[project]/components/AccountDashboard.tsx",
-                        lineNumber: 931,
+                        lineNumber: 969,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/AccountDashboard.tsx",
-                lineNumber: 910,
+                lineNumber: 948,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -4220,13 +4479,13 @@ function ScoreRing({ label, value }) {
                 children: label
             }, void 0, false, {
                 fileName: "[project]/components/AccountDashboard.tsx",
-                lineNumber: 933,
+                lineNumber: 971,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 909,
+        lineNumber: 947,
         columnNumber: 5
     }, this);
 }
@@ -4246,7 +4505,7 @@ function IconSun() {
                 strokeWidth: "1.6"
             }, void 0, false, {
                 fileName: "[project]/components/AccountDashboard.tsx",
-                lineNumber: 943,
+                lineNumber: 981,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -4256,13 +4515,13 @@ function IconSun() {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "[project]/components/AccountDashboard.tsx",
-                lineNumber: 944,
+                lineNumber: 982,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 942,
+        lineNumber: 980,
         columnNumber: 5
     }, this);
 }
@@ -4280,12 +4539,12 @@ function IconMoon() {
             strokeLinejoin: "round"
         }, void 0, false, {
             fileName: "[project]/components/AccountDashboard.tsx",
-            lineNumber: 956,
+            lineNumber: 994,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 955,
+        lineNumber: 993,
         columnNumber: 5
     }, this);
 }
@@ -4303,12 +4562,12 @@ function IconHome() {
             strokeLinejoin: "round"
         }, void 0, false, {
             fileName: "[project]/components/AccountDashboard.tsx",
-            lineNumber: 968,
+            lineNumber: 1006,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 967,
+        lineNumber: 1005,
         columnNumber: 5
     }, this);
 }
@@ -4330,7 +4589,7 @@ function IconGrid() {
                 strokeWidth: "1.6"
             }, void 0, false, {
                 fileName: "[project]/components/AccountDashboard.tsx",
-                lineNumber: 980,
+                lineNumber: 1018,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("rect", {
@@ -4343,7 +4602,7 @@ function IconGrid() {
                 strokeWidth: "1.6"
             }, void 0, false, {
                 fileName: "[project]/components/AccountDashboard.tsx",
-                lineNumber: 981,
+                lineNumber: 1019,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("rect", {
@@ -4356,7 +4615,7 @@ function IconGrid() {
                 strokeWidth: "1.6"
             }, void 0, false, {
                 fileName: "[project]/components/AccountDashboard.tsx",
-                lineNumber: 982,
+                lineNumber: 1020,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("rect", {
@@ -4369,13 +4628,13 @@ function IconGrid() {
                 strokeWidth: "1.6"
             }, void 0, false, {
                 fileName: "[project]/components/AccountDashboard.tsx",
-                lineNumber: 983,
+                lineNumber: 1021,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 979,
+        lineNumber: 1017,
         columnNumber: 5
     }, this);
 }
@@ -4393,12 +4652,12 @@ function IconScan() {
             strokeLinecap: "round"
         }, void 0, false, {
             fileName: "[project]/components/AccountDashboard.tsx",
-            lineNumber: 990,
+            lineNumber: 1028,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 989,
+        lineNumber: 1027,
         columnNumber: 5
     }, this);
 }
@@ -4416,12 +4675,12 @@ function IconHeart() {
             strokeLinejoin: "round"
         }, void 0, false, {
             fileName: "[project]/components/AccountDashboard.tsx",
-            lineNumber: 1002,
+            lineNumber: 1040,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 1001,
+        lineNumber: 1039,
         columnNumber: 5
     }, this);
 }
@@ -4439,12 +4698,12 @@ function IconSpark() {
             strokeLinecap: "round"
         }, void 0, false, {
             fileName: "[project]/components/AccountDashboard.tsx",
-            lineNumber: 1014,
+            lineNumber: 1052,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 1013,
+        lineNumber: 1051,
         columnNumber: 5
     }, this);
 }
@@ -4463,12 +4722,12 @@ function IconOut() {
             strokeLinejoin: "round"
         }, void 0, false, {
             fileName: "[project]/components/AccountDashboard.tsx",
-            lineNumber: 1026,
+            lineNumber: 1064,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/AccountDashboard.tsx",
-        lineNumber: 1025,
+        lineNumber: 1063,
         columnNumber: 5
     }, this);
 }

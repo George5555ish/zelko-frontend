@@ -16,6 +16,7 @@ import {
   pickBestPortraitSlot,
 } from "@/lib/landmark-quality";
 import { PhotoExamplesGuide } from "@/components/upload/PhotoExamplesGuide";
+import { JourneyProgressBar } from "@/components/appearance/JourneyProgressBar";
 
 export type UploadSlotStatus =
   | "idle"
@@ -380,8 +381,8 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
         setError(data.error ?? "Analysis failed.");
         return;
       }
-      // Generic navigation only — never echo userNote in confirmation copy.
-      router.push(`/report/${data.report.id}`);
+      // Staged Appearance Index: reveal Stage 1 before prompting Stage 2.
+      router.push(`/appearance/${data.report.id}`);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unexpected analysis error.",
@@ -417,16 +418,42 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
   }
 
   const activeSlot = slots[carouselIndex] ?? null;
+  const checking = slots.some(
+    (s) =>
+      s.status === "quality-check-pending" || s.status === "uploading",
+  );
+  let uploadWithin = Math.min(0.88, acceptedCount / MIN_PHOTOS);
+  if (analyzing) uploadWithin = 0.96;
+  else if (checking) {
+    uploadWithin = Math.max(
+      uploadWithin * 0.7,
+      Math.min(0.45, (slots.length / MIN_PHOTOS) * 0.4),
+    );
+  }
+  const stagesLeft = 4; // face, prefs, style reveal, looks
+  const uploadDetail = analyzing
+    ? "Analyzing face mesh — Face & Grooming reveal is next"
+    : acceptedCount >= MIN_PHOTOS
+      ? `Ready to analyze · ${stagesLeft} stages after this`
+      : acceptedCount === 0
+        ? `Add ${MIN_PHOTOS}–${MAX_PHOTOS} photos · ${stagesLeft} stages after upload`
+        : `${acceptedCount} of ${MIN_PHOTOS} accepted · ${Math.max(0, MIN_PHOTOS - acceptedCount)} more needed`;
 
   return (
     <div className="upload-glass px-3.5 py-3 text-left sm:px-4 sm:py-3.5">
+      <JourneyProgressBar
+        current="upload"
+        withinStep={uploadWithin}
+        detail={uploadDetail}
+        variant="dark"
+      />
       <div className="upload-layout">
         <div className="upload-layout-copy">
-          <p className="upload-eyebrow">Private session</p>
-          <h2 className="mt-1 font-[family-name:var(--font-cursive)] text-[1.65rem] leading-tight tracking-tight text-neutral-950 sm:text-[1.75rem]">
+          <p className="upload-eyebrow">Appearance report</p>
+          <h2 className="mt-1 font-[family-name:var(--font-cursive)] text-[1.65rem] leading-tight tracking-tight text-white sm:text-[1.85rem]">
             Place your portraits.
           </h2>
-          <p className="mt-1 max-w-md text-[13px] leading-snug text-neutral-500">
+          <p className="mt-1 max-w-md text-[13px] leading-snug text-white/50">
             {MIN_PHOTOS}–{MAX_PHOTOS} clear face photos. Each needs a readable
             face mesh (eye, nose, jawline) so scores can be measured — not just
             accepted.
@@ -434,8 +461,8 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
 
           <div
             className={`upload-glass-inset mt-3 flex cursor-pointer items-center gap-3 px-3 py-2.5 transition ${
-              dragging ? "ring-2 ring-[var(--accent)]/40" : ""
-            } ${!canAddMore ? "cursor-not-allowed opacity-55" : "hover:bg-white/40"}`}
+              dragging ? "ring-2 ring-white/30" : ""
+            } ${!canAddMore ? "cursor-not-allowed opacity-55" : "hover:bg-white/8"}`}
             onClick={() => canAddMore && inputRef.current?.click()}
             onDragOver={(e) => {
               e.preventDefault();
@@ -458,13 +485,13 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           >
             <FileStackGraphic />
             <div className="min-w-0">
-              <p className="text-sm text-neutral-700">
+              <p className="text-sm text-white/80">
                 Drop portraits or{" "}
-                <span className="font-semibold text-[var(--accent)] underline underline-offset-2">
+                <span className="font-semibold text-white underline underline-offset-2">
                   browse
                 </span>
               </p>
-              <p className="mt-0.5 text-xs text-neutral-400">
+              <p className="mt-0.5 text-xs text-white/40">
                 JPG, PNG, WEBP
                 {canAddMore
                   ? ` · ${MIN_PHOTOS}–${MAX_PHOTOS} photos`
@@ -486,7 +513,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           </div>
 
           {error && (
-            <p className="mt-3 rounded-xl bg-[var(--danger-soft)] px-3 py-2 text-sm text-[var(--danger)]">
+            <p className="mt-3 rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
               {error}
             </p>
           )}
@@ -503,7 +530,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
               type="button"
               disabled={uploadingBatch || !hasIdle}
               onClick={() => void uploadPending()}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
             >
               <UploadIcon />
               {uploadingBatch ? "Uploading…" : "Upload files"}
@@ -514,14 +541,14 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
                 type="button"
                 disabled={analyzing}
                 onClick={() => void runAnalysis()}
-                className="inline-flex flex-1 items-center justify-center rounded-full bg-neutral-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+                className="inline-flex flex-1 items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
               >
                 {analyzing ? "Generating…" : "Generate report"}
               </button>
             ) : null}
           </div>
 
-          <p className="mt-2 text-xs text-neutral-400">
+          <p className="mt-2 text-xs text-white/40">
             {acceptedCount} of {MIN_PHOTOS}–{MAX_PHOTOS} accepted
             {consent.retainForTracking
               ? " · photos retained for tracking"
@@ -624,14 +651,14 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-white/45">
                     {acceptedCount} accepted
                   </p>
                 )}
                 <button
                   type="button"
                   onClick={() => removeSlot(activeSlot.id)}
-                  className="rounded-full border border-neutral-300/80 bg-white/40 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-white/70"
+                  className="rounded-full border border-white/20 bg-white/8 px-3 py-1.5 text-xs font-medium text-white/75 transition hover:bg-white/15 hover:text-white"
                 >
                   Remove
                 </button>
@@ -639,10 +666,10 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
             </div>
           ) : (
             <div className="upload-media-empty upload-glass-inset flex h-full min-h-[16rem] flex-col items-center justify-center px-4 py-5 text-center sm:min-h-[22rem]">
-              <p className="text-sm font-medium text-neutral-700">
+              <p className="text-sm font-medium text-white/80">
                 Preview appears here
               </p>
-              <p className="mt-1 max-w-[14rem] text-xs leading-relaxed text-neutral-400">
+              <p className="mt-1 max-w-[14rem] text-xs leading-relaxed text-white/40">
                 Add {MIN_PHOTOS}–{MAX_PHOTOS} portraits to review frames side by
                 side with your upload controls.
               </p>
@@ -661,17 +688,17 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
         <div className="upload-toast-card">
           <span className="upload-toast-dot" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-neutral-950">
+            <p className="text-sm font-semibold text-white">
               Approved — generate your report
             </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-neutral-500">
+            <p className="mt-0.5 text-xs leading-relaxed text-white/50">
               All {acceptedCount} photos passed quality checks. You’re ready to
               continue.
             </p>
           </div>
           <button
             type="button"
-            className="shrink-0 rounded-full px-2 py-1 text-xs text-neutral-400 transition hover:text-neutral-700"
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-white/40 transition hover:text-white"
             aria-label="Dismiss"
             onClick={() => setApprovalToast(false)}
           >
@@ -701,7 +728,7 @@ function PersonalizationFields({
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="upload-eyebrow">Optional focus</p>
-          <p className="mt-0.5 text-[13px] font-medium text-neutral-900">
+          <p className="mt-0.5 text-[13px] font-medium text-white">
             What are you most curious about?
           </p>
         </div>
@@ -718,8 +745,8 @@ function PersonalizationFields({
               onClick={() => onToggle(key)}
               className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition ${
                 selected
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)]/80 text-[var(--accent)]"
-                  : "border-white/50 bg-white/35 text-neutral-600 hover:bg-white/55"
+                  ? "border-white/50 bg-white text-neutral-950"
+                  : "border-white/20 bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"
               }`}
             >
               {label}
@@ -738,9 +765,9 @@ function PersonalizationFields({
           rows={1}
           maxLength={USER_NOTE_MAX_LENGTH}
           placeholder="Anything else you'd like us to focus on?"
-          className="w-full resize-none rounded-xl border border-white/50 bg-white/45 px-3 py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+          className="w-full resize-none rounded-xl border border-white/15 bg-black/25 px-3 py-1.5 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-white/35 focus:ring-1 focus:ring-white/20"
         />
-        <span className="mt-0.5 block text-right text-[10px] text-neutral-400">
+        <span className="mt-0.5 block text-right text-[10px] text-white/35">
           {remaining} left
         </span>
       </label>
@@ -752,21 +779,21 @@ function SupportPauseCard() {
   return (
     <div className="upload-glass px-5 py-6 text-center sm:px-7 sm:py-8">
       <p className="upload-eyebrow">Pause</p>
-      <h2 className="mt-2 font-[family-name:var(--font-cursive)] text-2xl tracking-tight text-neutral-950 sm:text-3xl">
+      <h2 className="mt-2 font-[family-name:var(--font-cursive)] text-2xl tracking-tight text-white sm:text-3xl">
         We&apos;re glad you reached out — let&apos;s take this gently.
       </h2>
-      <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-neutral-600">
+      <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/55">
         Zelko is built for appearance feedback, not emotional support. If
         you&apos;re carrying something heavy right now, please talk with someone
         who can help. We won&apos;t run a beauty report for this session.
       </p>
-      <ul className="mx-auto mt-5 max-w-sm space-y-2 text-left text-sm text-neutral-700">
+      <ul className="mx-auto mt-5 max-w-sm space-y-2 text-left text-sm text-white/75">
         <li>
           <a
             href="https://www.iasp.info/suicidalthoughts/"
             target="_blank"
             rel="noreferrer"
-            className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+            className="font-medium text-white underline-offset-2 hover:underline"
           >
             IASP — resources for suicidal thoughts
           </a>
@@ -776,13 +803,13 @@ function SupportPauseCard() {
             href="https://findahelpline.com/"
             target="_blank"
             rel="noreferrer"
-            className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+            className="font-medium text-white underline-offset-2 hover:underline"
           >
             Find a Helpline — local support by country
           </a>
         </li>
       </ul>
-      <p className="mt-5 text-xs leading-relaxed text-neutral-400">
+      <p className="mt-5 text-xs leading-relaxed text-white/40">
         If you&apos;re in immediate danger, contact local emergency services.
       </p>
     </div>
@@ -839,20 +866,20 @@ function FileStackGraphic() {
       {labels.map((label, i) => (
         <div
           key={label}
-          className="absolute top-0 h-12 w-9 overflow-hidden rounded-md border border-white bg-white shadow-md"
+          className="absolute top-0 h-12 w-9 overflow-hidden rounded-md border border-white/25 bg-[#2a2e36] shadow-md"
           style={{
             left: `${i * 14}px`,
             transform: `rotate(${(i - 1) * 8}deg)`,
             zIndex: i + 1,
           }}
         >
-          <div className="bg-[var(--accent)] px-0.5 py-0.5 text-center text-[6px] font-bold tracking-wide text-white">
+          <div className="bg-white/15 px-0.5 py-0.5 text-center text-[6px] font-bold tracking-wide text-white/80">
             {label}
           </div>
-          <div className="flex h-[calc(100%-14px)] items-center justify-center bg-neutral-50">
+          <div className="flex h-[calc(100%-14px)] items-center justify-center bg-[#1c1f25]">
             <svg
               viewBox="0 0 24 24"
-              className="size-4 text-neutral-300"
+              className="size-4 text-white/35"
               fill="currentColor"
             >
               <path d="M5 5h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zm2 10l3-4 2 2.5L15 9l4 6H7z" />

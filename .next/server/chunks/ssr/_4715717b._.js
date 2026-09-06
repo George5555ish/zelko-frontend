@@ -2370,8 +2370,8 @@ function PhotoUpload({ consent }) {
                 setError(data.error ?? "Analysis failed.");
                 return;
             }
-            // Generic navigation only — never echo userNote in confirmation copy.
-            router.push(`/report/${data.report.id}`);
+            // Staged Appearance Index: reveal Stage 1 before prompting Stage 2.
+            router.push(`/appearance/${data.report.id}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Unexpected analysis error.");
         } finally{
@@ -2395,7 +2395,7 @@ function PhotoUpload({ consent }) {
     if (supportMode) {
         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(SupportPauseCard, {}, void 0, false, {
             fileName: "[project]/components/PhotoUpload.tsx",
-            lineNumber: 416,
+            lineNumber: 417,
             columnNumber: 12
         }, this);
     }
@@ -2414,7 +2414,7 @@ function PhotoUpload({ consent }) {
                                 children: "Private session"
                             }, void 0, false, {
                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                lineNumber: 425,
+                                lineNumber: 426,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -2422,7 +2422,7 @@ function PhotoUpload({ consent }) {
                                 children: "Place your portraits."
                             }, void 0, false, {
                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                lineNumber: 426,
+                                lineNumber: 427,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2435,7 +2435,7 @@ function PhotoUpload({ consent }) {
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                lineNumber: 429,
+                                lineNumber: 430,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2462,7 +2462,7 @@ function PhotoUpload({ consent }) {
                                 children: [
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(FileStackGraphic, {}, void 0, false, {
                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                        lineNumber: 459,
+                                        lineNumber: 460,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2478,13 +2478,13 @@ function PhotoUpload({ consent }) {
                                                         children: "browse"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                                        lineNumber: 463,
+                                                        lineNumber: 464,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                                lineNumber: 461,
+                                                lineNumber: 462,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2495,13 +2495,13 @@ function PhotoUpload({ consent }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                                lineNumber: 467,
+                                                lineNumber: 468,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                        lineNumber: 460,
+                                        lineNumber: 461,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -2517,13 +2517,13 @@ function PhotoUpload({ consent }) {
                                         }
                                     }, void 0, false, {
                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                        lineNumber: 474,
+                                        lineNumber: 475,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                lineNumber: 435,
+                                lineNumber: 436,
                                 columnNumber: 11
                             }, this),
                             error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2531,7 +2531,7 @@ function PhotoUpload({ consent }) {
                                 children: error
                             }, void 0, false, {
                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                lineNumber: 489,
+                                lineNumber: 490,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(PersonalizationFields, {
@@ -2541,7 +2541,7 @@ function PhotoUpload({ consent }) {
                                 onNoteChange: setUserNote
                             }, void 0, false, {
                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                lineNumber: 494,
+                                lineNumber: 495,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2555,14 +2555,14 @@ function PhotoUpload({ consent }) {
                                         children: [
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(UploadIcon, {}, void 0, false, {
                                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                                lineNumber: 508,
+                                                lineNumber: 509,
                                                 columnNumber: 15
                                             }, this),
                                             uploadingBatch ? "Uploading…" : "Upload files"
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                        lineNumber: 502,
+                                        lineNumber: 503,
                                         columnNumber: 13
                                     }, this),
                                     readyToAnalyze ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2573,13 +2573,13 @@ function PhotoUpload({ consent }) {
                                         children: analyzing ? "Generating…" : "Generate report"
                                     }, void 0, false, {
                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                        lineNumber: 513,
+                                        lineNumber: 514,
                                         columnNumber: 15
                                     }, this) : null
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                lineNumber: 501,
+                                lineNumber: 502,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2596,13 +2596,13 @@ function PhotoUpload({ consent }) {
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                lineNumber: 524,
+                                lineNumber: 525,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 424,
+                        lineNumber: 425,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2621,14 +2621,14 @@ function PhotoUpload({ consent }) {
                                                         alt: ""
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                                        lineNumber: 549,
+                                                        lineNumber: 550,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         className: "upload-carousel-veil"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                                        lineNumber: 550,
+                                                        lineNumber: 551,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2648,7 +2648,7 @@ function PhotoUpload({ consent }) {
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                                                lineNumber: 552,
+                                                                lineNumber: 553,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2656,7 +2656,7 @@ function PhotoUpload({ consent }) {
                                                                 children: slot.file.name
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                                                lineNumber: 559,
+                                                                lineNumber: 560,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2670,25 +2670,25 @@ function PhotoUpload({ consent }) {
                                                                         isReportPortrait: slot.id === bestPortrait?.id && hasPortraitMesh
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                                                        lineNumber: 564,
+                                                                        lineNumber: 565,
                                                                         columnNumber: 25
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                                                lineNumber: 562,
+                                                                lineNumber: 563,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/components/PhotoUpload.tsx",
-                                                        lineNumber: 551,
+                                                        lineNumber: 552,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, slot.id, true, {
                                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                                lineNumber: 542,
+                                                lineNumber: 543,
                                                 columnNumber: 19
                                             }, this)),
                                         slots.length > 1 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -2704,7 +2704,7 @@ function PhotoUpload({ consent }) {
                                                     children: "‹"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/PhotoUpload.tsx",
-                                                    lineNumber: 577,
+                                                    lineNumber: 578,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2718,7 +2718,7 @@ function PhotoUpload({ consent }) {
                                                     children: "›"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/PhotoUpload.tsx",
-                                                    lineNumber: 590,
+                                                    lineNumber: 591,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
@@ -2726,7 +2726,7 @@ function PhotoUpload({ consent }) {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/PhotoUpload.tsx",
-                                    lineNumber: 540,
+                                    lineNumber: 541,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2745,12 +2745,12 @@ function PhotoUpload({ consent }) {
                                                     onClick: ()=>setCarouselIndex(i)
                                                 }, slot.id, false, {
                                                     fileName: "[project]/components/PhotoUpload.tsx",
-                                                    lineNumber: 613,
+                                                    lineNumber: 614,
                                                     columnNumber: 23
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "[project]/components/PhotoUpload.tsx",
-                                            lineNumber: 607,
+                                            lineNumber: 608,
                                             columnNumber: 19
                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                             className: "text-xs text-neutral-500",
@@ -2760,7 +2760,7 @@ function PhotoUpload({ consent }) {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/PhotoUpload.tsx",
-                                            lineNumber: 627,
+                                            lineNumber: 628,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2770,19 +2770,19 @@ function PhotoUpload({ consent }) {
                                             children: "Remove"
                                         }, void 0, false, {
                                             fileName: "[project]/components/PhotoUpload.tsx",
-                                            lineNumber: 631,
+                                            lineNumber: 632,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/PhotoUpload.tsx",
-                                    lineNumber: 605,
+                                    lineNumber: 606,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 539,
+                            lineNumber: 540,
                             columnNumber: 13
                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "upload-media-empty upload-glass-inset flex h-full min-h-[16rem] flex-col items-center justify-center px-4 py-5 text-center sm:min-h-[22rem]",
@@ -2792,7 +2792,7 @@ function PhotoUpload({ consent }) {
                                     children: "Preview appears here"
                                 }, void 0, false, {
                                     fileName: "[project]/components/PhotoUpload.tsx",
-                                    lineNumber: 642,
+                                    lineNumber: 643,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2806,29 +2806,29 @@ function PhotoUpload({ consent }) {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/PhotoUpload.tsx",
-                                    lineNumber: 645,
+                                    lineNumber: 646,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 641,
+                            lineNumber: 642,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 537,
+                        lineNumber: 538,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 423,
+                lineNumber: 424,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$upload$2f$PhotoExamplesGuide$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PhotoExamplesGuide"], {}, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 654,
+                lineNumber: 655,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2843,7 +2843,7 @@ function PhotoUpload({ consent }) {
                             "aria-hidden": true
                         }, void 0, false, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 662,
+                            lineNumber: 663,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2854,7 +2854,7 @@ function PhotoUpload({ consent }) {
                                     children: "Approved — generate your report"
                                 }, void 0, false, {
                                     fileName: "[project]/components/PhotoUpload.tsx",
-                                    lineNumber: 664,
+                                    lineNumber: 665,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2866,13 +2866,13 @@ function PhotoUpload({ consent }) {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/PhotoUpload.tsx",
-                                    lineNumber: 667,
+                                    lineNumber: 668,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 663,
+                            lineNumber: 664,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2883,24 +2883,24 @@ function PhotoUpload({ consent }) {
                             children: "✕"
                         }, void 0, false, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 672,
+                            lineNumber: 673,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/PhotoUpload.tsx",
-                    lineNumber: 661,
+                    lineNumber: 662,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 656,
+                lineNumber: 657,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/PhotoUpload.tsx",
-        lineNumber: 422,
+        lineNumber: 423,
         columnNumber: 5
     }, this);
 }
@@ -2918,7 +2918,7 @@ function PersonalizationFields({ priorityFeatures, onToggle, userNote, onNoteCha
                             children: "Optional focus"
                         }, void 0, false, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 703,
+                            lineNumber: 704,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2926,18 +2926,18 @@ function PersonalizationFields({ priorityFeatures, onToggle, userNote, onNoteCha
                             children: "What are you most curious about?"
                         }, void 0, false, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 704,
+                            lineNumber: 705,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/PhotoUpload.tsx",
-                    lineNumber: 702,
+                    lineNumber: 703,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 701,
+                lineNumber: 702,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2952,13 +2952,13 @@ function PersonalizationFields({ priorityFeatures, onToggle, userNote, onNoteCha
                         children: label
                     }, key, false, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 714,
+                        lineNumber: 715,
                         columnNumber: 13
                     }, this);
                 })
             }, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 710,
+                lineNumber: 711,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -2969,7 +2969,7 @@ function PersonalizationFields({ priorityFeatures, onToggle, userNote, onNoteCha
                         children: "Anything else you'd like us to focus on?"
                     }, void 0, false, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 732,
+                        lineNumber: 733,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("textarea", {
@@ -2981,7 +2981,7 @@ function PersonalizationFields({ priorityFeatures, onToggle, userNote, onNoteCha
                         className: "w-full resize-none rounded-xl border border-white/50 bg-white/45 px-3 py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
                     }, void 0, false, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 733,
+                        lineNumber: 734,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2992,19 +2992,19 @@ function PersonalizationFields({ priorityFeatures, onToggle, userNote, onNoteCha
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 743,
+                        lineNumber: 744,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 731,
+                lineNumber: 732,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/PhotoUpload.tsx",
-        lineNumber: 700,
+        lineNumber: 701,
         columnNumber: 5
     }, this);
 }
@@ -3017,7 +3017,7 @@ function SupportPauseCard() {
                 children: "Pause"
             }, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 754,
+                lineNumber: 755,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -3025,7 +3025,7 @@ function SupportPauseCard() {
                 children: "We're glad you reached out — let's take this gently."
             }, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 755,
+                lineNumber: 756,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3033,7 +3033,7 @@ function SupportPauseCard() {
                 children: "Zelko is built for appearance feedback, not emotional support. If you're carrying something heavy right now, please talk with someone who can help. We won't run a beauty report for this session."
             }, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 758,
+                lineNumber: 759,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -3048,12 +3048,12 @@ function SupportPauseCard() {
                             children: "IASP — resources for suicidal thoughts"
                         }, void 0, false, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 765,
+                            lineNumber: 766,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 764,
+                        lineNumber: 765,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
@@ -3065,18 +3065,18 @@ function SupportPauseCard() {
                             children: "Find a Helpline — local support by country"
                         }, void 0, false, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 775,
+                            lineNumber: 776,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 774,
+                        lineNumber: 775,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 763,
+                lineNumber: 764,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3084,13 +3084,13 @@ function SupportPauseCard() {
                 children: "If you're in immediate danger, contact local emergency services."
             }, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 785,
+                lineNumber: 786,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/PhotoUpload.tsx",
-        lineNumber: 753,
+        lineNumber: 754,
         columnNumber: 5
     }, this);
 }
@@ -3122,7 +3122,7 @@ function UploadIcon() {
                 strokeLinejoin: "round"
             }, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 825,
+                lineNumber: 826,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -3130,13 +3130,13 @@ function UploadIcon() {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 830,
+                lineNumber: 831,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/PhotoUpload.tsx",
-        lineNumber: 817,
+        lineNumber: 818,
         columnNumber: 5
     }, this);
 }
@@ -3162,7 +3162,7 @@ function FileStackGraphic() {
                         children: label
                     }, void 0, false, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 849,
+                        lineNumber: 850,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3175,28 +3175,28 @@ function FileStackGraphic() {
                                 d: "M5 5h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zm2 10l3-4 2 2.5L15 9l4 6H7z"
                             }, void 0, false, {
                                 fileName: "[project]/components/PhotoUpload.tsx",
-                                lineNumber: 858,
+                                lineNumber: 859,
                                 columnNumber: 15
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/components/PhotoUpload.tsx",
-                            lineNumber: 853,
+                            lineNumber: 854,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/components/PhotoUpload.tsx",
-                        lineNumber: 852,
+                        lineNumber: 853,
                         columnNumber: 11
                     }, this)
                 ]
             }, label, true, {
                 fileName: "[project]/components/PhotoUpload.tsx",
-                lineNumber: 840,
+                lineNumber: 841,
                 columnNumber: 9
             }, this))
     }, void 0, false, {
         fileName: "[project]/components/PhotoUpload.tsx",
-        lineNumber: 838,
+        lineNumber: 839,
         columnNumber: 5
     }, this);
 }

@@ -768,8 +768,9 @@ function SiteHeader(param) {
             })["SiteHeader.useEffect"];
         }
     }["SiteHeader.useEffect"], []);
-    const frosted = variant === "solid" || scrolled ? "border-b border-neutral-200/40 bg-[color-mix(in_srgb,var(--hero-surface)_78%,transparent)] backdrop-blur-sm" : "border-b border-transparent bg-transparent";
-    const overlayLight = variant === "overlay" && !scrolled;
+    const isDark = variant === "dark";
+    const frosted = isDark ? scrolled ? "border-b border-white/10 bg-[#1a1c20]/85 backdrop-blur-md" : "border-b border-transparent bg-transparent" : variant === "solid" || scrolled ? "border-b border-neutral-200/40 bg-[color-mix(in_srgb,var(--hero-surface)_78%,transparent)] backdrop-blur-sm" : "border-b border-transparent bg-transparent";
+    const overlayLight = variant === "overlay" && !scrolled || isDark;
     function signOut() {
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["setAuthToken"])(null);
         window.location.href = "/";
@@ -790,7 +791,7 @@ function SiteHeader(param) {
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LogoMark, {}, void 0, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 59,
+                                    lineNumber: 64,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -798,13 +799,13 @@ function SiteHeader(param) {
                                     children: "Zelko"
                                 }, void 0, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 60,
+                                    lineNumber: 65,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/site/SiteHeader.tsx",
-                            lineNumber: 54,
+                            lineNumber: 59,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
@@ -818,12 +819,12 @@ function SiteHeader(param) {
                                     children: link.label
                                 }, link.href, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 75,
+                                    lineNumber: 80,
                                     columnNumber: 15
                                 }, this))
                         }, void 0, false, {
                             fileName: "[project]/components/site/SiteHeader.tsx",
-                            lineNumber: 69,
+                            lineNumber: 74,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -834,7 +835,7 @@ function SiteHeader(param) {
                                     children: "Pro"
                                 }, void 0, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 90,
+                                    lineNumber: 95,
                                     columnNumber: 15
                                 }, this) : null,
                                 !isAuthed ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -846,7 +847,7 @@ function SiteHeader(param) {
                                     children: "Contact Us"
                                 }, void 0, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 102,
+                                    lineNumber: 107,
                                     columnNumber: 15
                                 }, this) : null,
                                 isAuthed ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -858,7 +859,7 @@ function SiteHeader(param) {
                                     children: "Dashboard"
                                 }, void 0, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 118,
+                                    lineNumber: 123,
                                     columnNumber: 15
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
                                     href: "/login",
@@ -869,7 +870,7 @@ function SiteHeader(param) {
                                     children: "Log in"
                                 }, void 0, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 132,
+                                    lineNumber: 137,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$MobileNavSheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MenuToggleButton"], {
@@ -878,24 +879,24 @@ function SiteHeader(param) {
                                     light: overlayLight
                                 }, void 0, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 147,
+                                    lineNumber: 152,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/site/SiteHeader.tsx",
-                            lineNumber: 88,
+                            lineNumber: 93,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/site/SiteHeader.tsx",
-                    lineNumber: 53,
+                    lineNumber: 58,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/site/SiteHeader.tsx",
-                lineNumber: 50,
+                lineNumber: 55,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$MobileNavSheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["MobileNavSheet"], {
@@ -912,7 +913,7 @@ function SiteHeader(param) {
                             children: "New assessment"
                         }, void 0, false, {
                             fileName: "[project]/components/site/SiteHeader.tsx",
-                            lineNumber: 163,
+                            lineNumber: 168,
                             columnNumber: 15
                         }, void 0),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -925,7 +926,7 @@ function SiteHeader(param) {
                                     children: "Dashboard"
                                 }, void 0, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 171,
+                                    lineNumber: 176,
                                     columnNumber: 17
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -938,19 +939,19 @@ function SiteHeader(param) {
                                     children: "Sign out"
                                 }, void 0, false, {
                                     fileName: "[project]/components/site/SiteHeader.tsx",
-                                    lineNumber: 178,
+                                    lineNumber: 183,
                                     columnNumber: 17
                                 }, void 0)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/site/SiteHeader.tsx",
-                            lineNumber: 170,
+                            lineNumber: 175,
                             columnNumber: 15
                         }, void 0)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/site/SiteHeader.tsx",
-                    lineNumber: 162,
+                    lineNumber: 167,
                     columnNumber: 13
                 }, void 0) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     className: "flex gap-3",
@@ -962,7 +963,7 @@ function SiteHeader(param) {
                             children: "Contact"
                         }, void 0, false, {
                             fileName: "[project]/components/site/SiteHeader.tsx",
-                            lineNumber: 192,
+                            lineNumber: 197,
                             columnNumber: 15
                         }, void 0),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -972,18 +973,18 @@ function SiteHeader(param) {
                             children: "Log in"
                         }, void 0, false, {
                             fileName: "[project]/components/site/SiteHeader.tsx",
-                            lineNumber: 199,
+                            lineNumber: 204,
                             columnNumber: 15
                         }, void 0)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/site/SiteHeader.tsx",
-                    lineNumber: 191,
+                    lineNumber: 196,
                     columnNumber: 13
                 }, void 0)
             }, void 0, false, {
                 fileName: "[project]/components/site/SiteHeader.tsx",
-                lineNumber: 156,
+                lineNumber: 161,
                 columnNumber: 7
             }, this)
         ]
@@ -1010,7 +1011,7 @@ function LogoMark() {
                 opacity: "0.95"
             }, void 0, false, {
                 fileName: "[project]/components/site/SiteHeader.tsx",
-                lineNumber: 224,
+                lineNumber: 229,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -1018,7 +1019,7 @@ function LogoMark() {
                 fill: "currentColor"
             }, void 0, false, {
                 fileName: "[project]/components/site/SiteHeader.tsx",
-                lineNumber: 229,
+                lineNumber: 234,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -1027,13 +1028,13 @@ function LogoMark() {
                 opacity: "0.85"
             }, void 0, false, {
                 fileName: "[project]/components/site/SiteHeader.tsx",
-                lineNumber: 233,
+                lineNumber: 238,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/site/SiteHeader.tsx",
-        lineNumber: 216,
+        lineNumber: 221,
         columnNumber: 5
     }, this);
 }

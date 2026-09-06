@@ -27,10 +27,12 @@ import { isFeatureMeasurable } from "@/lib/score-tone";
 import { recommendationsForScore } from "@/lib/recommendations";
 import { LookTrackPanel } from "@/components/report/LookTrackPanel";
 import { OutfitRecommendPanel } from "@/components/report/OutfitRecommendPanel";
+import { JourneyLooksGallery } from "@/components/dashboard/OutfitsSection";
 import type { DashboardTheme } from "@/hooks/useDashboardTheme";
 import "./account-dash.css";
 
 type AnalysisMode = "assistant" | "target";
+type DashView = "overview" | "outfits";
 
 const RING_FEATURES: {
   key: "overall" | Exclude<FeatureKey, "photo_quality">;
@@ -59,6 +61,8 @@ export function AccountDashboard({
   const router = useRouter();
   const searchParams = useSearchParams();
   const modeParam = searchParams.get("mode");
+  const viewParam = searchParams.get("view");
+  const dashView: DashView = viewParam === "outfits" ? "outfits" : "overview";
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>(
     modeParam === "target" ? "target" : "assistant",
   );
@@ -78,8 +82,20 @@ export function AccountDashboard({
   function selectMode(mode: AnalysisMode) {
     setAnalysisMode(mode);
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("view");
     if (mode === "target") params.set("mode", "target");
     else params.delete("mode");
+    const q = params.toString();
+    router.replace(q ? `/dashboard?${q}` : "/dashboard", { scroll: false });
+  }
+
+  function goOutfits() {
+    router.replace("/dashboard?view=outfits", { scroll: false });
+  }
+
+  function goOverview() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("view");
     const q = params.toString();
     router.replace(q ? `/dashboard?${q}` : "/dashboard", { scroll: false });
   }
@@ -307,10 +323,24 @@ export function AccountDashboard({
             <IconHome />
             <span className="account-dash__rail-label">Home</span>
           </Link>
-          <Link href="/dashboard" title="Dashboard" data-active="true">
+          <button
+            type="button"
+            title="Dashboard"
+            data-active={dashView === "overview" ? "true" : undefined}
+            onClick={goOverview}
+          >
             <IconGrid />
             <span className="account-dash__rail-label">Dashboard</span>
-          </Link>
+          </button>
+          <button
+            type="button"
+            title="Outfits"
+            data-active={dashView === "outfits" ? "true" : undefined}
+            onClick={goOutfits}
+          >
+            <IconOutfit />
+            <span className="account-dash__rail-label">Outfits</span>
+          </button>
           <Link href="/upload" title="New scan">
             <IconScan />
             <span className="account-dash__rail-label">New scan</span>
@@ -354,9 +384,15 @@ export function AccountDashboard({
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-white">
-                  {greeting}, {firstName}
+                  {dashView === "outfits"
+                    ? "Your outfits"
+                    : `${greeting}, ${firstName}`}
                 </p>
-                <p className="truncate text-xs text-white/45">{user.email}</p>
+                <p className="truncate text-xs text-white/45">
+                  {dashView === "outfits"
+                    ? "Prescribed looks, AI stills, and eBay matches"
+                    : user.email}
+                </p>
               </div>
               <span
                 className={`ml-1 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${
@@ -396,6 +432,7 @@ export function AccountDashboard({
             </div>
           </header>
 
+          {dashView === "overview" ? (
           <div
             className="flex flex-wrap gap-1 rounded-2xl border border-white/15 bg-white/[0.04] p-1 shadow-[0_8px_28px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.06)]"
             role="tablist"
@@ -446,6 +483,7 @@ export function AccountDashboard({
               </p>
             </button>
           </div>
+          ) : null}
 
           {error ? (
             <p className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
@@ -495,7 +533,45 @@ export function AccountDashboard({
             </div>
           ) : null}
 
-          {analysisMode === "target" ? (
+          {dashView === "outfits" ? (
+            <div className="flex flex-col gap-4">
+              {latest ? (
+                <>
+                  <JourneyLooksGallery reportId={latest.id} />
+                  <section className="account-dash__outfit">
+                    <OutfitRecommendPanel
+                      baselineReportId={latest.id}
+                      isAuthed
+                      compact
+                      reportPath="/dashboard?view=outfits"
+                      onUserChange={onUserChange}
+                    />
+                  </section>
+                </>
+              ) : (
+                <section className="account-dash__card p-5 sm:p-6">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                    Outfits
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold text-white">
+                    Need a scan first
+                  </h2>
+                  <p className="mt-2 text-sm text-white/50">
+                    Complete an appearance assessment to unlock prescribed looks
+                    and eBay matches.
+                  </p>
+                  <Link
+                    href="/upload"
+                    className="mt-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-950"
+                  >
+                    Start assessment
+                  </Link>
+                </section>
+              )}
+            </div>
+          ) : null}
+
+          {dashView === "overview" && analysisMode === "target" ? (
             latest ? (
               <LookTrackPanel
                 baselineReport={latest}
@@ -526,7 +602,7 @@ export function AccountDashboard({
             )
           ) : null}
 
-          {analysisMode === "assistant" ? (
+          {dashView === "overview" && analysisMode === "assistant" ? (
           <div className="account-dash__grid">
             {/* Left: standardized portrait */}
             <section className="account-dash__card overflow-hidden">
@@ -732,14 +808,26 @@ export function AccountDashboard({
             </div>
 
             {latest ? (
-              <section className="account-dash__outfit">
-                <OutfitRecommendPanel
-                  baselineReportId={latest.id}
-                  isAuthed
-                  compact
-                  reportPath="/dashboard"
-                  onUserChange={onUserChange}
-                />
+              <section className="account-dash__card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                    Outfits
+                  </p>
+                  <h2 className="mt-1 text-base font-semibold text-white">
+                    Prescribed looks &amp; eBay matches
+                  </h2>
+                  <p className="mt-1 text-sm text-white/50">
+                    Journey stills, AI outfit recommendations, and shoppable
+                    eBay searches live on the Outfits page.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={goOutfits}
+                  className="shrink-0 cursor-pointer rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
+                >
+                  Open outfits
+                </button>
               </section>
             ) : null}
           </div>
@@ -1016,6 +1104,18 @@ function IconSpark() {
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+function IconOutfit() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M9 4.5 12 3l3 1.5 3.5 1.2v3.3L16 11v9H8v-9L5.5 9V5.7L9 4.5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
       />
     </svg>
   );

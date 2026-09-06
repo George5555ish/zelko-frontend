@@ -13,7 +13,7 @@ import {
 export function SiteHeader({
   variant = "solid",
 }: {
-  variant?: "solid" | "overlay";
+  variant?: "solid" | "overlay" | "dark";
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [started, setStarted] = useState(false);
@@ -33,12 +33,17 @@ export function SiteHeader({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const frosted =
-    variant === "solid" || scrolled
+  const isDark = variant === "dark";
+  const frosted = isDark
+    ? scrolled
+      ? "border-b border-white/10 bg-[#1a1c20]/85 backdrop-blur-md"
+      : "border-b border-transparent bg-transparent"
+    : variant === "solid" || scrolled
       ? "border-b border-neutral-200/40 bg-[color-mix(in_srgb,var(--hero-surface)_78%,transparent)] backdrop-blur-sm"
       : "border-b border-transparent bg-transparent";
 
-  const overlayLight = variant === "overlay" && !scrolled;
+  const overlayLight =
+    (variant === "overlay" && !scrolled) || isDark;
 
   function signOut() {
     setAuthToken(null);

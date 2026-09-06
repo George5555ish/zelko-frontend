@@ -13,6 +13,10 @@ const FACE_MESH_COUNT = 468;
 /** MediaPipe eye outer corners — used to score “how upright” a detection is. */
 const LEFT_EYE_OUTER = 33;
 const RIGHT_EYE_OUTER = 263;
+/** Forehead / chin — reject 180° flips that still have level eyes. */
+const FOREHEAD = 10;
+const CHIN = 152;
+const NOSE_TIP = 1;
 
 let faceLandmarkerPromise: Promise<FaceLandmarker> | null = null;
 
@@ -101,6 +105,63 @@ function eyeSpan(landmarks: LandmarkPoint[]): number {
   return Math.hypot(R.x - L.x, R.y - L.y);
 }
 
+/**
+ * How anatomically upright the face is in image space (y grows downward).
+ * Positive ⇒ chin below eyes / forehead above eyes. Near-zero or negative
+ * means the mesh was fit on an upside-down (or near-inverted) frame — the
+ * common failure mode when we only scored eye-line roll.
+ */
+function faceUprightness(landmarks: LandmarkPoint[]): number {
+  const L = landmarks[LEFT_EYE_OUTER];
+  const R = landmarks[RIGHT_EYE_OUTER];
+  const chin = landmarks[CHIN];
+  const forehead = landmarks[FOREHEAD];
+  const nose = landmarks[NOSE_TIP];
+  if (!L || !R || !chin || !forehead) return -1;
+
+  const eyeY = (L.y + R.y) / 2;
+  // Chin should sit below the eyes; forehead above.
+  let score = chin.y - eyeY + (eyeY - forehead.y);
+  if (nose) {
+    // Nose tip should also sit below the eye line on an upright face.
+    score += Math.max(-0.05, nose.y - eyeY);
+  }
+  return score;
+}
+
+function isFaceUpright(landmarks: LandmarkPoint[]): boolean {
+  return faceUprightness(landmarks) >= 0.04;
+}
+
+type Candidate = {
+  landmarks: LandmarkPoint[];
+  quarters: 0 | 1 | 2 | 3;
+  canvas: HTMLCanvasElement;
+  roll: number;
+  span: number;
+  fromCrop: boolean;
+  label: string;
+};
+
+/** Rank candidates: upright anatomy first, then size, then level eyes. */
+function compareFaceCandidates(a: Candidate, b: Candidate): number {
+  const aUp = isFaceUpright(a.landmarks);
+  const bUp = isFaceUpright(b.landmarks);
+  if (aUp !== bUp) return aUp ? -1 : 1;
+
+  const uprightDiff = faceUprightness(b.landmarks) - faceUprightness(a.landmarks);
+  if (Math.abs(uprightDiff) > 0.02) return uprightDiff;
+
+  const spanDiff = b.span - a.span;
+  if (Math.abs(spanDiff) > 0.03) return spanDiff;
+
+  const rollDiff = a.roll - b.roll;
+  if (Math.abs(rollDiff) > 8) return rollDiff;
+
+  // Prefer fewer quarter-turns when scores tie (avoid gratuitous 180° flips).
+  return a.quarters - b.quarters;
+}
+
 function toCanvas(
   source: ImageBitmap | HTMLCanvasElement | HTMLImageElement,
 ): HTMLCanvasElement {
@@ -174,12 +235,16 @@ function canvasToJpegFile(
 }
 
 async function fileToBitmap(file: File): Promise<ImageBitmap> {
-  // Prefer raw pixels — EXIF "from-image" can disagree with how WebPs are
-  // stored and fight our manual 90° search.
+  // Force raw pixels — EXIF "from-image" can disagree with how WebPs are
+  // stored and fight our manual 90°/180° search (double-rotate → upside down).
   try {
-    return await createImageBitmap(file);
+    return await createImageBitmap(file, { imageOrientation: "none" });
   } catch {
-    /* fall through */
+    try {
+      return await createImageBitmap(file);
+    } catch {
+      /* fall through */
+    }
   }
 
   const url = URL.createObjectURL(file);
@@ -192,7 +257,11 @@ async function fileToBitmap(file: File): Promise<ImageBitmap> {
       el.src = url;
     });
     await img.decode().catch(() => undefined);
-    return await createImageBitmap(img);
+    try {
+      return await createImageBitmap(img, { imageOrientation: "none" });
+    } catch {
+      return await createImageBitmap(img);
+    }
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -389,16 +458,6 @@ function faceSearchCrops(
   return crops;
 }
 
-type Candidate = {
-  landmarks: LandmarkPoint[];
-  quarters: 0 | 1 | 2 | 3;
-  canvas: HTMLCanvasElement;
-  roll: number;
-  span: number;
-  fromCrop: boolean;
-  label: string;
-};
-
 /**
  * Detect a face, trying upright + 90° rotations, then upper-body crops
  * when the face is too small. Successful rotates/crops are re-encoded so
@@ -437,18 +496,19 @@ export async function extractFaceLandmarksFromFile(
       });
     }
 
-    // Prefer level eyes + larger face among full-frame hits.
+    // Prefer anatomically upright full-frame hits (chin below eyes), then
+    // level eyes / larger face. Eye-roll alone used to accept 180° flips.
     const bestFull = candidates.length
-      ? [...candidates].sort((a, b) => {
-          const rollDiff = a.roll - b.roll;
-          if (Math.abs(rollDiff) > 8) return rollDiff;
-          return b.span - a.span;
-        })[0]!
+      ? [...candidates].sort(compareFaceCandidates)[0]!
       : null;
 
     // Crops only on the best upright orientation (never on sideways pixels).
     const baseForCrop = bestFull?.canvas ?? drawRotated(prepared, 0);
-    const needsCrop = !bestFull || bestFull.span < 0.08 || bestFull.roll > 35;
+    const needsCrop =
+      !bestFull ||
+      bestFull.span < 0.08 ||
+      bestFull.roll > 35 ||
+      !isFaceUpright(bestFull.landmarks);
 
     if (needsCrop) {
       const w = baseForCrop.width;
@@ -484,7 +544,9 @@ export async function extractFaceLandmarksFromFile(
           label: region.label,
         });
 
-        if (span > 0.18 && roll < 30) break;
+        if (span > 0.18 && roll < 30 && isFaceUpright(landmarks)) {
+          break;
+        }
       }
 
       // If no full-frame hit, also try crops on other orientations.
@@ -539,11 +601,7 @@ export async function extractFaceLandmarksFromFile(
       };
     }
 
-    candidates.sort((a, b) => {
-      const spanDiff = b.span - a.span;
-      if (Math.abs(spanDiff) > 0.03) return spanDiff;
-      return a.roll - b.roll;
-    });
+    candidates.sort(compareFaceCandidates);
 
     const best = candidates[0]!;
     console.info("[MediaPipe] chose face pass", {
@@ -552,6 +610,7 @@ export async function extractFaceLandmarksFromFile(
       quarters: best.quarters,
       roll: Math.round(best.roll),
       eyeSpan: Number(best.span.toFixed(3)),
+      upright: Number(faceUprightness(best.landmarks).toFixed(3)),
       tried: candidates.length,
     });
 
@@ -565,7 +624,8 @@ export async function extractFaceLandmarksFromFile(
       best.fromCrop &&
       bestFull &&
       bestFull.span >= 0.08 &&
-      bestFull.roll <= 35
+      bestFull.roll <= 35 &&
+      isFaceUpright(bestFull.landmarks)
     ) {
       canvasOut = bestFull.canvas;
       landmarksOut = bestFull.landmarks;
