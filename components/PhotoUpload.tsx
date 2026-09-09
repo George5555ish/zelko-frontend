@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { extractFaceLandmarksFromFile, type LandmarkPoint } from "@/lib/mediapipe";
 import type { UploadConsent } from "@/lib/consent";
 import { checkDistressLanguage } from "@/lib/distress-check";
-import { getAuthToken } from "@/lib/auth";
 import {
   PRIORITY_FEATURE_OPTIONS,
   USER_NOTE_MAX_LENGTH,
@@ -17,6 +16,14 @@ import {
 } from "@/lib/landmark-quality";
 import { PhotoExamplesGuide } from "@/components/upload/PhotoExamplesGuide";
 import { JourneyProgressBar } from "@/components/appearance/JourneyProgressBar";
+import {
+  fetchMyReports,
+  getAuthToken,
+  startProCheckout,
+  devUnlockPro,
+} from "@/lib/auth";
+import { useAuthUser } from "@/lib/use-auth-user";
+import Link from "next/link";
 
 export type UploadSlotStatus =
   | "idle"
@@ -39,6 +46,7 @@ export interface UploadSlot {
 
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 5;
+const FREE_REPORT_CAP = 5;
 
 function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -62,6 +70,7 @@ function fileKindLabel(file: File): "JPEG" | "JPG" | "PNG" | "WEBP" {
 
 export function PhotoUpload({ consent }: { consent: UploadConsent }) {
   const router = useRouter();
+  const { user, isAuthed, ready: authReady } = useAuthUser();
   const inputRef = useRef<HTMLInputElement>(null);
   const [slots, setSlots] = useState<UploadSlot[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +84,73 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
   const [supportMode, setSupportMode] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [approvalToast, setApprovalToast] = useState(false);
+  const [proLimitOpen, setProLimitOpen] = useState(false);
+  const [proBusy, setProBusy] = useState(false);
+  const [proError, setProError] = useState<string | null>(null);
+  const [reportUsed, setReportUsed] = useState<number | null>(null);
   const approvalShownRef = useRef(false);
+
+  const freeReportsUsed = isAuthed
+    ? (reportUsed ??
+      (user?.reportIds?.length ?? 0))
+    : null;
+  const atFreeReportLimit =
+    Boolean(isAuthed) &&
+    !user?.isPro &&
+    freeReportsUsed != null &&
+    freeReportsUsed >= FREE_REPORT_CAP;
+
+  useEffect(() => {
+    if (!authReady || !isAuthed || user?.isPro) {
+      setReportUsed(null);
+      return;
+    }
+    void (async () => {
+      try {
+        const { reports } = await fetchMyReports();
+        const baselines = reports.filter((r) => r.kind !== "target_look");
+        setReportUsed(baselines.length);
+      } catch {
+        setReportUsed(user?.reportIds?.length ?? 0);
+      }
+    })();
+  }, [authReady, isAuthed, user?.isPro, user?.reportIds]);
+
+  useEffect(() => {
+    if (atFreeReportLimit) setProLimitOpen(true);
+  }, [atFreeReportLimit]);
+
+  const openProCheckout = useCallback(async () => {
+    setProError(null);
+    setProBusy(true);
+    try {
+      const checkout = await startProCheckout({
+        successPath: "/upload?checkout=success",
+        cancelPath: "/upload?checkout=cancel",
+      });
+      if (checkout.alreadyPro) {
+        setProLimitOpen(false);
+        setReportUsed(null);
+        return;
+      }
+      if (checkout.url) {
+        window.location.href = checkout.url;
+        return;
+      }
+      if (checkout.devUnlock) {
+        await devUnlockPro();
+        setProLimitOpen(false);
+        setReportUsed(null);
+        window.location.reload();
+        return;
+      }
+      setProError(checkout.error ?? "Checkout unavailable right now.");
+    } catch (err) {
+      setProError(err instanceof Error ? err.message : "Checkout failed.");
+    } finally {
+      setProBusy(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (slots.length === 0) {
@@ -287,6 +362,11 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
   }, [processFile, slots]);
 
   const runAnalysis = useCallback(async () => {
+    if (atFreeReportLimit) {
+      setProLimitOpen(true);
+      return;
+    }
+
     const accepted = slots.filter((s) => s.status === "accepted" && s.fileId);
 
     if (accepted.length < MIN_PHOTOS) {
@@ -352,6 +432,10 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
         supportRequired?: boolean;
         error?: string;
         nextEligibleAt?: string;
+        code?: string;
+        used?: number;
+        cap?: number;
+        needsPro?: boolean;
       } = {};
       try {
         data = raw ? (JSON.parse(raw) as typeof data) : {};
@@ -359,8 +443,16 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
         setError(
           res.ok
             ? "Analysis returned an unexpected response."
-            : `Analysis failed (${res.status}). Try again in a moment.`,
+            : res.status === 500 || res.status === 502 || res.status === 504
+              ? "Analysis timed out on the way back. Check your dashboard — the report may still have been created."
+              : `Analysis failed (${res.status}). Try again in a moment.`,
         );
+        return;
+      }
+
+      if (res.status === 402 || data.code === "REPORT_LIMIT" || data.needsPro) {
+        if (typeof data.used === "number") setReportUsed(data.used);
+        setProLimitOpen(true);
         return;
       }
 
@@ -391,6 +483,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
       setAnalyzing(false);
     }
   }, [
+    atFreeReportLimit,
     consent.allowTraining,
     consent.retainForTracking,
     priorityFeatures,
@@ -458,6 +551,16 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
             face mesh (eye, nose, jawline) so scores can be measured — not just
             accepted.
           </p>
+
+          {isAuthed && !user?.isPro && freeReportsUsed != null ? (
+            <p className="mt-2 text-xs text-white/45">
+              Free reports: {Math.min(freeReportsUsed, FREE_REPORT_CAP)} /{" "}
+              {FREE_REPORT_CAP}
+              {atFreeReportLimit
+                ? " — limit reached"
+                : ` · ${Math.max(0, FREE_REPORT_CAP - freeReportsUsed)} left`}
+            </p>
+          ) : null}
 
           <div
             className={`upload-glass-inset mt-3 flex cursor-pointer items-center gap-3 px-3 py-2.5 transition ${
@@ -543,7 +646,11 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
                 onClick={() => void runAnalysis()}
                 className="inline-flex flex-1 items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
               >
-                {analyzing ? "Generating…" : "Generate report"}
+                {analyzing
+                  ? "Generating…"
+                  : atFreeReportLimit
+                    ? "Limit reached — unlock Pro"
+                    : "Generate report"}
               </button>
             ) : null}
           </div>
@@ -706,6 +813,63 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           </button>
         </div>
       </div>
+
+      {proLimitOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="absolute inset-0 bg-[#0a0414]/70 backdrop-blur-sm"
+            onClick={() => setProLimitOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal
+            aria-labelledby="report-limit-title"
+            className="relative z-10 w-full max-w-md rounded-3xl border border-white/12 bg-[#141018] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:p-8"
+          >
+            <button
+              type="button"
+              onClick={() => setProLimitOpen(false)}
+              className="absolute right-4 top-4 rounded-full border border-white/15 px-2.5 py-1 text-xs text-white/50 transition hover:bg-white/10 hover:text-white"
+            >
+              Close
+            </button>
+            <p className="text-xs uppercase tracking-[0.18em] text-white/45">
+              Free limit reached
+            </p>
+            <h2
+              id="report-limit-title"
+              className="mt-2 text-2xl font-semibold text-white"
+            >
+              You’ve used all {FREE_REPORT_CAP} free reports
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-white/55">
+              Subscribe to Pro for unlimited appearance scans, weekly rechecks,
+              and restocked looks.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <button
+                type="button"
+                disabled={proBusy}
+                onClick={() => void openProCheckout()}
+                className="inline-flex flex-1 items-center justify-center rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90 disabled:opacity-60"
+              >
+                {proBusy ? "Opening checkout…" : "Unlock Pro — £9.99/mo"}
+              </button>
+              <Link
+                href="/dashboard"
+                className="inline-flex flex-1 items-center justify-center rounded-full border border-white/20 bg-white/8 px-4 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/12"
+              >
+                View past reports
+              </Link>
+            </div>
+            {proError ? (
+              <p className="mt-3 text-sm text-amber-200/90">{proError}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

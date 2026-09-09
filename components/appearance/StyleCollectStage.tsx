@@ -25,9 +25,9 @@ export function StyleCollectStage({
         <p className="ai-reveal__eyebrow">Stage 2 · Style preferences</p>
         <h2>What do you actually wear?</h2>
         <p>
-          Quick visual picks — favorite color, dresses vs jeans, silhouette,
-          vibe, and budget. Full-body photo analysis comes next; these answers
-          already shape your Style Profile.
+          Quick visual picks — who we’re dressing, favorite color, bottoms,
+          silhouette, vibe, and budget. These answers shape your Style Profile
+          and shoppable looks.
         </p>
       </div>
 

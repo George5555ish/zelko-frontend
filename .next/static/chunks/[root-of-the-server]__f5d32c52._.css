@@ -2411,6 +2411,10 @@
     background-color: #111317;
   }
 
+  .bg-\[\#141018\] {
+    background-color: #141018;
+  }
+
   .bg-\[\#e8eef8\] {
     background-color: #e8eef8;
   }
@@ -4606,6 +4610,16 @@
       }
     }
 
+    .hover\:bg-white\/12:hover {
+      background-color: rgba(255, 255, 255, .12);
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:bg-white\/12:hover {
+        background-color: color-mix(in oklab, var(--color-white) 12%, transparent);
+      }
+    }
+
     .hover\:bg-white\/15:hover {
       background-color: rgba(255, 255, 255, .15);
     }
@@ -4924,6 +4938,10 @@
 
     .sm\:flex-row {
       flex-direction: row;
+    }
+
+    .sm\:flex-wrap {
+      flex-wrap: wrap;
     }
 
     .sm\:items-center {

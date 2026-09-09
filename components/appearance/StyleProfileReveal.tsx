@@ -2,6 +2,7 @@
 
 import {
   BOTTOM_PREFERENCES,
+  CLOTHING_PRESENTATIONS,
   FAVORITE_COLORS,
   SILHOUETTE_PREFERENCES,
   STYLE_BUDGETS,
@@ -40,6 +41,16 @@ export function StyleProfileReveal({
 
         {prefs ? (
           <dl className="ai-style-card__grid">
+            <div>
+              <dt>Dressing</dt>
+              <dd>
+                {
+                  CLOTHING_PRESENTATIONS.find(
+                    (p) => p.id === prefs.presentation,
+                  )?.label ?? "Women"
+                }
+              </dd>
+            </div>
             <div>
               <dt>Color</dt>
               <dd>

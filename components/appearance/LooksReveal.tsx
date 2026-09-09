@@ -281,8 +281,15 @@ function buildEbayShopLinks(
   _recommendedStyle: string,
   prefs: StylePreferences | null,
 ): EbayShopLink[] {
+  const audiencePrefix =
+    prefs?.presentation === "masculine"
+      ? "men "
+      : prefs?.presentation === "androgynous"
+        ? ""
+        : "women ";
+
   if (!prefs) {
-    const fallback = "women casual outfit";
+    const fallback = `${audiencePrefix}casual outfit`.trim();
     return [
       {
         id: "piece",
@@ -300,8 +307,9 @@ function buildEbayShopLinks(
       : prefs.silhouette === "relaxed"
         ? "relaxed"
         : "fitted";
+  const mens = prefs.presentation === "masculine";
 
-  // One-piece looks: single short search.
+  // One-piece looks: single short search (women / either only).
   if (prefs.bottomPreference === "dresses") {
     const dressQuery = `${sil} ${color} midi dress`;
     return [
@@ -318,18 +326,29 @@ function buildEbayShopLinks(
     prefs.bottomPreference === "jeans"
       ? "jeans"
       : prefs.bottomPreference === "trousers"
-        ? "trousers"
+        ? mens
+          ? "chinos"
+          : "trousers"
         : "skirt";
 
   const bottomLabel =
     prefs.bottomPreference === "jeans"
       ? "Jeans"
       : prefs.bottomPreference === "trousers"
-        ? "Trousers"
+        ? mens
+          ? "Trousers"
+          : "Trousers"
         : "Skirt";
 
-  const topNoun =
-    prefs.vibe === "polished"
+  const topNoun = mens
+    ? prefs.vibe === "polished"
+      ? "dress shirt"
+      : prefs.vibe === "street"
+        ? "graphic tee"
+        : prefs.vibe === "classic"
+          ? "oxford shirt"
+          : "t-shirt"
+    : prefs.vibe === "polished"
       ? "blouse"
       : prefs.vibe === "street"
         ? "crop top"
@@ -337,8 +356,12 @@ function buildEbayShopLinks(
           ? "knit top"
           : "top";
 
-  const bottomQuery = `${sil} ${color} ${bottomNoun}`.replace(/\s+/g, " ").trim();
-  const topQuery = `${color} ${topNoun}`.replace(/\s+/g, " ").trim();
+  const bottomQuery = `${audiencePrefix}${sil} ${color} ${bottomNoun}`
+    .replace(/\s+/g, " ")
+    .trim();
+  const topQuery = `${audiencePrefix}${color} ${topNoun}`
+    .replace(/\s+/g, " ")
+    .trim();
 
   return [
     {
@@ -348,7 +371,7 @@ function buildEbayShopLinks(
       href: ebaySearchHref(bottomQuery),
     },
     {
-      id: "top",
+      id: "tops",
       label: "Top",
       query: topQuery,
       href: ebaySearchHref(topQuery),
@@ -434,6 +457,15 @@ export function LooksReveal({
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
   const [shopLinkId, setShopLinkId] = useState<string | null>(null);
+  const [ebayCache, setEbayCache] = useState<Record<string, EbayCacheEntry>>(
+    {},
+  );
+  const rememberEbayResult = useCallback(
+    (query: string, entry: EbayCacheEntry) => {
+      setEbayCache((prev) => (prev[query] ? prev : { ...prev, [query]: entry }));
+    },
+    [],
+  );
   const onJourneyUpdateRef = useRef(onJourneyUpdate);
   const prefsRef = useRef(journey.looks);
   const retryAbortRef = useRef<AbortController | null>(null);
@@ -906,7 +938,7 @@ export function LooksReveal({
             className={`ai-ba__shop-cta${ready ? "" : " is-disabled"}`}
             disabled={!ready}
             onClick={() => {
-              setShopLinkId(ebayLinks[0]?.id ?? null);
+              setShopLinkId((id) => id ?? ebayLinks[0]?.id ?? null);
               setShopOpen(true);
             }}
           >
@@ -926,6 +958,8 @@ export function LooksReveal({
         <EbayShopModal
           links={ebayLinks}
           activeId={activeShopLink.id}
+          cache={ebayCache}
+          onCache={rememberEbayResult}
           onSelect={setShopLinkId}
           onClose={() => setShopOpen(false)}
         />
@@ -945,37 +979,67 @@ export function LooksReveal({
   );
 }
 
+/** Survives modal unmount so reopen / tab switch never double-fetches. */
+const ebaySessionCache = new Map<string, EbayCacheEntry>();
+const ebaySessionInflight = new Set<string>();
+
 function EbayShopModal({
   links,
   activeId,
+  cache,
+  onCache,
   onSelect,
   onClose,
 }: {
   links: EbayShopLink[];
   activeId: string;
+  cache: Record<string, EbayCacheEntry>;
+  onCache: (query: string, entry: EbayCacheEntry) => void;
   onSelect: (id: string) => void;
   onClose: () => void;
 }) {
   const active = links.find((l) => l.id === activeId) ?? links[0]!;
-  const [items, setItems] = useState<EbayListingCard[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const cached =
+    cache[active.query] ?? ebaySessionCache.get(active.query) ?? null;
+  const [fetching, setFetching] = useState(
+    () => !cached && ebaySessionInflight.has(active.query),
+  );
+  const onCacheRef = useRef(onCache);
 
   useEffect(() => {
-    const ac = new AbortController();
-    setLoading(true);
-    setError(null);
-    setItems([]);
+    onCacheRef.current = onCache;
+  }, [onCache]);
+
+  // Pull session hits into React state when the modal remounts.
+  useEffect(() => {
+    const hit = ebaySessionCache.get(active.query);
+    if (hit && !cache[active.query]) onCache(active.query, hit);
+  }, [active.query, cache, onCache]);
+
+  useEffect(() => {
+    const query = active.query;
+    if (
+      cache[query] ||
+      ebaySessionCache.has(query) ||
+      ebaySessionInflight.has(query)
+    ) {
+      setFetching(ebaySessionInflight.has(query) && !ebaySessionCache.has(query));
+      return;
+    }
+
+    // Do not abort on tab switch / close — finish and cache for next open.
+    ebaySessionInflight.add(query);
+    setFetching(true);
 
     void (async () => {
+      let entry: EbayCacheEntry;
       try {
         const qs = new URLSearchParams({
-          q: active.query,
+          q: query,
           limit: "12",
         });
         const res = await fetch(`/api/ebay/search?${qs}`, {
           headers: authHeaders(),
-          signal: ac.signal,
           cache: "no-store",
         });
         const raw = await res.text();
@@ -988,26 +1052,36 @@ function EbayShopModal({
         } catch {
           data = {};
         }
-        if (ac.signal.aborted) return;
         if (!res.ok) {
-          setError(data.error || `Search failed (${res.status}).`);
-          setItems([]);
-          return;
+          entry = {
+            items: [],
+            error: data.error || `Search failed (${res.status}).`,
+          };
+        } else {
+          entry = {
+            items: Array.isArray(data.items) ? data.items : [],
+            error: null,
+          };
         }
-        setItems(Array.isArray(data.items) ? data.items : []);
       } catch (err) {
-        if (ac.signal.aborted) return;
-        setError(
-          err instanceof Error ? err.message : "Couldn’t load eBay listings.",
-        );
-        setItems([]);
-      } finally {
-        if (!ac.signal.aborted) setLoading(false);
+        entry = {
+          items: [],
+          error:
+            err instanceof Error
+              ? err.message
+              : "Couldn’t load eBay listings.",
+        };
       }
+      ebaySessionCache.set(query, entry);
+      ebaySessionInflight.delete(query);
+      onCacheRef.current(query, entry);
+      setFetching(false);
     })();
+  }, [active.query, cache]);
 
-    return () => ac.abort();
-  }, [active.query]);
+  const items = cached?.items ?? [];
+  const error = cached?.error ?? null;
+  const loading = !cached && fetching;
 
   return (
     <div className="ai-ebay-modal">
@@ -1123,6 +1197,11 @@ function EbayShopModal({
     </div>
   );
 }
+
+type EbayCacheEntry = {
+  items: EbayListingCard[];
+  error: string | null;
+};
 
 type EbayListingCard = {
   id: string;

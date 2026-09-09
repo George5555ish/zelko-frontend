@@ -88,12 +88,35 @@ export const STYLE_BUDGETS = [
 ] as const;
 export type StyleBudgetId = (typeof STYLE_BUDGETS)[number]["id"];
 
+/** Who the prescribed clothes should be for (drives men’s vs women’s looks). */
+export const CLOTHING_PRESENTATIONS = [
+  { id: "masculine", label: "Men", hint: "Men’s clothing & fits" },
+  { id: "feminine", label: "Women", hint: "Women’s clothing & fits" },
+  { id: "androgynous", label: "Either", hint: "More unisex looks" },
+] as const;
+export type ClothingPresentationId =
+  (typeof CLOTHING_PRESENTATIONS)[number]["id"];
+
 export interface StylePreferences {
+  /** Men / women / either — required for shoppable looks. */
+  presentation: ClothingPresentationId;
   favoriteColor: FavoriteColorId;
   bottomPreference: BottomPreferenceId;
   silhouette: SilhouettePreferenceId;
   vibe: StyleVibeId;
   budget: StyleBudgetId;
+}
+
+/** Bottoms shown for a clothing audience (men skip dresses/skirts). */
+export function bottomsForPresentation(
+  presentation: ClothingPresentationId | undefined,
+): ReadonlyArray<(typeof BOTTOM_PREFERENCES)[number]> {
+  if (presentation === "masculine") {
+    return BOTTOM_PREFERENCES.filter(
+      (b) => b.id === "jeans" || b.id === "trousers",
+    );
+  }
+  return BOTTOM_PREFERENCES;
 }
 
 export interface StyleProfileView {
@@ -257,6 +280,12 @@ export function computePillarsFromFeatures(
 export function buildStyleProfileSummary(
   prefs: StylePreferences,
 ): StyleProfileView {
+  const wardrobeLabel =
+    prefs.presentation === "masculine"
+      ? "Men's"
+      : prefs.presentation === "androgynous"
+        ? "Unisex"
+        : "Women's";
   const color =
     FAVORITE_COLORS.find((c) => c.id === prefs.favoriteColor)?.label ??
     prefs.favoriteColor;
@@ -274,7 +303,7 @@ export function buildStyleProfileSummary(
   return {
     preferences: prefs,
     detectedSignals: [],
-    summary: `You lean ${vibe.toLowerCase()} with a ${sil.toLowerCase()} silhouette, favoring ${bottom.toLowerCase()} and ${color.toLowerCase()} tones — ${budget.toLowerCase()} spend.`,
+    summary: `${wardrobeLabel} wardrobe — you lean ${vibe.toLowerCase()} with a ${sil.toLowerCase()} silhouette, favoring ${bottom.toLowerCase()} and ${color.toLowerCase()} tones — ${budget.toLowerCase()} spend.`,
     estimateNote:
       "Full-body measurements and outfit vision signals will refine this profile — preferences below are from your answers.",
   };

@@ -78,8 +78,10 @@ export function ReportView({
   }, []);
 
   useEffect(() => {
-    if (user?.isPro) setPaid(true);
-  }, [user?.isPro]);
+    // Signed-in free users get the full feature report within the upload cap;
+    // Pro still gates tracking / checklist elsewhere.
+    if (user?.isPro || isAuthed) setPaid(true);
+  }, [user?.isPro, isAuthed]);
 
   useEffect(() => {
     let cancelled = false;

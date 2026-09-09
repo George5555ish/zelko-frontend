@@ -1,12 +1,14 @@
 "use client";
 
 import {
-  BOTTOM_PREFERENCES,
+  CLOTHING_PRESENTATIONS,
   FAVORITE_COLORS,
   SILHOUETTE_PREFERENCES,
   STYLE_BUDGETS,
   STYLE_VIBES,
+  bottomsForPresentation,
   type BottomPreferenceId,
+  type ClothingPresentationId,
   type FavoriteColorId,
   type SilhouettePreferenceId,
   type StyleBudgetId,
@@ -41,8 +43,46 @@ function bottomArt(id: BottomPreferenceId) {
 }
 
 export function StylePrefsForm({ value, onChange }: Props) {
+  const bottomOptions = bottomsForPresentation(value.presentation);
+
+  function setPresentation(presentation: ClothingPresentationId) {
+    const allowed = bottomsForPresentation(presentation).map((b) => b.id);
+    const bottomOk =
+      value.bottomPreference && allowed.includes(value.bottomPreference);
+    onChange({
+      ...value,
+      presentation,
+      bottomPreference: bottomOk ? value.bottomPreference : undefined,
+    });
+  }
+
   return (
     <div className="style-prefs">
+      <fieldset className="style-prefs__block">
+        <legend className="style-prefs__legend">Who are we dressing?</legend>
+        <p className="style-prefs__hint">
+          This picks men’s or women’s clothing for your prescribed look and shop
+          links.
+        </p>
+        <div className="style-prefs__chips">
+          {CLOTHING_PRESENTATIONS.map((opt) => {
+            const selected = value.presentation === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                className={`style-prefs__chip${selected ? " is-selected" : ""}`}
+                aria-pressed={selected}
+                onClick={() => setPresentation(opt.id)}
+              >
+                <strong>{opt.label}</strong>
+                <span>{opt.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
       <fieldset className="style-prefs__block">
         <legend className="style-prefs__legend">Favorite color</legend>
         <p className="style-prefs__hint">Pick the tone you reach for most.</p>
@@ -74,10 +114,12 @@ export function StylePrefsForm({ value, onChange }: Props) {
       <fieldset className="style-prefs__block">
         <legend className="style-prefs__legend">What do you prefer?</legend>
         <p className="style-prefs__hint">
-          Dresses, jeans, or something else — tap the look that feels like you.
+          {value.presentation === "masculine"
+            ? "Jeans or trousers — tap the look that feels like you."
+            : "Dresses, jeans, or something else — tap the look that feels like you."}
         </p>
         <div className="style-prefs__cards">
-          {BOTTOM_PREFERENCES.map((opt) => {
+          {bottomOptions.map((opt) => {
             const selected = value.bottomPreference === opt.id;
             return (
               <button
@@ -193,7 +235,8 @@ export function stylePrefsComplete(
   value: Partial<StylePreferences>,
 ): value is StylePreferences {
   return Boolean(
-    value.favoriteColor &&
+    value.presentation &&
+      value.favoriteColor &&
       value.bottomPreference &&
       value.silhouette &&
       value.vibe &&
