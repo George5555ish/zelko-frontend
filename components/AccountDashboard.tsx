@@ -11,15 +11,14 @@ import {
   fetchMyReports,
   type AuthUser,
 } from "@/lib/auth";
-import {
-  FEATURE_LABELS,
-  SCORED_APPEARANCE_KEYS,
-  type ReportViewModel,
-} from "@/lib/types/report";
-import { isFeatureMeasurable } from "@/lib/score-tone";
+import type { ReportViewModel } from "@/lib/types/report";
 import { LookTrackPanel } from "@/components/report/LookTrackPanel";
 import { OutfitRecommendPanel } from "@/components/report/OutfitRecommendPanel";
 import { JourneyLooksGallery } from "@/components/dashboard/OutfitsSection";
+import {
+  DashboardStrengthEmpty,
+  DashboardStrengthMap,
+} from "@/components/dashboard/DashboardStrengthMap";
 import type { DashboardTheme } from "@/hooks/useDashboardTheme";
 import "./account-dash.css";
 
@@ -131,26 +130,8 @@ export function AccountDashboard({
     };
   }, [latest?.id, latest?.standardizedPortraitFileId, latest?.portraitFileId]);
 
-  const strongest = useMemo(() => {
-    if (!latest) return null;
-    const ranked = [...SCORED_APPEARANCE_KEYS]
-      .filter((k) => isFeatureMeasurable(latest.features[k]?.measurable))
-      .sort(
-        (a, b) =>
-          (latest.features[b]?.score ?? 0) - (latest.features[a]?.score ?? 0),
-      );
-    const key = ranked[0];
-    if (!key) return null;
-    return {
-      key,
-      label: FEATURE_LABELS[key],
-      score: Math.round(latest.features[key].score),
-    };
-  }, [latest]);
-
   const portraitSrc = accountPortraitUrl(latest);
   const strengthsHref = latest ? `/appearance/${latest.id}` : "/upload";
-  const reportHref = latest ? `/report/${latest.id}` : "/upload";
 
   async function handleDelete(reportId: string) {
     const ok = window.confirm(
@@ -458,196 +439,99 @@ export function AccountDashboard({
           ) : null}
 
           {dashView === "overview" && analysisMode === "assistant" ? (
-            <div className="account-dash__hub">
-              <section className="account-dash__card overflow-hidden">
-                <div className="account-dash__portrait account-dash__portrait--clean">
-                  {portraitSrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={portraitSrc}
-                      alt="Your appearance portrait"
-                    />
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-                      <p className="text-sm text-white/55">
-                        {loading
-                          ? "Loading your portrait…"
-                          : "Upload a portrait to see what already works."}
-                      </p>
-                      {!loading ? (
-                        <Link
-                          href="/upload"
-                          className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-950"
-                        >
-                          Start scan
-                        </Link>
-                      ) : null}
-                    </div>
-                  )}
-                  <div className="account-dash__badge">
-                    {avatarBusy ? "Generating…" : "Zelko scan"}
-                  </div>
-                </div>
-              </section>
+            <div className="flex flex-col gap-3">
+              {latest && portraitSrc ? (
+                <DashboardStrengthMap
+                  report={latest}
+                  portraitSrc={portraitSrc}
+                  avatarBusy={avatarBusy}
+                  onTowardLook={() => selectMode("target")}
+                  onOutfits={goOutfits}
+                />
+              ) : (
+                <DashboardStrengthEmpty loading={loading} />
+              )}
 
-              <div className="flex min-w-0 flex-col gap-3">
-                <section className="account-dash__card p-5 sm:p-6">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                    What already works
-                  </p>
-                  {latest && strongest ? (
-                    <>
-                      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
-                        {strongest.label}
-                      </h2>
-                      <p className="mt-2 max-w-md text-sm leading-relaxed text-white/55">
-                        Your latest scan lead. Open the strengths pass for the
-                        full map — style and Toward your look build from here.
-                      </p>
-                      <div className="mt-5 flex flex-wrap gap-2">
-                        <Link
-                          href={strengthsHref}
-                          className="inline-flex rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
-                        >
-                          Open strengths
-                        </Link>
-                        <Link
-                          href={reportHref}
-                          className="inline-flex rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/85 transition hover:bg-white/10"
-                        >
-                          Full report
-                        </Link>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
-                        Start with a scan
-                      </h2>
-                      <p className="mt-2 max-w-md text-sm leading-relaxed text-white/55">
-                        Zelko maps what already reads well on your face, then
-                        points style and looks from those strengths.
-                      </p>
-                      <Link
-                        href="/upload"
-                        className="mt-5 inline-flex rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
-                      >
-                        Upload portrait
-                      </Link>
-                    </>
-                  )}
-                </section>
-
-                <div className="account-dash__paths">
-                  <button
-                    type="button"
-                    className="account-dash__path"
-                    onClick={() => selectMode("target")}
-                  >
-                    <p className="account-dash__path-label">Toward your look</p>
-                    <p className="account-dash__path-copy">
-                      Compare yourself to a reference photo
+              {user.isPro ? (
+                <section className="account-dash__card flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                      Pro
                     </p>
-                  </button>
-                  <button
-                    type="button"
-                    className="account-dash__path"
-                    onClick={goOutfits}
-                  >
-                    <p className="account-dash__path-label">Outfits</p>
-                    <p className="account-dash__path-copy">
-                      Prescribed looks and shoppable matches
+                    <p className="mt-1 text-sm text-white/60">
+                      {user.cancelAtPeriodEnd && user.currentPeriodEnd
+                        ? `Active until ${new Date(user.currentPeriodEnd).toLocaleDateString("en-GB")}.`
+                        : "Full map, tracking, and checklist included."}
                     </p>
-                  </button>
-                  <Link href="/upload" className="account-dash__path">
-                    <p className="account-dash__path-label">Re-scan</p>
-                    <p className="account-dash__path-copy">
-                      Prove what&apos;s working under the same light
-                    </p>
-                  </Link>
-                </div>
-
-                {user.isPro ? (
-                  <section className="account-dash__card flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                        Pro
+                    {billingMessage ? (
+                      <p className="mt-1 text-sm text-emerald-300">
+                        {billingMessage}
                       </p>
-                      <p className="mt-1 text-sm text-white/60">
-                        {user.cancelAtPeriodEnd && user.currentPeriodEnd
-                          ? `Active until ${new Date(user.currentPeriodEnd).toLocaleDateString("en-GB")}.`
-                          : "Full map, tracking, and checklist included."}
-                      </p>
-                      {billingMessage ? (
-                        <p className="mt-1 text-sm text-emerald-300">
-                          {billingMessage}
-                        </p>
-                      ) : null}
-                    </div>
-                    {!user.cancelAtPeriodEnd ? (
-                      <button
-                        type="button"
-                        disabled={billingBusy}
-                        onClick={() => void handleCancelSubscription()}
-                        className="cursor-pointer rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/10 disabled:opacity-60"
-                      >
-                        {billingBusy ? "Canceling…" : "Cancel"}
-                      </button>
                     ) : null}
-                  </section>
-                ) : null}
+                  </div>
+                  {!user.cancelAtPeriodEnd ? (
+                    <button
+                      type="button"
+                      disabled={billingBusy}
+                      onClick={() => void handleCancelSubscription()}
+                      className="cursor-pointer rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/10 disabled:opacity-60"
+                    >
+                      {billingBusy ? "Canceling…" : "Cancel"}
+                    </button>
+                  ) : null}
+                </section>
+              ) : null}
 
-                {baselineReports.length > 1 ? (
-                  <section className="account-dash__card p-4 sm:p-5">
-                    <div className="flex items-end justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                          Earlier scans
-                        </p>
-                        <h2 className="mt-1 text-base font-semibold text-white">
-                          {baselineReports.length - 1} more
-                        </h2>
-                      </div>
-                      <Link
-                        href="/tracking"
-                        className="text-xs font-semibold text-white/70 underline-offset-4 hover:text-white hover:underline"
-                      >
-                        Progress
-                      </Link>
+              {baselineReports.length > 1 ? (
+                <section className="account-dash__card p-4 sm:p-5">
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                        Earlier scans
+                      </p>
+                      <h2 className="mt-1 text-base font-semibold text-white">
+                        {baselineReports.length - 1} more
+                      </h2>
                     </div>
-                    <ul className="mt-4 space-y-2">
-                      {baselineReports.slice(1, 4).map((report) => (
-                        <li
-                          key={report.id}
-                          className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5"
-                        >
-                          <p className="text-xs text-white/55">
-                            {new Date(report.createdAt).toLocaleDateString(
-                              "en-GB",
-                            )}
-                          </p>
-                          <div className="flex gap-2">
-                            <Link
-                              href={`/appearance/${report.id}`}
-                              className="text-xs font-semibold text-white/80 hover:text-white"
-                            >
-                              Open
-                            </Link>
-                            <button
-                              type="button"
-                              disabled={deletingId === report.id}
-                              onClick={() => void handleDelete(report.id)}
-                              className="cursor-pointer text-xs font-semibold text-white/45 hover:text-rose-200 disabled:opacity-60"
-                            >
-                              {deletingId === report.id ? "…" : "Delete"}
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                ) : null}
-              </div>
+                    <Link
+                      href="/tracking"
+                      className="text-xs font-semibold text-white/70 underline-offset-4 hover:text-white hover:underline"
+                    >
+                      Progress
+                    </Link>
+                  </div>
+                  <ul className="mt-4 space-y-2">
+                    {baselineReports.slice(1, 4).map((report) => (
+                      <li
+                        key={report.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5"
+                      >
+                        <p className="text-xs text-white/55">
+                          {new Date(report.createdAt).toLocaleDateString(
+                            "en-GB",
+                          )}
+                        </p>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/appearance/${report.id}`}
+                            className="text-xs font-semibold text-white/80 hover:text-white"
+                          >
+                            Open
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={deletingId === report.id}
+                            onClick={() => void handleDelete(report.id)}
+                            className="cursor-pointer text-xs font-semibold text-white/45 hover:text-rose-200 disabled:opacity-60"
+                          >
+                            {deletingId === report.id ? "…" : "Delete"}
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
             </div>
           ) : null}
 
