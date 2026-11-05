@@ -314,23 +314,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__
 var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/types/report.ts [app-ssr] (ecmascript)");
 ;
 ;
-function bandFor(score) {
-    if (score >= 75) return "strong";
-    if (score >= 60) return "steady";
-    return "soft";
-}
-function vibeLine(score) {
-    if (score >= 80) {
-        return "Honestly? This is a strong read. Most of what we measured is holding up.";
-    }
-    if (score >= 70) {
-        return "Overall you're in a good place. A few things look solid, a couple deserve a second look.";
-    }
-    if (score >= 60) {
-        return "It's a mixed bag in a useful way. Some stuff is already working. Some stuff is softer.";
-    }
-    return "There's a clear shortlist of things to work on. Not a roast. Just where the signals got quieter.";
-}
 function listLabels(keys) {
     const labels = keys.map((k)=>__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][k].toLowerCase());
     if (labels.length === 0) return "";
@@ -343,23 +326,15 @@ function buildAppearanceSummary(report) {
     const ranked = [
         ...measurable
     ].sort((a, b)=>report.features[b].score - report.features[a].score);
-    const strong = ranked.filter((k)=>bandFor(report.features[k].score) === "strong");
-    const soft = ranked.filter((k)=>bandFor(report.features[k].score) === "soft");
     const top = ranked.slice(0, Math.min(2, ranked.length));
-    const weak = [
-        ...measurable
-    ].filter((k)=>report.features[k].score < 70).sort((a, b)=>report.features[a].score - report.features[b].score).slice(0, 2);
+    const accent = ranked.filter((k)=>report.features[k].score < 70).sort((a, b)=>report.features[a].score - report.features[b].score).slice(0, 2);
     const skipped = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SCORED_APPEARANCE_KEYS"].filter((k)=>!(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$score$2d$tone$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["isFeatureMeasurable"])(report.features[k].measurable));
-    const opener = `Your composite landed at ${report.overallScore}/100. ${vibeLine(report.overallScore)} Reminder: this is not an attractiveness score, and nobody else is in this comparison.`;
+    const opener = "This pass stays private — you versus you. We lead with what already reads well on your photos, then suggest light ways to accentuate it.";
     let strengths;
     if (top.length === 0) {
-        strengths = "We couldn't get a clean enough read this round. Next time, try clearer front-facing shots and we'll have more to work with.";
-    } else if (strong.length >= 2) {
-        strengths = `What's popping first: ${listLabels(top)}. Those are your cleanest signals in this photo. Good anchors if you re-upload later.`;
-    } else if (strong.length === 1) {
-        strengths = `Your strongest moment is ${__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][strong[0]].toLowerCase()} at ${report.features[strong[0]].score}/100.${top[1] ? ` ${__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][top[1]].toLowerCase()} is right behind it.` : " Everything else is more mixed, which actually helps you know where to focus."}`;
+        strengths = "We need a clearer frontal photo to map strengths next time. When the mesh reads cleanly, the zoom sequence gets more specific.";
     } else {
-        strengths = `Nothing is screaming "perfect," but ${listLabels(top)} are leading right now. Lean on those while you tidy up the softer scores.`;
+        strengths = `What’s already working: ${listLabels(top)}. Those are the cleanest signals in this set — good anchors for framing, color, and hair.`;
     }
     const preview = [
         opener,
@@ -368,20 +343,20 @@ function buildAppearanceSummary(report) {
     const full = [
         ...preview
     ];
-    if (weak.length > 0) {
-        full.push(`The softer spots are mostly ${listLabels(weak)}. Each one has a real signal behind it plus a next step, so you're not left guessing. Tap the dots on your portrait if you want the close-up version.`);
-    } else if (soft.length === 0 && measurable.length > 0) {
-        full.push("Nothing here is sitting in a clearly weak zone. When you re-upload, keep the lighting and angle similar so change looks like change, not a photo accident.");
+    if (accent.length > 0) {
+        full.push(`Light accent notes around ${listLabels(accent)} are optional and low-effort — think emphasis, not overhaul. Open the strengths zooms on your portrait for the close-up version.`);
+    } else if (measurable.length > 0) {
+        full.push("Nothing here needs a heavy hand. Keep lighting and angle similar when you re-upload so progress looks like progress.");
     }
     if (skipped.includes("grooming_signal")) {
-        full.push("We skipped grooming this time. Your outfit wasn't clear enough in the frame. Wider shot next round and that signal can join the party.");
+        full.push("Grooming finish wasn’t clear in this frame. A slightly wider shot next time lets that signal join the strengths read.");
     }
     const priorities = (report.priorityFeatures ?? []).filter((k)=>measurable.includes(k));
     if (priorities.length > 0) {
-        full.push(`You flagged ${listLabels(priorities)} as the stuff you care about most. We didn't change those scores. We just bump them up when we rank what to do next.`);
+        full.push(`You flagged ${listLabels(priorities)} as personal priorities. We keep those in view when we order accent tips — scores stay as measured.`);
     }
     return {
-        title: "Appearance summary",
+        title: "Strengths summary",
         preview,
         full
     };
@@ -1069,17 +1044,25 @@ function CloseIcon() {
  * Map a normalized image-space point (0–1) into CSS percent of a box
  * that displays the image with object-fit: cover and object-position.
  */ __turbopack_context__.s([
+    "mapNormToContainPercent",
+    ()=>mapNormToContainPercent,
     "mapNormToCoverPercent",
     ()=>mapNormToCoverPercent
 ]);
 function mapNormToCoverPercent(nx, ny, imgW, imgH, boxW, boxH, objectPosX = 0.5, objectPosY = 0.18) {
+    return mapNormToFittedPercent(nx, ny, imgW, imgH, boxW, boxH, "cover", objectPosX, objectPosY);
+}
+function mapNormToContainPercent(nx, ny, imgW, imgH, boxW, boxH, objectPosX = 0.5, objectPosY = 0.5) {
+    return mapNormToFittedPercent(nx, ny, imgW, imgH, boxW, boxH, "contain", objectPosX, objectPosY);
+}
+function mapNormToFittedPercent(nx, ny, imgW, imgH, boxW, boxH, fit, objectPosX, objectPosY) {
     if (imgW <= 0 || imgH <= 0 || boxW <= 0 || boxH <= 0) {
         return {
             left: nx * 100,
             top: ny * 100
         };
     }
-    const scale = Math.max(boxW / imgW, boxH / imgH);
+    const scale = fit === "cover" ? Math.max(boxW / imgW, boxH / imgH) : Math.min(boxW / imgW, boxH / imgH);
     const drawnW = imgW * scale;
     const drawnH = imgH * scale;
     const offsetX = (boxW - drawnW) * objectPosX;
@@ -1663,9 +1646,9 @@ function ReportOrbitLayout({ report, faceSrc, usingUserPortrait, isUnlocked, top
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 className: "mt-1 text-xs text-white/45",
                                 children: [
-                                    "Index ",
+                                    "Strengths first · detail index ",
                                     compositeTen,
-                                    "/10 · measured composite"
+                                    "/10"
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportOrbitLayout.tsx",
@@ -2078,7 +2061,7 @@ function ReportOrbitLayout({ report, faceSrc, usingUserPortrait, isUnlocked, top
                                 columnNumber: 13
                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 className: "mt-3 text-sm leading-relaxed text-white/45",
-                                children: paid ? "No weak scores below 70 — keep your routine consistent." : "Unlock the full report to see paired recommendations."
+                                children: paid ? "Nothing urgent — keep accentuating what’s already working." : "Unlock the full report to see paired recommendations."
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportOrbitLayout.tsx",
                                 lineNumber: 256,
@@ -5098,7 +5081,7 @@ function ReportAnalyticsSection({ report, isUnlocked }) {
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                     className: "text-[10px] font-medium uppercase tracking-[0.16em] text-white/45",
-                                    children: "Feature ranking"
+                                    children: "Strength order"
                                 }, void 0, false, {
                                     fileName: "[project]/components/report/ReportAnalyticsSection.tsx",
                                     lineNumber: 297,
@@ -5106,7 +5089,7 @@ function ReportAnalyticsSection({ report, isUnlocked }) {
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                     className: "mt-1 text-sm text-white/50",
-                                    children: "Strongest measured signals first"
+                                    children: "What already reads well — strongest first"
                                 }, void 0, false, {
                                     fileName: "[project]/components/report/ReportAnalyticsSection.tsx",
                                     lineNumber: 300,
@@ -5878,7 +5861,7 @@ function ReportView({ report, initialPaid = false }) {
                                 children: [
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                         className: "text-xs uppercase tracking-[0.2em] text-white/45",
-                                        children: "Appearance report"
+                                        children: "Strengths pass"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
                                         lineNumber: 472,
@@ -5886,7 +5869,7 @@ function ReportView({ report, initialPaid = false }) {
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
                                         className: "mt-3 font-[family-name:var(--font-cursive)] text-4xl leading-[1.1] text-white sm:text-5xl",
-                                        children: "Your AI Appearance Report"
+                                        children: "What already works"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
                                         lineNumber: 475,
@@ -5894,10 +5877,19 @@ function ReportView({ report, initialPaid = false }) {
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                         className: "mt-3 max-w-sm text-sm leading-relaxed text-white/55",
-                                        children: "Precise metrics from measurable features — each score names the signal behind it. Never a raw attractiveness number."
+                                        children: "Private, on your real photos — strengths first, then light ways to accentuate them. Measurement details stay secondary."
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
                                         lineNumber: 478,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                                        href: `/appearance/${report.id}`,
+                                        className: "mt-4 inline-flex text-sm font-medium text-white/80 underline-offset-4 hover:underline",
+                                        children: "Open interactive strengths view →"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/report/ReportView.tsx",
+                                        lineNumber: 482,
                                         columnNumber: 13
                                     }, this)
                                 ]
@@ -5914,7 +5906,7 @@ function ReportView({ report, initialPaid = false }) {
                                         children: appearanceSummary.title
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 485,
+                                        lineNumber: 491,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5926,12 +5918,12 @@ function ReportView({ report, initialPaid = false }) {
                                                     children: para
                                                 }, `summary-full-${i}`, false, {
                                                     fileName: "[project]/components/report/ReportView.tsx",
-                                                    lineNumber: 492,
+                                                    lineNumber: 498,
                                                     columnNumber: 21
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "[project]/components/report/ReportView.tsx",
-                                            lineNumber: 490,
+                                            lineNumber: 496,
                                             columnNumber: 17
                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
                                             children: [
@@ -5943,7 +5935,7 @@ function ReportView({ report, initialPaid = false }) {
                                                                 children: para
                                                             }, `summary-preview-${i}`, false, {
                                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                                lineNumber: 504,
+                                                                lineNumber: 510,
                                                                 columnNumber: 23
                                                             }, this)),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5952,7 +5944,7 @@ function ReportView({ report, initialPaid = false }) {
                                                             children: "More detail on softer spots, confidence notes, and what to do next sits behind Pro."
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/report/ReportView.tsx",
-                                                            lineNumber: 512,
+                                                            lineNumber: 518,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5961,13 +5953,13 @@ function ReportView({ report, initialPaid = false }) {
                                                             children: "Unlock the full appearance summary when you're ready for the complete write-up."
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/report/ReportView.tsx",
-                                                            lineNumber: 516,
+                                                            lineNumber: 522,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/report/ReportView.tsx",
-                                                    lineNumber: 502,
+                                                    lineNumber: 508,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5980,100 +5972,122 @@ function ReportView({ report, initialPaid = false }) {
                                                         children: unlockBusy ? "Starting…" : "Unlock to view the full summary"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/report/ReportView.tsx",
-                                                        lineNumber: 522,
+                                                        lineNumber: 528,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/report/ReportView.tsx",
-                                                    lineNumber: 521,
+                                                    lineNumber: 527,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true)
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 488,
+                                        lineNumber: 494,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 484,
+                                lineNumber: 490,
                                 columnNumber: 11
                             }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "report-glass rounded-3xl p-5 md:p-6",
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("details", {
+                                className: "report-glass rounded-3xl p-5 md:p-6 group",
                                 children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "flex items-start justify-between gap-3",
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("summary", {
+                                        className: "cursor-pointer list-none text-xs uppercase tracking-[0.16em] text-white/45 [&::-webkit-details-marker]:hidden",
                                         children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                children: [
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                        className: "text-xs uppercase tracking-[0.16em] text-white/40",
-                                                        children: "Overall composite"
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/components/report/ReportView.tsx",
-                                                        lineNumber: 539,
-                                                        columnNumber: 17
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                        className: "mt-2 text-5xl font-semibold tracking-tight text-white md:text-6xl",
-                                                        children: [
-                                                            report.overallScore,
-                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                                className: "ml-1 text-lg font-normal text-white/35",
-                                                                children: "/ 100"
-                                                            }, void 0, false, {
-                                                                fileName: "[project]/components/report/ReportView.tsx",
-                                                                lineNumber: 544,
-                                                                columnNumber: 19
-                                                            }, this)
-                                                        ]
-                                                    }, void 0, true, {
-                                                        fileName: "[project]/components/report/ReportView.tsx",
-                                                        lineNumber: 542,
-                                                        columnNumber: 17
-                                                    }, this)
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 538,
-                                                columnNumber: 15
-                                            }, this),
+                                            "Measurement details",
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                className: "rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/70",
-                                                children: "measured"
+                                                className: "ml-2 font-normal normal-case tracking-normal text-white/30 group-open:hidden",
+                                                children: "(optional)"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 549,
+                                                lineNumber: 545,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 537,
+                                        lineNumber: 543,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        className: "mt-4 flex items-start justify-between gap-3",
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                        className: "text-xs uppercase tracking-[0.16em] text-white/35",
+                                                        children: "Composite reference"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/components/report/ReportView.tsx",
+                                                        lineNumber: 551,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                        className: "mt-2 text-4xl font-semibold tracking-tight text-white/80 md:text-5xl",
+                                                        children: [
+                                                            report.overallScore,
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                                className: "ml-1 text-lg font-normal text-white/30",
+                                                                children: "/ 100"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/components/report/ReportView.tsx",
+                                                                lineNumber: 556,
+                                                                columnNumber: 19
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/components/report/ReportView.tsx",
+                                                        lineNumber: 554,
+                                                        columnNumber: 17
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/components/report/ReportView.tsx",
+                                                lineNumber: 550,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                className: "rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/55",
+                                                children: "internal"
+                                            }, void 0, false, {
+                                                fileName: "[project]/components/report/ReportView.tsx",
+                                                lineNumber: 561,
+                                                columnNumber: 15
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/components/report/ReportView.tsx",
+                                        lineNumber: 549,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(ScoreGauge, {
                                         value: report.overallScore
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 553,
+                                        lineNumber: 565,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                         className: "mt-3 text-xs leading-relaxed text-white/40",
-                                        children: report.retainForTracking ? "Photos retained for tracking (opt-in)." : report.portraitFileId ? "Portrait kept for this report; other source photos deleted." : report.photoDeletedAt ? "Source photos deleted after analysis." : "Analysis complete."
-                                    }, void 0, false, {
+                                        children: [
+                                            "Numbers stay secondary to the strengths view.",
+                                            " ",
+                                            report.retainForTracking ? "Photos retained for tracking (opt-in)." : report.portraitFileId ? "Portrait kept for this report; other source photos deleted." : report.photoDeletedAt ? "Source photos deleted after analysis." : "Analysis complete."
+                                        ]
+                                    }, void 0, true, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 554,
+                                        lineNumber: 566,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 536,
+                                lineNumber: 542,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6088,12 +6102,12 @@ function ReportView({ report, initialPaid = false }) {
                                             values: sparkFromScore(clarity.score)
                                         }, void 0, false, {
                                             fileName: "[project]/components/report/ReportView.tsx",
-                                            lineNumber: 572,
+                                            lineNumber: 585,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 566,
+                                        lineNumber: 579,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(MetricTile, {
@@ -6109,18 +6123,18 @@ function ReportView({ report, initialPaid = false }) {
                                                 }))
                                         }, void 0, false, {
                                             fileName: "[project]/components/report/ReportView.tsx",
-                                            lineNumber: 580,
+                                            lineNumber: 593,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 574,
+                                        lineNumber: 587,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 565,
+                                lineNumber: 578,
                                 columnNumber: 11
                             }, this)
                         ]
@@ -6140,7 +6154,7 @@ function ReportView({ report, initialPaid = false }) {
                                 topFeature: topFeature
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 595,
+                                lineNumber: 608,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$report$2f$OutfitRecommendPanel$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["OutfitRecommendPanel"], {
@@ -6150,13 +6164,13 @@ function ReportView({ report, initialPaid = false }) {
                                 reportPath: `/report/${report.id}`
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 602,
+                                lineNumber: 615,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 594,
+                        lineNumber: 607,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6172,7 +6186,7 @@ function ReportView({ report, initialPaid = false }) {
                                         color: "#e2e8f0"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 617,
+                                        lineNumber: 630,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6180,13 +6194,13 @@ function ReportView({ report, initialPaid = false }) {
                                         children: "Edge contrast along the jaw contour — medium confidence tier."
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 623,
+                                        lineNumber: 636,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 616,
+                                lineNumber: 629,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6197,7 +6211,7 @@ function ReportView({ report, initialPaid = false }) {
                                         children: "Grooming signal"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 629,
+                                        lineNumber: 642,
                                         columnNumber: 13
                                     }, this),
                                     !groomingMeasurable ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -6207,7 +6221,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 children: "Not measured"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 634,
+                                                lineNumber: 647,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6215,7 +6229,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 children: grooming.gateNote ?? grooming.observedSignal
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 637,
+                                                lineNumber: 650,
                                                 columnNumber: 17
                                             }, this)
                                         ]
@@ -6234,7 +6248,7 @@ function ReportView({ report, initialPaid = false }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/components/report/ReportView.tsx",
-                                                            lineNumber: 647,
+                                                            lineNumber: 660,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
@@ -6243,19 +6257,19 @@ function ReportView({ report, initialPaid = false }) {
                                                     children: "72"
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/report/ReportView.tsx",
-                                                    lineNumber: 653,
+                                                    lineNumber: 666,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 643,
+                                                lineNumber: 656,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(DropMeter, {
                                                 filled: isUnlocked("grooming_signal") ? Math.round(grooming.score / 20) : 0
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 656,
+                                                lineNumber: 669,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6263,7 +6277,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 children: isUnlocked("grooming_signal") ? `Confidence · ${grooming.confidence}` : "Locked on free"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 663,
+                                                lineNumber: 676,
                                                 columnNumber: 17
                                             }, this)
                                         ]
@@ -6271,7 +6285,7 @@ function ReportView({ report, initialPaid = false }) {
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 628,
+                                lineNumber: 641,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6282,7 +6296,7 @@ function ReportView({ report, initialPaid = false }) {
                                         children: "Next actions"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 673,
+                                        lineNumber: 686,
                                         columnNumber: 13
                                     }, this),
                                     paid ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6290,7 +6304,7 @@ function ReportView({ report, initialPaid = false }) {
                                         children: "Your checklist below only includes changeable levers (skin, grooming, brows, photo setup) — not fixed facial structure."
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 677,
+                                        lineNumber: 690,
                                         columnNumber: 15
                                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
                                         children: [
@@ -6299,7 +6313,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 children: "Unlock the full report to get a concrete Pro checklist tied to this score."
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 683,
+                                                lineNumber: 696,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -6310,7 +6324,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 children: unlockBusy ? "Starting…" : "Unlock recommendations"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 687,
+                                                lineNumber: 700,
                                                 columnNumber: 17
                                             }, this)
                                         ]
@@ -6318,7 +6332,7 @@ function ReportView({ report, initialPaid = false }) {
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 672,
+                                lineNumber: 685,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6326,28 +6340,28 @@ function ReportView({ report, initialPaid = false }) {
                                 children: [
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                         className: "text-xs uppercase tracking-[0.16em] text-white/40",
-                                        children: "Appearance index"
+                                        children: "Detail index"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 700,
+                                        lineNumber: 713,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                        className: "mt-1 text-4xl font-semibold text-white",
+                                        className: "mt-1 text-3xl font-semibold text-white/75",
                                         children: [
                                             compositeTen,
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                className: "text-lg font-normal text-white/35",
+                                                className: "text-lg font-normal text-white/30",
                                                 children: " / 10"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 705,
+                                                lineNumber: 718,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 703,
+                                        lineNumber: 716,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6359,7 +6373,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 color: "#f8fafc"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 708,
+                                                lineNumber: 721,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(MiniRing, {
@@ -6368,25 +6382,25 @@ function ReportView({ report, initialPaid = false }) {
                                                 color: "#94a3b8"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 715,
+                                                lineNumber: 728,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 707,
+                                        lineNumber: 720,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 699,
+                                lineNumber: 712,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 615,
+                        lineNumber: 628,
                         columnNumber: 9
                     }, this)
                 ]
@@ -6400,7 +6414,7 @@ function ReportView({ report, initialPaid = false }) {
                 isUnlocked: isUnlocked
             }, void 0, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 726,
+                lineNumber: 739,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -6414,7 +6428,7 @@ function ReportView({ report, initialPaid = false }) {
                                 children: "Pro is active. Your full report is unlocked — start the checklist below before your next weekly check-in."
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 733,
+                                lineNumber: 746,
                                 columnNumber: 15
                             }, this) : null,
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$report$2f$ActionChecklist$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ActionChecklist"], {
@@ -6422,7 +6436,7 @@ function ReportView({ report, initialPaid = false }) {
                                 highlight: checkoutJustSucceeded
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 738,
+                                lineNumber: 751,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$report$2f$LookTrackPanel$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["LookTrackPanel"], {
@@ -6431,7 +6445,7 @@ function ReportView({ report, initialPaid = false }) {
                                 isPro: Boolean(user?.isPro) || paid
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 742,
+                                lineNumber: 755,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$site$2f$PrivacyDataStatement$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PrivacyDataStatement"], {
@@ -6439,13 +6453,13 @@ function ReportView({ report, initialPaid = false }) {
                                 compact: true
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 747,
+                                lineNumber: 760,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 731,
+                        lineNumber: 744,
                         columnNumber: 11
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "mb-8",
@@ -6455,12 +6469,12 @@ function ReportView({ report, initialPaid = false }) {
                             isPro: Boolean(user?.isPro) || paid
                         }, void 0, false, {
                             fileName: "[project]/components/report/ReportView.tsx",
-                            lineNumber: 751,
+                            lineNumber: 764,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 750,
+                        lineNumber: 763,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6473,7 +6487,7 @@ function ReportView({ report, initialPaid = false }) {
                                         children: "Feature breakdown"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 760,
+                                        lineNumber: 773,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -6481,13 +6495,13 @@ function ReportView({ report, initialPaid = false }) {
                                         children: "Individually measured"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 763,
+                                        lineNumber: 776,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 759,
+                                lineNumber: 772,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -6496,13 +6510,13 @@ function ReportView({ report, initialPaid = false }) {
                                 children: "Start another assessment"
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 767,
+                                lineNumber: 780,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 758,
+                        lineNumber: 771,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6521,7 +6535,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$types$2f$report$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FEATURE_LABELS"][key]
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 784,
+                                                lineNumber: 797,
                                                 columnNumber: 19
                                             }, this),
                                             unlocked ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -6529,7 +6543,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 children: packet.score
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 788,
+                                                lineNumber: 801,
                                                 columnNumber: 21
                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                 className: "relative text-lg font-semibold text-white/30",
@@ -6539,7 +6553,7 @@ function ReportView({ report, initialPaid = false }) {
                                                         children: packet.score
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/report/ReportView.tsx",
-                                                        lineNumber: 793,
+                                                        lineNumber: 806,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -6547,19 +6561,19 @@ function ReportView({ report, initialPaid = false }) {
                                                         children: "Locked"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/report/ReportView.tsx",
-                                                        lineNumber: 796,
+                                                        lineNumber: 809,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 792,
+                                                lineNumber: 805,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 783,
+                                        lineNumber: 796,
                                         columnNumber: 17
                                     }, this),
                                     unlocked ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -6574,7 +6588,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 804,
+                                                lineNumber: 817,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6582,7 +6596,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 children: packet.observedSignal
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 808,
+                                                lineNumber: 821,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6590,7 +6604,7 @@ function ReportView({ report, initialPaid = false }) {
                                                 children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MUTABILITY_HINTS"][__TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$feature$2d$mutability$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FEATURE_MUTABILITY"][key]]
                                             }, void 0, false, {
                                                 fileName: "[project]/components/report/ReportView.tsx",
-                                                lineNumber: 811,
+                                                lineNumber: 824,
                                                 columnNumber: 21
                                             }, this)
                                         ]
@@ -6599,25 +6613,25 @@ function ReportView({ report, initialPaid = false }) {
                                         children: "Measured · unlock to reveal"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 816,
+                                        lineNumber: 829,
                                         columnNumber: 19
                                     }, this)
                                 ]
                             }, key, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 779,
+                                lineNumber: 792,
                                 columnNumber: 15
                             }, this);
                         })
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 774,
+                        lineNumber: 787,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 729,
+                lineNumber: 742,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(SignupPrompt, {
@@ -6638,7 +6652,7 @@ function ReportView({ report, initialPaid = false }) {
                 }
             }, void 0, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 826,
+                lineNumber: 839,
                 columnNumber: 7
             }, this)
         ]
@@ -6694,7 +6708,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                 onClick: onClose
             }, void 0, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 894,
+                lineNumber: 907,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6710,7 +6724,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                         children: "Close"
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 906,
+                        lineNumber: 919,
                         columnNumber: 9
                     }, this),
                     sent ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6721,7 +6735,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                 children: "Linked"
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 916,
+                                lineNumber: 929,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -6730,7 +6744,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                 children: "Report saved to your account"
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 919,
+                                lineNumber: 932,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6743,14 +6757,14 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                         children: linkedEmail
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 927,
+                                        lineNumber: 940,
                                         columnNumber: 15
                                     }, this),
                                     ". This report is linked for progress tracking when you re-upload."
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 925,
+                                lineNumber: 938,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -6762,7 +6776,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                         children: "Go to tracking"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 931,
+                                        lineNumber: 944,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -6772,19 +6786,19 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                         children: "Keep reading report"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 937,
+                                        lineNumber: 950,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 930,
+                                lineNumber: 943,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 915,
+                        lineNumber: 928,
                         columnNumber: 11
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
                         onSubmit: onSubmit,
@@ -6795,7 +6809,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                 children: forUnlock ? "Unlock Pro" : "Track progress"
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 948,
+                                lineNumber: 961,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -6804,7 +6818,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                 children: forUnlock ? mode === "register" ? "Create an account to unlock Pro" : "Sign in to unlock Pro" : mode === "register" ? "Create an account to save this report" : "Sign in to link this report"
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 951,
+                                lineNumber: 964,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -6812,7 +6826,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                 children: forUnlock ? "Pro is tied to your account so full reports and tracking stay with you. After you sign up, we’ll take you to checkout." : "Re-upload weekly, compare under consistent lighting, and keep recommendations tied to this baseline."
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 963,
+                                lineNumber: 976,
                                 columnNumber: 13
                             }, this),
                             mode === "register" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -6823,7 +6837,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                         children: "First name"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 970,
+                                        lineNumber: 983,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -6836,13 +6850,13 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                         className: "mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/40"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 973,
+                                        lineNumber: 986,
                                         columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 969,
+                                lineNumber: 982,
                                 columnNumber: 15
                             }, this) : null,
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
@@ -6853,7 +6867,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                         children: "Email"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 985,
+                                        lineNumber: 998,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -6862,36 +6876,6 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                         value: email,
                                         onChange: (e)=>setEmail(e.target.value),
                                         placeholder: "you@email.com",
-                                        className: "mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/40"
-                                    }, void 0, false, {
-                                        fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 988,
-                                        columnNumber: 15
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 984,
-                                columnNumber: 13
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                                className: "mt-3 block",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: "text-xs uppercase tracking-[0.14em] text-white/40",
-                                        children: "Password"
-                                    }, void 0, false, {
-                                        fileName: "[project]/components/report/ReportView.tsx",
-                                        lineNumber: 998,
-                                        columnNumber: 15
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                                        type: "password",
-                                        required: true,
-                                        minLength: 8,
-                                        value: password,
-                                        onChange: (e)=>setPassword(e.target.value),
-                                        placeholder: "At least 8 characters",
                                         className: "mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/40"
                                     }, void 0, false, {
                                         fileName: "[project]/components/report/ReportView.tsx",
@@ -6904,13 +6888,43 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                 lineNumber: 997,
                                 columnNumber: 13
                             }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
+                                className: "mt-3 block",
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "text-xs uppercase tracking-[0.14em] text-white/40",
+                                        children: "Password"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/report/ReportView.tsx",
+                                        lineNumber: 1011,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                                        type: "password",
+                                        required: true,
+                                        minLength: 8,
+                                        value: password,
+                                        onChange: (e)=>setPassword(e.target.value),
+                                        placeholder: "At least 8 characters",
+                                        className: "mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/40"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/report/ReportView.tsx",
+                                        lineNumber: 1014,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/components/report/ReportView.tsx",
+                                lineNumber: 1010,
+                                columnNumber: 13
+                            }, this),
                             error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 className: "mt-3 text-sm text-rose-300",
                                 role: "alert",
                                 children: error
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 1012,
+                                lineNumber: 1025,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -6920,7 +6934,7 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                 children: busy ? "Working…" : forUnlock ? mode === "register" ? "Create account & continue" : "Sign in & continue" : mode === "register" ? "Create account & save report" : "Sign in & link report"
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 1016,
+                                lineNumber: 1029,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -6933,25 +6947,25 @@ function SignupPrompt({ open, onClose, reportId, reason = "save", onAuthed }) {
                                 children: mode === "register" ? "Already have an account? Sign in" : "Need an account? Register"
                             }, void 0, false, {
                                 fileName: "[project]/components/report/ReportView.tsx",
-                                lineNumber: 1031,
+                                lineNumber: 1044,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 947,
+                        lineNumber: 960,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 900,
+                lineNumber: 913,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/report/ReportView.tsx",
-        lineNumber: 893,
+        lineNumber: 906,
         columnNumber: 5
     }, this);
 }
@@ -6967,7 +6981,7 @@ function ScoreGauge({ value }) {
                 }
             }, void 0, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1054,
+                lineNumber: 1067,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -6977,13 +6991,13 @@ function ScoreGauge({ value }) {
                 }
             }, void 0, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1058,
+                lineNumber: 1071,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/report/ReportView.tsx",
-        lineNumber: 1053,
+        lineNumber: 1066,
         columnNumber: 5
     }, this);
 }
@@ -6996,7 +7010,7 @@ function MetricTile({ label, score, locked, accent, children }) {
                 children: label
             }, void 0, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1081,
+                lineNumber: 1094,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -7006,12 +7020,12 @@ function MetricTile({ label, score, locked, accent, children }) {
                     children: "68"
                 }, void 0, false, {
                     fileName: "[project]/components/report/ReportView.tsx",
-                    lineNumber: 1086,
+                    lineNumber: 1099,
                     columnNumber: 11
                 }, this) : score
             }, void 0, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1084,
+                lineNumber: 1097,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -7019,13 +7033,13 @@ function MetricTile({ label, score, locked, accent, children }) {
                 children: children
             }, void 0, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1091,
+                lineNumber: 1104,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/report/ReportView.tsx",
-        lineNumber: 1080,
+        lineNumber: 1093,
         columnNumber: 5
     }, this);
 }
@@ -7066,12 +7080,12 @@ function MiniSpark({ values }) {
             opacity: "0.85"
         }, void 0, false, {
             fileName: "[project]/components/report/ReportView.tsx",
-            lineNumber: 1119,
+            lineNumber: 1132,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/report/ReportView.tsx",
-        lineNumber: 1118,
+        lineNumber: 1131,
         columnNumber: 5
     }, this);
 }
@@ -7090,13 +7104,13 @@ function DotScatter({ scores }) {
                 }
             }, s.key, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1144,
+                lineNumber: 1157,
                 columnNumber: 11
             }, this);
         })
     }, void 0, false, {
         fileName: "[project]/components/report/ReportView.tsx",
-        lineNumber: 1138,
+        lineNumber: 1151,
         columnNumber: 5
     }, this);
 }
@@ -7121,7 +7135,7 @@ function RingProgress({ value, locked, label, color }) {
                         strokeWidth: "8"
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 1173,
+                        lineNumber: 1186,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -7137,13 +7151,13 @@ function RingProgress({ value, locked, label, color }) {
                         className: "transition-[stroke-dashoffset] duration-700"
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 1181,
+                        lineNumber: 1194,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1172,
+                lineNumber: 1185,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -7154,7 +7168,7 @@ function RingProgress({ value, locked, label, color }) {
                         children: label
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 1195,
+                        lineNumber: 1208,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -7164,24 +7178,24 @@ function RingProgress({ value, locked, label, color }) {
                             children: "71"
                         }, void 0, false, {
                             fileName: "[project]/components/report/ReportView.tsx",
-                            lineNumber: 1200,
+                            lineNumber: 1213,
                             columnNumber: 13
                         }, this) : value
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 1198,
+                        lineNumber: 1211,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1194,
+                lineNumber: 1207,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/report/ReportView.tsx",
-        lineNumber: 1171,
+        lineNumber: 1184,
         columnNumber: 5
     }, this);
 }
@@ -7206,7 +7220,7 @@ function MiniRing({ label, value, color }) {
                         strokeWidth: "4"
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 1226,
+                        lineNumber: 1239,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -7221,13 +7235,13 @@ function MiniRing({ label, value, color }) {
                         strokeDashoffset: value === null ? c : offset
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 1234,
+                        lineNumber: 1247,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1225,
+                lineNumber: 1238,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -7237,7 +7251,7 @@ function MiniRing({ label, value, color }) {
                         children: label
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 1247,
+                        lineNumber: 1260,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -7247,24 +7261,24 @@ function MiniRing({ label, value, color }) {
                             children: "80%"
                         }, void 0, false, {
                             fileName: "[project]/components/report/ReportView.tsx",
-                            lineNumber: 1252,
+                            lineNumber: 1265,
                             columnNumber: 13
                         }, this) : `${value}`
                     }, void 0, false, {
                         fileName: "[project]/components/report/ReportView.tsx",
-                        lineNumber: 1250,
+                        lineNumber: 1263,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1246,
+                lineNumber: 1259,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/report/ReportView.tsx",
-        lineNumber: 1224,
+        lineNumber: 1237,
         columnNumber: 5
     }, this);
 }
@@ -7278,12 +7292,12 @@ function DropMeter({ filled }) {
                 className: `h-2.5 flex-1 rounded-full ${i < n ? "bg-gradient-to-r from-white/50 to-white" : "bg-white/10"}`
             }, i, false, {
                 fileName: "[project]/components/report/ReportView.tsx",
-                lineNumber: 1267,
+                lineNumber: 1280,
                 columnNumber: 9
             }, this))
     }, void 0, false, {
         fileName: "[project]/components/report/ReportView.tsx",
-        lineNumber: 1265,
+        lineNumber: 1278,
         columnNumber: 5
     }, this);
 }

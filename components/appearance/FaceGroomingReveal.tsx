@@ -53,11 +53,9 @@ function PillarCard({
           );
         })}
       </ul>
-      <ul className="ai-pillar__tips">
-        {pillar.tips.map((tip) => (
-          <li key={tip}>{tip}</li>
-        ))}
-      </ul>
+      {pillar.tips.length > 0 ? (
+        <p className="ai-pillar__tip">{pillar.tips.join(" ")}</p>
+      ) : null}
     </article>
   );
 }

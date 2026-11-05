@@ -1921,7 +1921,7 @@ function LandingHero() {
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 className: "text-[10px] font-medium uppercase tracking-[0.2em] text-white/50 sm:text-[11px]",
-                                children: "Join people measuring change"
+                                children: "AI appearance coach"
                             }, void 0, false, {
                                 fileName: "[project]/components/LandingHero.tsx",
                                 lineNumber: 337,
@@ -1930,13 +1930,13 @@ function LandingHero() {
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
                                 className: "mt-4 font-[family-name:var(--font-cursive)] text-[2.6rem] leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[3.6rem]",
                                 children: [
-                                    "Know exactly",
+                                    "See what already",
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("br", {}, void 0, false, {
                                         fileName: "[project]/components/LandingHero.tsx",
                                         lineNumber: 342,
                                         columnNumber: 13
                                     }, this),
-                                    "what to change."
+                                    "works."
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/LandingHero.tsx",
@@ -1945,7 +1945,7 @@ function LandingHero() {
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 className: "mt-3 max-w-sm text-[12px] leading-relaxed text-white/55 sm:mt-4 sm:text-[13px]",
-                                children: "Every score comes with the reason behind it — no guessing, no percentile, just what's measurable and what to do next."
+                                children: "Then make it work harder — strengths on your real photos, private progress, no public ranking."
                             }, void 0, false, {
                                 fileName: "[project]/components/LandingHero.tsx",
                                 lineNumber: 345,
@@ -1957,7 +1957,7 @@ function LandingHero() {
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
                                         href: "/upload",
                                         className: "inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#1a1e24] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.55)] transition hover:bg-white/92",
-                                        children: "Start free report"
+                                        children: "Start free strengths pass"
                                     }, void 0, false, {
                                         fileName: "[project]/components/LandingHero.tsx",
                                         lineNumber: 351,
@@ -2010,15 +2010,15 @@ function HeroMeasureRail(param) {
     let { started } = param;
     const ticks = [
         {
-            label: "Symmetry",
+            label: "Eyes",
             pos: 0.22
         },
         {
-            label: "Clarity",
+            label: "Framing",
             pos: 0.48
         },
         {
-            label: "Jawline",
+            label: "Structure",
             pos: 0.72
         }
     ];
@@ -2028,15 +2028,15 @@ function HeroMeasureRail(param) {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                 className: "text-[9px] font-medium uppercase tracking-[0.2em] text-white/35",
-                children: "Measured"
+                children: "Strengths"
             }, void 0, false, {
                 fileName: "[project]/components/LandingHero.tsx",
                 lineNumber: 387,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                className: "mt-1 font-mono text-3xl font-light tabular-nums tracking-tight text-white/80",
-                children: "8"
+                className: "mt-1 font-[family-name:var(--font-cursive)] text-2xl tracking-tight text-white/85",
+                children: "First"
             }, void 0, false, {
                 fileName: "[project]/components/LandingHero.tsx",
                 lineNumber: 390,
@@ -2044,7 +2044,7 @@ function HeroMeasureRail(param) {
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                 className: "mt-0.5 text-[11px] text-white/40",
-                children: "features"
+                children: "on your photos"
             }, void 0, false, {
                 fileName: "[project]/components/LandingHero.tsx",
                 lineNumber: 393,
@@ -3546,7 +3546,7 @@ function ReportPreviewSection() {
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 className: "text-[11px] font-medium uppercase tracking-[0.2em] text-white/40",
-                                children: "Inside your report"
+                                children: "Inside your pass"
                             }, void 0, false, {
                                 fileName: "[project]/components/landing/ReportPreviewSection.tsx",
                                 lineNumber: 23,
@@ -3554,7 +3554,7 @@ function ReportPreviewSection() {
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
                                 className: "mt-3 font-[family-name:var(--font-cursive)] text-4xl leading-[1.1] tracking-tight text-white sm:text-5xl",
-                                children: "This is what you walk away with."
+                                children: "Strengths on your real photos."
                             }, void 0, false, {
                                 fileName: "[project]/components/landing/ReportPreviewSection.tsx",
                                 lineNumber: 26,
@@ -3562,7 +3562,7 @@ function ReportPreviewSection() {
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 className: "mt-4 max-w-lg text-sm leading-relaxed text-white/50 sm:text-[15px]",
-                                children: "A measured appearance report — interactive portrait, summary, and analytic charts — not a public ranking."
+                                children: "Zoom what already works, then light style direction — private, no public ranking, no likeness-first generation."
                             }, void 0, false, {
                                 fileName: "[project]/components/landing/ReportPreviewSection.tsx",
                                 lineNumber: 29,
@@ -3578,16 +3578,16 @@ function ReportPreviewSection() {
                         className: "mt-14 space-y-16 md:mt-20 md:space-y-24",
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(PreviewRow, {
-                                eyebrow: "Appearance dashboard",
-                                title: "Your face, scored with a reason.",
-                                body: "Tap landmark points on your portrait. See strongest signals, composite score, and gated Pro summary — never a raw attractiveness number.",
+                                eyebrow: "Strengths view",
+                                title: "Your face, accentuated — not scored first.",
+                                body: "Soft highlights on your real photo. Short strength notes for eyes, framing, and structure. Pro unlocks the full sequence and style panel.",
                                 bullets: [
-                                    "Interactive portrait with feature dots",
-                                    "Jawline, grooming, and next-action cards",
-                                    "Free top signals · Pro unlocks the full write-up"
+                                    "Interactive zooms on your uploads",
+                                    "Positive, specific strength notes",
+                                    "Free 2–3 zooms · Pro unlocks the full pass"
                                 ],
                                 imageSrc: "/landing/report-dashboard.png",
-                                imageAlt: "Zelko appearance report dashboard with interactive portrait and metric cards",
+                                imageAlt: "Zelko strengths presentation on a real portrait",
                                 reverse: false
                             }, void 0, false, {
                                 fileName: "[project]/components/landing/ReportPreviewSection.tsx",
@@ -3595,16 +3595,16 @@ function ReportPreviewSection() {
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(PreviewRow, {
-                                eyebrow: "Analytic views",
-                                title: "Charts that match the product language.",
-                                body: "Facial thirds, skin clarity distribution, symmetry tracks, feature radar, and a ranked bar list — filled with your measured scores.",
+                                eyebrow: "Style direction",
+                                title: "Neckline, color, hair — tied to a zoom.",
+                                body: "After the zooms, a clean panel suggests open necklines, a short palette, and hair framing that keeps attention on your strongest features.",
                                 bullets: [
-                                    "Facial thirds & proportion balance",
-                                    "Skin clarity curve with confidence",
-                                    "Feature map + strongest-first ranking"
+                                    "Neckline that keeps structure visible",
+                                    "3–5 undertone-friendly swatches",
+                                    "One low-effort next step"
                                 ],
                                 imageSrc: "/landing/report-analytics.png",
-                                imageAlt: "Zelko report analytic charts including facial thirds, skin clarity, symmetry, and feature ranking",
+                                imageAlt: "Zelko style direction panel with palette and framing notes",
                                 reverse: true
                             }, void 0, false, {
                                 fileName: "[project]/components/landing/ReportPreviewSection.tsx",
@@ -3623,7 +3623,7 @@ function ReportPreviewSection() {
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
                                 href: "/upload",
                                 className: "inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-neutral-950 transition hover:bg-white/90",
-                                children: "Start free report"
+                                children: "Start free strengths pass"
                             }, void 0, false, {
                                 fileName: "[project]/components/landing/ReportPreviewSection.tsx",
                                 lineNumber: 66,
@@ -4630,50 +4630,66 @@ var _s = __turbopack_context__.k.signature();
 "use client";
 ;
 function SectionReveal(param) {
-    let { children, className = "", delayMs = 0 } = param;
+    let { children, className = "", /** Extra vertical travel in px while entering (higher = stronger rise). */ risePx = 96 } = param;
     _s();
     const ref = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
-    const [inView, setInView] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "SectionReveal.useEffect": ()=>{
             const node = ref.current;
             if (!node) return;
-            if (typeof IntersectionObserver === "undefined") {
-                setInView(true);
+            const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            if (reduceMotion) {
+                node.style.setProperty("--sr-p", "1");
                 return;
             }
-            const observer = new IntersectionObserver({
-                "SectionReveal.useEffect": (param)=>{
-                    let [entry] = param;
-                    if (entry === null || entry === void 0 ? void 0 : entry.isIntersecting) {
-                        setInView(true);
-                        observer.disconnect();
-                    }
+            node.style.setProperty("--sr-rise", "".concat(risePx, "px"));
+            let raf = 0;
+            const update = {
+                "SectionReveal.useEffect.update": ()=>{
+                    const rect = node.getBoundingClientRect();
+                    const vh = window.innerHeight || 1;
+                    // 0 = section top still at bottom of viewport
+                    // 1 = section top has risen to ~28% of viewport height
+                    const start = vh;
+                    const end = vh * 0.28;
+                    const raw = (start - rect.top) / Math.max(1, start - end);
+                    const progress = Math.max(0, Math.min(1, raw));
+                    node.style.setProperty("--sr-p", progress.toFixed(4));
                 }
-            }["SectionReveal.useEffect"], {
-                threshold: 0.12,
-                rootMargin: "0px 0px -8% 0px"
+            }["SectionReveal.useEffect.update"];
+            const onScroll = {
+                "SectionReveal.useEffect.onScroll": ()=>{
+                    cancelAnimationFrame(raf);
+                    raf = requestAnimationFrame(update);
+                }
+            }["SectionReveal.useEffect.onScroll"];
+            update();
+            window.addEventListener("scroll", onScroll, {
+                passive: true
             });
-            observer.observe(node);
+            window.addEventListener("resize", onScroll);
             return ({
-                "SectionReveal.useEffect": ()=>observer.disconnect()
+                "SectionReveal.useEffect": ()=>{
+                    cancelAnimationFrame(raf);
+                    window.removeEventListener("scroll", onScroll);
+                    window.removeEventListener("resize", onScroll);
+                }
             })["SectionReveal.useEffect"];
         }
-    }["SectionReveal.useEffect"], []);
+    }["SectionReveal.useEffect"], [
+        risePx
+    ]);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         ref: ref,
-        className: "section-reveal ".concat(inView ? "is-in" : "", " ").concat(className),
-        style: {
-            transitionDelay: "".concat(delayMs, "ms")
-        },
+        className: "section-reveal ".concat(className).trim(),
         children: children
     }, void 0, false, {
         fileName: "[project]/components/site/SectionReveal.tsx",
-        lineNumber: 45,
+        lineNumber: 65,
         columnNumber: 5
     }, this);
 }
-_s(SectionReveal, "K+dCFMkCcTyPMHOI0MxAWPXS6Js=");
+_s(SectionReveal, "8uVE59eA/r6b92xF80p7sH8rXLk=");
 _c = SectionReveal;
 var _c;
 __turbopack_context__.k.register(_c, "SectionReveal");

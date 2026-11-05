@@ -65,8 +65,8 @@ export function JourneyProPitch({
           <p className="ai-reveal__eyebrow">Pro</p>
           <h2>You’re unlocked</h2>
           <p>
-            Rechecks, pillar history, and restocked looks stay on your
-            dashboard. Your first Appearance Profile pass is saved.
+            Full strength zooms, style direction, and private rechecks stay on
+            your dashboard. Your first strengths pass is saved.
           </p>
         </div>
         <div className="ai-reveal__cta ai-reveal__cta--row">
@@ -85,17 +85,17 @@ export function JourneyProPitch({
     <section className="ai-reveal">
       <div className="ai-reveal__intro">
         <p className="ai-reveal__eyebrow">First pass complete</p>
-        <h2>Keep improving with Pro</h2>
+        <h2>Accentuate more with Pro</h2>
         <p>
-          You’ve finished the free Appearance Profile — face, style, and one
-          prescribed look with shoppable matches. Pro unlocks the ongoing loop.
+          You’ve seen what already works on your photos. Pro unlocks the full
+          strength sequence, style direction, and private progress over time.
         </p>
       </div>
 
       <ul className="ai-pro-pitch__list">
-        <li>Weekly rechecks with per-pillar history</li>
-        <li>Restocked eBay-driven looks over time</li>
-        <li>Seasonal themed style pushes</li>
+        <li>Full strength zooms + style direction on your real photos</li>
+        <li>Private rechecks — you versus you</li>
+        <li>Optional shoppable references when you want them</li>
       </ul>
 
       <div className="ai-reveal__cta ai-reveal__cta--row">

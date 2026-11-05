@@ -335,16 +335,16 @@ export function LandingHero() {
           }`}
         >
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/50 sm:text-[11px]">
-            Join people measuring change
+            AI appearance coach
           </p>
           <h1 className="mt-4 font-[family-name:var(--font-cursive)] text-[2.6rem] leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[3.6rem]">
-            Know exactly
+            See what already
             <br />
-            what to change.
+            works.
           </h1>
           <p className="mt-3 max-w-sm text-[12px] leading-relaxed text-white/55 sm:mt-4 sm:text-[13px]">
-            Every score comes with the reason behind it — no guessing, no
-            percentile, just what&apos;s measurable and what to do next.
+            Then make it work harder — strengths on your real photos, private
+            progress, no public ranking.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -352,7 +352,7 @@ export function LandingHero() {
               href="/upload"
               className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#1a1e24] shadow-[0_8px_30px_-12px_rgba(0,0,0,0.55)] transition hover:bg-white/92"
             >
-              Start free report
+              Start free strengths pass
             </Link>
             <Link
               href="/how-it-works"
@@ -372,9 +372,9 @@ export function LandingHero() {
 
 function HeroMeasureRail({ started }: { started: boolean }) {
   const ticks = [
-    { label: "Symmetry", pos: 0.22 },
-    { label: "Clarity", pos: 0.48 },
-    { label: "Jawline", pos: 0.72 },
+    { label: "Eyes", pos: 0.22 },
+    { label: "Framing", pos: 0.48 },
+    { label: "Structure", pos: 0.72 },
   ];
 
   return (
@@ -385,12 +385,12 @@ function HeroMeasureRail({ started }: { started: boolean }) {
       } transition duration-1000 delay-300`}
     >
       <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-white/35">
-        Measured
+        Strengths
       </p>
-      <p className="mt-1 font-mono text-3xl font-light tabular-nums tracking-tight text-white/80">
-        8
+      <p className="mt-1 font-[family-name:var(--font-cursive)] text-2xl tracking-tight text-white/85">
+        First
       </p>
-      <p className="mt-0.5 text-[11px] text-white/40">features</p>
+      <p className="mt-0.5 text-[11px] text-white/40">on your photos</p>
 
       <div className="relative mt-8 h-44">
         <div className="absolute bottom-0 left-3 top-0 w-px bg-gradient-to-b from-white/5 via-white/25 to-white/5" />

@@ -27,6 +27,22 @@
   margin-bottom: 1.35rem;
 }
 
+.journey-progress--compact {
+  margin-bottom: .65rem;
+}
+
+.journey-progress--compact .journey-progress__top {
+  margin-bottom: .25rem;
+}
+
+.journey-progress--compact .journey-progress__label, .journey-progress--compact .journey-progress__pct {
+  font-size: .68rem;
+}
+
+.journey-progress--compact .journey-progress__track {
+  height: .22rem;
+}
+
 .journey-progress__top {
   justify-content: space-between;
   align-items: baseline;

@@ -14,6 +14,8 @@ type Props = {
   /** Optional status line under the bar */
   detail?: string;
   variant?: "light" | "paper" | "dark";
+  /** Single-line bar — hides step dots + detail (for tight scan layouts). */
+  compact?: boolean;
 };
 
 export function JourneyProgressBar({
@@ -21,6 +23,7 @@ export function JourneyProgressBar({
   withinStep = 0,
   detail,
   variant = "light",
+  compact = false,
 }: Props) {
   const total = JOURNEY_FLOW_STEPS.length;
   const index = journeyStepIndex(current);
@@ -35,7 +38,9 @@ export function JourneyProgressBar({
 
   return (
     <div
-      className={`journey-progress journey-progress--${variant}`}
+      className={`journey-progress journey-progress--${variant}${
+        compact ? " journey-progress--compact" : ""
+      }`}
       role="group"
       aria-label="Appearance Index progress"
     >
@@ -72,26 +77,32 @@ export function JourneyProgressBar({
         />
       </div>
 
-      <ol className="journey-progress__steps">
-        {JOURNEY_FLOW_STEPS.map((step, i) => {
-          const done =
-            current === "complete" || i < index || (i === index && withinStep >= 1);
-          const active = current !== "complete" && i === index;
-          return (
-            <li
-              key={step.id}
-              className={`journey-progress__step${done ? " is-done" : ""}${active ? " is-active" : ""}`}
-            >
-              <span className="journey-progress__dot" aria-hidden />
-              <span className="journey-progress__step-label">
-                {step.shortLabel}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      {!compact ? (
+        <ol className="journey-progress__steps">
+          {JOURNEY_FLOW_STEPS.map((step, i) => {
+            const done =
+              current === "complete" ||
+              i < index ||
+              (i === index && withinStep >= 1);
+            const active = current !== "complete" && i === index;
+            return (
+              <li
+                key={step.id}
+                className={`journey-progress__step${done ? " is-done" : ""}${
+                  active ? " is-active" : ""
+                }`}
+              >
+                <span className="journey-progress__dot" aria-hidden />
+                <span className="journey-progress__step-label">
+                  {step.shortLabel}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
 
-      {(detail || stepsLeft > 0) && current !== "complete" ? (
+      {!compact && (detail || stepsLeft > 0) && current !== "complete" ? (
         <p className="journey-progress__detail">
           {detail ??
             (stepsLeft === 1

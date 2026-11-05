@@ -5,17 +5,17 @@ const STEPS = [
   {
     step: "01",
     title: "Assess",
-    body: "Upload 3–5 clear photos. Photo quality gates the pipeline first — then we measure only traits with a real signal.",
+    body: "Upload 3–5 clear photos. We find what already reads well on your real face — eyes, framing, structure — not a public ranking.",
   },
   {
     step: "02",
     title: "Act",
-    body: "Every weak score unlocks paired recommendations ranked by effort and confidence. No low score without a next step.",
+    body: "Accentuate those strengths with light style direction: neckline, color, hair framing. Practical next steps, never a flaw list.",
   },
   {
     step: "03",
     title: "Prove",
-    body: "Re-upload over time. We check lighting and angle consistency before comparing — so change isn’t a photo artifact.",
+    body: "Re-upload over time. Progress stays private — you versus you — with lighting checked so change isn’t a photo accident.",
   },
 ] as const;
 
@@ -58,7 +58,7 @@ export function LoopSection() {
             href="/how-it-works"
             className="mt-12 inline-flex text-sm font-medium text-neutral-800 underline-offset-4 hover:underline"
           >
-            See how measurement works →
+            See how the strengths loop works →
           </Link>
         </Reveal>
       </div>

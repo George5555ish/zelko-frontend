@@ -105,11 +105,11 @@ export function StyleProfileReveal({
 
       <div className="ai-reveal__cta">
         <button type="button" className="ai-btn" onClick={onContinue}>
-          Generate my looks
+          Continue
         </button>
         <p className="ai-reveal__note">
-          Next: three outfit stills using your face — styled from these
-          preferences.
+          Optional next: a shoppable look reference. You can skip generation —
+          your strengths pass already stands on its own.
         </p>
       </div>
     </section>

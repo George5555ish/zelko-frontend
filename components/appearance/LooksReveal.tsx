@@ -777,11 +777,12 @@ export function LooksReveal({
   return (
     <section className="ai-reveal">
       <div className="ai-reveal__intro">
-        <p className="ai-reveal__eyebrow">Stage 3 · Prescription</p>
-        <h2>Before &amp; after</h2>
+        <p className="ai-reveal__eyebrow">Optional · Shoppable reference</p>
+        <h2>Try a look on eBay terms</h2>
         <p>
-          Your photo versus one prescribed look. Hover the markers on the after
-          still for upgrades tied to your profile.
+          Optional — not required for your strengths pass. If you generate a
+          still, treat it as a clothing reference; likeness can vary. Prefer
+          shopping the pieces that accentuate what already works.
           {loading && look
             ? ` ${phaseLabel(look.phase)}`
             : ready
@@ -972,7 +973,9 @@ export function LooksReveal({
           onClick={onFinish}
           disabled={!allSettled && !ready}
         >
-          {allSettled || ready ? "Finish this pass" : "Continue while look finishes"}
+          {allSettled || ready
+            ? "Finish strengths pass"
+            : "Skip look — finish with strengths"}
         </button>
       </div>
     </section>

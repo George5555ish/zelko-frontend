@@ -11,7 +11,7 @@ import {
 } from "@/lib/appearance-index";
 import { fetchMe, getAuthToken, type AuthUser } from "@/lib/auth";
 import { useAuthUser } from "@/lib/use-auth-user";
-import { FaceGroomingReveal } from "./FaceGroomingReveal";
+import { StrengthsPresentation } from "./StrengthsPresentation";
 import { StyleCollectStage } from "./StyleCollectStage";
 import { StyleProfileReveal } from "./StyleProfileReveal";
 import { LooksReveal } from "./LooksReveal";
@@ -258,16 +258,19 @@ export function AppearanceJourney({ report }: { report: ReportViewModel }) {
     <main className="ai-page">
       <SiteHeader variant="dark" />
 
-      <div className="ai-shell pt-20 sm:pt-24">
+      <div
+        className={`ai-shell${stage === "face_reveal" ? " ai-shell--scan" : ""}`}
+      >
         <JourneyProgressBar
           current={flowStep}
           withinStep={flowStep === "complete" ? 1 : 0.35}
           variant="dark"
+          compact={stage === "face_reveal"}
           detail={
             flowStep === "complete"
               ? undefined
               : flowStep === "face_reveal"
-                ? "Upload done · reviewing Structure & Grooming"
+                ? "Upload done · mapping your strengths"
                 : flowStep === "style_collect"
                   ? "Pick your visual style preferences"
                   : flowStep === "style_reveal"
@@ -286,9 +289,8 @@ export function AppearanceJourney({ report }: { report: ReportViewModel }) {
               <p className="ai-reveal__eyebrow">Account required</p>
               <h2>Sign in to continue your style profile</h2>
               <p>
-                Face &amp; Grooming stay free to view. Style preferences and
-                prescribed looks need a free account so we can save them to your
-                dashboard.
+                Your strengths view stays free. Style preferences need a free
+                account so we can save them to your dashboard.
               </p>
             </div>
             <div className="ai-reveal__cta">
@@ -302,19 +304,19 @@ export function AppearanceJourney({ report }: { report: ReportViewModel }) {
             </div>
           </section>
         ) : stage === "face_reveal" ? (
-          <FaceGroomingReveal
+          <StrengthsPresentation
             report={report}
-            pillars={journey.pillars}
+            isPro={Boolean(authUser?.isPro || user?.isPro)}
             onContinue={onContinueFromFace}
             continueLabel={
               signedIn
-                ? "Continue to style profile"
+                ? "Continue to style preferences"
                 : "Continue — create free account"
             }
             continueNote={
               signedIn
-                ? "Next: visual style choices, then prescribed looks."
-                : "Next: a free account, then visual style choices and prescribed looks."
+                ? "Next: a few visual choices that accentuate what already works."
+                : "Next: a free account, then style preferences that accentuate your strengths."
             }
           />
         ) : stage === "style_collect" ? (

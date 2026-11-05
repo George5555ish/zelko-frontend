@@ -2284,7 +2284,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2
 "use client";
 ;
 ;
-function JourneyProgressBar({ current, withinStep = 0, detail, variant = "light" }) {
+function JourneyProgressBar({ current, withinStep = 0, detail, variant = "light", compact = false }) {
     const total = __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["JOURNEY_FLOW_STEPS"].length;
     const index = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["journeyStepIndex"])(current);
     const percent = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["journeyProgressPercent"])(current, withinStep);
@@ -2295,7 +2295,7 @@ function JourneyProgressBar({ current, withinStep = 0, detail, variant = "light"
     const stepLabel = currentMeta?.label ?? "In progress";
     const stepsLeft = current === "complete" ? 0 : Math.max(0, total - index - (withinStep >= 1 ? 1 : 0));
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: `journey-progress journey-progress--${variant}`,
+        className: `journey-progress journey-progress--${variant}${compact ? " journey-progress--compact" : ""}`,
         role: "group",
         "aria-label": "Appearance Index progress",
         children: [
@@ -2318,7 +2318,7 @@ function JourneyProgressBar({ current, withinStep = 0, detail, variant = "light"
                                     children: "·"
                                 }, void 0, false, {
                                     fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                                    lineNumber: 49,
+                                    lineNumber: 54,
                                     columnNumber: 15
                                 }, this),
                                 stepLabel
@@ -2326,7 +2326,7 @@ function JourneyProgressBar({ current, withinStep = 0, detail, variant = "light"
                         }, void 0, true)
                     }, void 0, false, {
                         fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                        lineNumber: 43,
+                        lineNumber: 48,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2338,13 +2338,13 @@ function JourneyProgressBar({ current, withinStep = 0, detail, variant = "light"
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                        lineNumber: 56,
+                        lineNumber: 61,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                lineNumber: 42,
+                lineNumber: 47,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2361,15 +2361,15 @@ function JourneyProgressBar({ current, withinStep = 0, detail, variant = "light"
                     }
                 }, void 0, false, {
                     fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                    lineNumber: 69,
+                    lineNumber: 74,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                lineNumber: 61,
+                lineNumber: 66,
                 columnNumber: 7
             }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ol", {
+            !compact ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ol", {
                 className: "journey-progress__steps",
                 children: __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$appearance$2d$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["JOURNEY_FLOW_STEPS"].map((step, i)=>{
                     const done = current === "complete" || i < index || i === index && withinStep >= 1;
@@ -2382,41 +2382,41 @@ function JourneyProgressBar({ current, withinStep = 0, detail, variant = "light"
                                 "aria-hidden": true
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                                lineNumber: 85,
-                                columnNumber: 15
+                                lineNumber: 95,
+                                columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                 className: "journey-progress__step-label",
                                 children: step.shortLabel
                             }, void 0, false, {
                                 fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                                lineNumber: 86,
-                                columnNumber: 15
+                                lineNumber: 96,
+                                columnNumber: 17
                             }, this)
                         ]
                     }, step.id, true, {
                         fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                        lineNumber: 81,
-                        columnNumber: 13
+                        lineNumber: 89,
+                        columnNumber: 15
                     }, this);
                 })
             }, void 0, false, {
                 fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                lineNumber: 75,
-                columnNumber: 7
-            }, this),
-            (detail || stepsLeft > 0) && current !== "complete" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                lineNumber: 81,
+                columnNumber: 9
+            }, this) : null,
+            !compact && (detail || stepsLeft > 0) && current !== "complete" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                 className: "journey-progress__detail",
                 children: detail ?? (stepsLeft === 1 ? "1 stage left after this" : `${stepsLeft} stages left after this`)
             }, void 0, false, {
                 fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-                lineNumber: 95,
+                lineNumber: 106,
                 columnNumber: 9
             }, this) : null
         ]
     }, void 0, true, {
         fileName: "[project]/components/appearance/JourneyProgressBar.tsx",
-        lineNumber: 37,
+        lineNumber: 40,
         columnNumber: 5
     }, this);
 }
@@ -2856,7 +2856,7 @@ function PhotoUpload({ consent }) {
         uploadWithin = Math.max(uploadWithin * 0.7, Math.min(0.45, slots.length / MIN_PHOTOS * 0.4));
     }
     const stagesLeft = 4; // face, prefs, style reveal, looks
-    const uploadDetail = analyzing ? "Analyzing face mesh — Face & Grooming reveal is next" : acceptedCount >= MIN_PHOTOS ? `Ready to analyze · ${stagesLeft} stages after this` : acceptedCount === 0 ? `Add ${MIN_PHOTOS}–${MAX_PHOTOS} photos · ${stagesLeft} stages after upload` : `${acceptedCount} of ${MIN_PHOTOS} accepted · ${Math.max(0, MIN_PHOTOS - acceptedCount)} more needed`;
+    const uploadDetail = analyzing ? "Analyzing face mesh — strengths view is next" : acceptedCount >= MIN_PHOTOS ? `Ready to analyze · ${stagesLeft} stages after this` : acceptedCount === 0 ? `Add ${MIN_PHOTOS}–${MAX_PHOTOS} photos · ${stagesLeft} stages after upload` : `${acceptedCount} of ${MIN_PHOTOS} accepted · ${Math.max(0, MIN_PHOTOS - acceptedCount)} more needed`;
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "upload-glass px-3.5 py-3 text-left sm:px-4 sm:py-3.5",
         children: [
@@ -2898,7 +2898,7 @@ function PhotoUpload({ consent }) {
                                     MIN_PHOTOS,
                                     "–",
                                     MAX_PHOTOS,
-                                    " clear face photos. Each needs a readable face mesh (eye, nose, jawline) so scores can be measured — not just accepted."
+                                    " clear face photos. Each needs a readable face mesh (eye, nose, jawline) so we can map strengths on your real photos — not just accept the upload."
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/PhotoUpload.tsx",

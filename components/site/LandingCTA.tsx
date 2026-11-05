@@ -17,14 +17,13 @@ export function LandingCTA() {
           </Reveal>
           <Reveal delayMs={80}>
             <h2 className="mt-4 max-w-xl font-[family-name:var(--font-cursive)] text-5xl leading-[1.1] text-neutral-950 sm:text-6xl">
-              Your overall score is always free.
+              Your first strengths pass is free.
             </h2>
           </Reveal>
           <Reveal delayMs={160}>
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-neutral-500">
-              See your composite score and strongest features. Unlock the full
-              breakdown, confidence labels, and recommendations when you&apos;re
-              ready.
+              Zoom what already works on your real photos. Pro unlocks the full
+              sequence, style direction, and private progress over time.
             </p>
           </Reveal>
         </div>
@@ -34,7 +33,7 @@ export function LandingCTA() {
               href="/upload"
               className="inline-flex w-fit rounded-xl bg-neutral-950 px-6 py-3.5 text-sm font-medium text-white transition hover:bg-neutral-800"
             >
-              Start your free report
+              Start your free pass
             </Link>
             <Link
               href="/pricing"

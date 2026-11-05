@@ -74,7 +74,7 @@ export function ReportOrbitLayout({
             <span className="ml-1 text-sm font-normal text-white/35">/100</span>
           </p>
           <p className="mt-1 text-xs text-white/45">
-            Index {compositeTen}/10 · measured composite
+            Strengths first · detail index {compositeTen}/10
           </p>
         </FloatCard>
 
@@ -255,7 +255,7 @@ export function ReportOrbitLayout({
           ) : (
             <p className="mt-3 text-sm leading-relaxed text-white/45">
               {paid
-                ? "No weak scores below 70 — keep your routine consistent."
+                ? "Nothing urgent — keep accentuating what’s already working."
                 : "Unlock the full report to see paired recommendations."}
             </p>
           )}

@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   accountPortraitUrl,
@@ -20,11 +14,9 @@ import {
 import {
   FEATURE_LABELS,
   SCORED_APPEARANCE_KEYS,
-  type FeatureKey,
   type ReportViewModel,
 } from "@/lib/types/report";
 import { isFeatureMeasurable } from "@/lib/score-tone";
-import { recommendationsForScore } from "@/lib/recommendations";
 import { LookTrackPanel } from "@/components/report/LookTrackPanel";
 import { OutfitRecommendPanel } from "@/components/report/OutfitRecommendPanel";
 import { JourneyLooksGallery } from "@/components/dashboard/OutfitsSection";
@@ -33,17 +25,6 @@ import "./account-dash.css";
 
 type AnalysisMode = "assistant" | "target";
 type DashView = "overview" | "outfits";
-
-const RING_FEATURES: {
-  key: "overall" | Exclude<FeatureKey, "photo_quality">;
-  label: string;
-}[] = [
-  { key: "overall", label: "Overall" },
-  { key: "skin_clarity", label: "Clarity" },
-  { key: "jawline_definition", label: "Jawline" },
-  { key: "face_symmetry", label: "Symmetry" },
-  { key: "facial_proportions", label: "Balance" },
-];
 
 export function AccountDashboard({
   user,
@@ -123,10 +104,6 @@ export function AccountDashboard({
     [reports],
   );
   const latest = baselineReports[0] ?? null;
-  const baseline =
-    baselineReports.length > 1
-      ? baselineReports[baselineReports.length - 1]!
-      : null;
 
   // Backfill standardized portrait for older reports (once).
   useEffect(() => {
@@ -154,117 +131,26 @@ export function AccountDashboard({
     };
   }, [latest?.id, latest?.standardizedPortraitFileId, latest?.portraitFileId]);
 
-  const focusAreas = useMemo(() => {
-    if (!latest) return [];
-    const priority = new Set(latest.priorityFeatures ?? []);
-    const weak = (
-      SCORED_APPEARANCE_KEYS as Exclude<FeatureKey, "photo_quality">[]
-    )
-      .filter((key) => {
-        const f = latest.features[key];
-        return isFeatureMeasurable(f.measurable) && f.score < 70;
-      })
-      .sort((a, b) => latest.features[a].score - latest.features[b].score);
-
-    const ordered: Exclude<FeatureKey, "photo_quality">[] = [];
-    for (const key of latest.priorityFeatures ?? []) {
-      if (!ordered.includes(key)) ordered.push(key);
-    }
-    for (const key of weak) {
-      if (!ordered.includes(key)) ordered.push(key);
-    }
-    return ordered.slice(0, 5).map((key) => {
-      const score = latest.features[key].score;
-      const concern = Math.max(0, Math.min(100, 100 - score));
-      const level =
-        concern >= 55 ? "High" : concern >= 35 ? "Moderate" : "Low";
-      return {
-        key,
-        label: FEATURE_LABELS[key],
-        score,
-        concern,
-        level,
-        prioritized: priority.has(key),
-        signal: latest.features[key].observedSignal,
-      };
-    });
-  }, [latest]);
-
-  const recCards = useMemo(() => {
-    if (!latest) return [];
-    const out: { title: string; body: string; feature: FeatureKey }[] = [];
-    for (const key of SCORED_APPEARANCE_KEYS) {
-      const score = latest.features[key].score;
-      if (!isFeatureMeasurable(latest.features[key].measurable)) continue;
-      const recs = recommendationsForScore(key, score);
-      if (recs[0]) {
-        out.push({
-          feature: key,
-          title: FEATURE_LABELS[key],
-          body: recs[0].action,
-        });
-      }
-      if (out.length >= 3) break;
-    }
-    if (out.length === 0) {
-      out.push({
-        feature: "skin_clarity",
-        title: "Keep the loop",
-        body: "Re-upload under the same light next week to prove what’s working.",
-      });
-    }
-    return out;
-  }, [latest]);
-
-  const progress = useMemo(() => {
-    if (!latest || !baseline || latest.id === baseline.id) return null;
-    const delta = latest.overallScore - baseline.overallScore;
-    const label =
-      Math.abs(delta) < 3
-        ? "No significant change detected"
-        : delta > 0
-          ? "Improvement detected on the composite"
-          : "No significant change detected";
+  const strongest = useMemo(() => {
+    if (!latest) return null;
+    const ranked = [...SCORED_APPEARANCE_KEYS]
+      .filter((k) => isFeatureMeasurable(latest.features[k]?.measurable))
+      .sort(
+        (a, b) =>
+          (latest.features[b]?.score ?? 0) - (latest.features[a]?.score ?? 0),
+      );
+    const key = ranked[0];
+    if (!key) return null;
     return {
-      from: baseline.overallScore,
-      to: latest.overallScore,
-      delta,
-      label,
-      sessions: baselineReports.length,
+      key,
+      label: FEATURE_LABELS[key],
+      score: Math.round(latest.features[key].score),
     };
-  }, [baseline, latest, baselineReports.length]);
-
-  const heatVars = useMemo(() => {
-    if (!latest) {
-      return {
-        "--heat-cheek": "0.15",
-        "--heat-brow": "0.12",
-        "--heat-jaw": "0.1",
-      } as CSSProperties;
-    }
-    const skin = latest.features.skin_clarity.score;
-    const brow = latest.features.eyebrow_shape.score;
-    const jaw = latest.features.jawline_definition.score;
-    const cheek = Math.max(0.08, Math.min(0.55, (100 - skin) / 100));
-    const browHeat = Math.max(0.06, Math.min(0.4, (100 - brow) / 140));
-    const jawHeat = Math.max(0.06, Math.min(0.35, (100 - jaw) / 160));
-    return {
-      "--heat-cheek": String(cheek),
-      "--heat-brow": String(browHeat),
-      "--heat-jaw": String(jawHeat),
-    } as CSSProperties;
   }, [latest]);
-
-  const concernThumb = useMemo(() => {
-    if (!latest) return 18;
-    const avgConcern =
-      focusAreas.length > 0
-        ? focusAreas.reduce((a, b) => a + b.concern, 0) / focusAreas.length
-        : Math.max(0, 100 - latest.overallScore);
-    return Math.max(8, Math.min(92, avgConcern));
-  }, [focusAreas, latest]);
 
   const portraitSrc = accountPortraitUrl(latest);
+  const strengthsHref = latest ? `/appearance/${latest.id}` : "/upload";
+  const reportHref = latest ? `/report/${latest.id}` : "/upload";
 
   async function handleDelete(reportId: string) {
     const ok = window.confirm(
@@ -421,13 +307,13 @@ export function AccountDashboard({
                 href="/upload"
                 className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-semibold text-white/85 transition hover:bg-white/10"
               >
-                New assessment
+                New scan
               </Link>
               <Link
-                href={latest ? `/report/${latest.id}` : "/upload"}
+                href={strengthsHref}
                 className="inline-flex items-center rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-neutral-950 transition hover:bg-white/90"
               >
-                Open report
+                {latest ? "Open strengths" : "Start scan"}
               </Link>
             </div>
           </header>
@@ -449,7 +335,7 @@ export function AccountDashboard({
                   : "text-white/55 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <p className="text-xs font-semibold">AI appearance</p>
+              <p className="text-xs font-semibold">Your scan</p>
               <p
                 className={`mt-0.5 text-[11px] ${
                   analysisMode === "assistant"
@@ -457,7 +343,7 @@ export function AccountDashboard({
                     : "text-white/35"
                 }`}
               >
-                Default scores & coaching
+                Strengths & next steps
               </p>
             </button>
             <button
@@ -479,7 +365,7 @@ export function AccountDashboard({
                     : "text-white/35"
                 }`}
               >
-                Diff vs a reference photo
+                Compare to a reference
               </p>
             </button>
           </div>
@@ -491,44 +377,13 @@ export function AccountDashboard({
             </p>
           ) : null}
 
-          {!user.isPro ? (
-            <section className="account-dash__card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                  Free plan
-                </p>
-                <h2 className="mt-1 text-lg font-semibold tracking-tight text-white">
-                  Unlock Pro for full coaching
-                </h2>
-                <p className="mt-1 max-w-xl text-sm text-white/50">
-                  Full feature breakdown, confidence labels, weekly tracking,
-                  and checklist — £9.99/mo.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Link
-                  href="/pricing"
-                  className="inline-flex rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
-                >
-                  Upgrade to Pro
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="inline-flex rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-                >
-                  See plans
-                </Link>
-              </div>
-            </section>
-          ) : null}
-
           {user.isPro && reports.length === 0 && !loading ? (
             <div className="account-dash__card px-5 py-4">
               <p className="text-sm font-semibold text-white">
-                Upload your first report to use Pro
+                Upload a portrait to start
               </p>
               <p className="mt-1 text-sm text-white/50">
-                Progress and checklist unlock after your first linked assessment.
+                Your first scan unlocks strengths, style, and Toward your look.
               </p>
             </div>
           ) : null}
@@ -603,424 +458,201 @@ export function AccountDashboard({
           ) : null}
 
           {dashView === "overview" && analysisMode === "assistant" ? (
-          <div className="account-dash__grid">
-            {/* Left: standardized portrait */}
-            <section className="account-dash__card overflow-hidden">
-              <div className="account-dash__portrait" style={heatVars}>
-                {portraitSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={portraitSrc}
-                    alt="Standardized appearance portrait"
-                  />
-                ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-                    <p className="text-sm text-white/55">
-                      {loading
-                        ? "Loading your portrait…"
-                        : "Complete an assessment to generate your clinical avatar."}
-                    </p>
-                    {!loading ? (
+            <div className="account-dash__hub">
+              <section className="account-dash__card overflow-hidden">
+                <div className="account-dash__portrait account-dash__portrait--clean">
+                  {portraitSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={portraitSrc}
+                      alt="Your appearance portrait"
+                    />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+                      <p className="text-sm text-white/55">
+                        {loading
+                          ? "Loading your portrait…"
+                          : "Upload a portrait to see what already works."}
+                      </p>
+                      {!loading ? (
+                        <Link
+                          href="/upload"
+                          className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-950"
+                        >
+                          Start scan
+                        </Link>
+                      ) : null}
+                    </div>
+                  )}
+                  <div className="account-dash__badge">
+                    {avatarBusy ? "Generating…" : "Zelko scan"}
+                  </div>
+                </div>
+              </section>
+
+              <div className="flex min-w-0 flex-col gap-3">
+                <section className="account-dash__card p-5 sm:p-6">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                    What already works
+                  </p>
+                  {latest && strongest ? (
+                    <>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+                        {strongest.label}
+                      </h2>
+                      <p className="mt-2 max-w-md text-sm leading-relaxed text-white/55">
+                        Your latest scan lead. Open the strengths pass for the
+                        full map — style and Toward your look build from here.
+                      </p>
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        <Link
+                          href={strengthsHref}
+                          className="inline-flex rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
+                        >
+                          Open strengths
+                        </Link>
+                        <Link
+                          href={reportHref}
+                          className="inline-flex rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/85 transition hover:bg-white/10"
+                        >
+                          Full report
+                        </Link>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+                        Start with a scan
+                      </h2>
+                      <p className="mt-2 max-w-md text-sm leading-relaxed text-white/55">
+                        Zelko maps what already reads well on your face, then
+                        points style and looks from those strengths.
+                      </p>
                       <Link
                         href="/upload"
-                        className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-950"
+                        className="mt-5 inline-flex rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
                       >
-                        Start assessment
+                        Upload portrait
                       </Link>
-                    ) : null}
-                  </div>
-                )}
-                <div className="account-dash__heat" aria-hidden />
-                <div className="account-dash__badge">
-                  {avatarBusy ? "Generating…" : "Zelko scan"}
-                </div>
-                {latest ? (
-                  <div className="account-dash__result">
-                    Result {latest.overallScore}
-                  </div>
-                ) : null}
-                <div className="account-dash__concern-scale">
-                  <span>Low</span>
-                  <div className="account-dash__concern-scale-track">
-                    <span
-                      className="account-dash__concern-scale-thumb"
-                      style={{ left: `${concernThumb}%` }}
-                    />
-                  </div>
-                  <span>High</span>
-                </div>
-              </div>
-            </section>
+                    </>
+                  )}
+                </section>
 
-            {/* Right: metrics */}
-            <div className="flex min-w-0 flex-col gap-3">
-              <section className="account-dash__card p-4 sm:p-5">
-                <div className="mb-4 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                      Appearance overview
-                    </p>
-                    <h2 className="mt-1 text-lg font-semibold tracking-tight text-white">
-                      Measured signals
-                    </h2>
-                  </div>
-                  {latest ? (
-                    <p className="text-xs text-white/40">
-                      {new Date(latest.createdAt).toLocaleDateString("en-GB")}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="account-dash__rings">
-                  {RING_FEATURES.map((item) => {
-                    const value =
-                      item.key === "overall"
-                        ? (latest?.overallScore ?? 0)
-                        : (latest?.features[item.key].score ?? 0);
-                    const locked =
-                      item.key !== "overall" &&
-                      latest &&
-                      !isFeatureMeasurable(latest.features[item.key].measurable);
-                    return (
-                      <ScoreRing
-                        key={item.key}
-                        label={item.label}
-                        value={locked ? null : value}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="account-dash__card p-4 sm:p-5">
-                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                  Focus areas
-                </p>
-                <h2 className="mt-1 text-lg font-semibold tracking-tight text-white">
-                  Where to act
-                </h2>
-                {!latest ? (
-                  <p className="mt-3 text-sm text-white/45">
-                    Soft spots appear here after your first report.
-                  </p>
-                ) : focusAreas.length === 0 ? (
-                  <p className="mt-3 text-sm text-white/45">
-                    No soft spots below 70 — keep the routine consistent.
-                  </p>
-                ) : (
-                  focusAreas.map((item) => (
-                    <div key={item.key} className="account-dash__bar-row">
-                      <p className="truncate text-xs font-medium text-white/75">
-                        {item.label}
-                      </p>
-                      <div className="account-dash__bar-track">
-                        <div
-                          className="account-dash__bar-fill"
-                          style={{ width: `${item.concern}%` }}
-                        />
-                      </div>
-                      <p className="text-right text-[11px] tabular-nums text-white/55">
-                        {item.level}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </section>
-
-              <section className="account-dash__card p-4 sm:p-5">
-                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                  Recommendations
-                </p>
-                <div className="account-dash__recs mt-3">
-                  {recCards.map((rec) => (
-                    <div key={rec.title + rec.body} className="account-dash__rec">
-                      <p className="text-xs font-semibold text-white">
-                        {rec.title}
-                      </p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-white/50">
-                        {rec.body}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <div className="account-dash__footer-row">
-                <section className="account-dash__card p-4 sm:p-5">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                    Next check-in
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-white">
-                    Weekly re-upload window
-                  </p>
-                  <p className="mt-1 text-xs text-white/45">
-                    Tracking compares under consistent lighting — never a decline
-                    callout.
-                  </p>
-                  <Link
-                    href="/upload"
-                    className="mt-3 inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/85"
+                <div className="account-dash__paths">
+                  <button
+                    type="button"
+                    className="account-dash__path"
+                    onClick={() => selectMode("target")}
                   >
-                    Schedule scan
+                    <p className="account-dash__path-label">Toward your look</p>
+                    <p className="account-dash__path-copy">
+                      Compare yourself to a reference photo
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    className="account-dash__path"
+                    onClick={goOutfits}
+                  >
+                    <p className="account-dash__path-label">Outfits</p>
+                    <p className="account-dash__path-copy">
+                      Prescribed looks and shoppable matches
+                    </p>
+                  </button>
+                  <Link href="/upload" className="account-dash__path">
+                    <p className="account-dash__path-label">Re-scan</p>
+                    <p className="account-dash__path-copy">
+                      Prove what&apos;s working under the same light
+                    </p>
                   </Link>
-                </section>
-                <section className="account-dash__card p-4 sm:p-5">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                    Your progress
-                  </p>
-                  {progress ? (
-                    <>
-                      <p className="mt-2 text-2xl font-semibold tabular-nums text-white">
-                        {progress.delta > 0 ? "+" : ""}
-                        {progress.to - progress.from}
-                        <span className="ml-1 text-sm font-medium text-white/45">
-                          composite
-                        </span>
-                      </p>
-                      <p className="mt-1 text-xs text-white/45">{progress.label}</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="mt-2 text-2xl font-semibold tabular-nums text-white">
-                        —
-                      </p>
-                      <p className="mt-1 text-xs text-white/45">
-                        Needs a second linked session to compare.
-                      </p>
-                    </>
-                  )}
-                  {user.isPro ? (
-                    <Link
-                      href="/tracking"
-                      className="mt-3 inline-flex text-xs font-semibold text-white/80 underline-offset-4 hover:underline"
-                    >
-                      Open tracking →
-                    </Link>
-                  ) : (
-                    <Link
-                      href="/pricing"
-                      className="mt-3 inline-flex text-xs font-semibold text-white/80 underline-offset-4 hover:underline"
-                    >
-                      Unlock tracking →
-                    </Link>
-                  )}
-                </section>
-              </div>
-            </div>
-
-            {latest ? (
-              <section className="account-dash__card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                    Outfits
-                  </p>
-                  <h2 className="mt-1 text-base font-semibold text-white">
-                    Prescribed looks &amp; eBay matches
-                  </h2>
-                  <p className="mt-1 text-sm text-white/50">
-                    Journey stills, AI outfit recommendations, and shoppable
-                    eBay searches live on the Outfits page.
-                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={goOutfits}
-                  className="shrink-0 cursor-pointer rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
-                >
-                  Open outfits
-                </button>
-              </section>
-            ) : null}
-          </div>
-          ) : null}
 
-          {user.isPro ? (
-            <section className="account-dash__card p-4 sm:p-5">
-              <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                Billing
-              </p>
-              <p className="mt-2 text-sm text-white/60">
-                {user.cancelAtPeriodEnd && user.currentPeriodEnd
-                  ? `Pro stays active until ${new Date(user.currentPeriodEnd).toLocaleDateString("en-GB")}.`
-                  : "£9.99 GBP / month. Cancel anytime."}
-              </p>
-              {billingMessage ? (
-                <p className="mt-2 text-sm text-emerald-300">{billingMessage}</p>
-              ) : null}
-              {!user.cancelAtPeriodEnd ? (
-                <button
-                  type="button"
-                  disabled={billingBusy}
-                  onClick={() => void handleCancelSubscription()}
-                  className="mt-3 cursor-pointer rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-60"
-                >
-                  {billingBusy ? "Canceling…" : "Cancel subscription"}
-                </button>
-              ) : null}
-            </section>
-          ) : (
-            <section className="account-dash__card p-4 sm:p-5">
-              <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                Plan
-              </p>
-              <h2 className="mt-1 text-lg font-semibold tracking-tight text-white">
-                You&apos;re on Free
-              </h2>
-              <ul className="mt-3 space-y-1.5 text-sm text-white/50">
-                <li>Composite score + strongest features preview</li>
-                <li>Up to 3 outfit stills</li>
-                <li className="text-white/35">
-                  Pro adds full breakdown, tracking, and checklist
-                </li>
-              </ul>
-              <Link
-                href="/pricing"
-                className="mt-4 inline-flex rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
-              >
-                Upgrade to Pro — £9.99/mo
-              </Link>
-            </section>
-          )}
+                {user.isPro ? (
+                  <section className="account-dash__card flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                        Pro
+                      </p>
+                      <p className="mt-1 text-sm text-white/60">
+                        {user.cancelAtPeriodEnd && user.currentPeriodEnd
+                          ? `Active until ${new Date(user.currentPeriodEnd).toLocaleDateString("en-GB")}.`
+                          : "Full map, tracking, and checklist included."}
+                      </p>
+                      {billingMessage ? (
+                        <p className="mt-1 text-sm text-emerald-300">
+                          {billingMessage}
+                        </p>
+                      ) : null}
+                    </div>
+                    {!user.cancelAtPeriodEnd ? (
+                      <button
+                        type="button"
+                        disabled={billingBusy}
+                        onClick={() => void handleCancelSubscription()}
+                        className="cursor-pointer rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/10 disabled:opacity-60"
+                      >
+                        {billingBusy ? "Canceling…" : "Cancel"}
+                      </button>
+                    ) : null}
+                  </section>
+                ) : null}
 
-          <section className="account-dash__card p-4 sm:p-5">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-                  Reports
-                </p>
-                <h2 className="mt-1 text-lg font-semibold tracking-tight text-white">
-                  Your assessments
-                </h2>
+                {baselineReports.length > 1 ? (
+                  <section className="account-dash__card p-4 sm:p-5">
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                          Earlier scans
+                        </p>
+                        <h2 className="mt-1 text-base font-semibold text-white">
+                          {baselineReports.length - 1} more
+                        </h2>
+                      </div>
+                      <Link
+                        href="/tracking"
+                        className="text-xs font-semibold text-white/70 underline-offset-4 hover:text-white hover:underline"
+                      >
+                        Progress
+                      </Link>
+                    </div>
+                    <ul className="mt-4 space-y-2">
+                      {baselineReports.slice(1, 4).map((report) => (
+                        <li
+                          key={report.id}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5"
+                        >
+                          <p className="text-xs text-white/55">
+                            {new Date(report.createdAt).toLocaleDateString(
+                              "en-GB",
+                            )}
+                          </p>
+                          <div className="flex gap-2">
+                            <Link
+                              href={`/appearance/${report.id}`}
+                              className="text-xs font-semibold text-white/80 hover:text-white"
+                            >
+                              Open
+                            </Link>
+                            <button
+                              type="button"
+                              disabled={deletingId === report.id}
+                              onClick={() => void handleDelete(report.id)}
+                              className="cursor-pointer text-xs font-semibold text-white/45 hover:text-rose-200 disabled:opacity-60"
+                            >
+                              {deletingId === report.id ? "…" : "Delete"}
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
               </div>
-              <Link
-                href="/upload"
-                className="text-xs font-semibold text-white/70 underline-offset-4 hover:text-white hover:underline"
-              >
-                New assessment
-              </Link>
             </div>
-
-            {loading ? (
-              <p className="mt-5 text-sm text-white/45">Loading…</p>
-            ) : baselineReports.length === 0 ? (
-              <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-5 py-8 text-center">
-                <p className="text-sm text-white/55">No reports linked yet.</p>
-                <Link
-                  href="/upload"
-                  className="mt-4 inline-flex rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-950"
-                >
-                  Start free report
-                </Link>
-              </div>
-            ) : (
-              <ul className="mt-5 space-y-2.5">
-                {baselineReports.map((report, index) => {
-                  const face = accountPortraitUrl(report);
-                  const topPriority = report.priorityFeatures?.[0];
-                  return (
-                    <li
-                      key={report.id}
-                      className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-white/5">
-                          {face ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={face}
-                              alt=""
-                              className="h-full w-full object-cover object-top"
-                            />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-xs text-white/35">
-                              —
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-white">
-                            Score {report.overallScore}
-                            {index === 0 ? (
-                              <span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
-                                Latest
-                              </span>
-                            ) : null}
-                          </p>
-                          <p className="mt-0.5 text-xs text-white/40">
-                            {new Date(report.createdAt).toLocaleString()}
-                            {topPriority
-                              ? ` · focus ${FEATURE_LABELS[topPriority]}`
-                              : ""}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 sm:justify-end">
-                        <Link
-                          href={`/report/${report.id}`}
-                          className="inline-flex rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-neutral-950"
-                        >
-                          Open
-                        </Link>
-                        <button
-                          type="button"
-                          disabled={deletingId === report.id}
-                          onClick={() => void handleDelete(report.id)}
-                          className="inline-flex cursor-pointer rounded-full border border-white/15 bg-transparent px-3.5 py-2 text-xs font-semibold text-white/70 transition hover:border-rose-300/40 hover:text-rose-200 disabled:opacity-60"
-                        >
-                          {deletingId === report.id ? "Deleting…" : "Delete"}
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
+          ) : null}
 
         </div>
       </div>
-    </div>
-  );
-}
-
-function ScoreRing({
-  label,
-  value,
-}: {
-  label: string;
-  value: number | null;
-}) {
-  const r = 28;
-  const c = 2 * Math.PI * r;
-  const pct = value == null ? 0 : Math.max(0, Math.min(100, value)) / 100;
-  const dash = `${c * pct} ${c}`;
-  return (
-    <div className="account-dash__ring">
-      <div className="account-dash__ring-chart">
-        <svg viewBox="0 0 72 72" aria-hidden>
-          <circle
-            cx="36"
-            cy="36"
-            r={r}
-            fill="none"
-            stroke="var(--ad-ring-track)"
-            strokeWidth="6"
-          />
-          <circle
-            cx="36"
-            cy="36"
-            r={r}
-            fill="none"
-            stroke="var(--ad-ring-stroke)"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeDasharray={dash}
-          />
-        </svg>
-        <span>{value == null ? "—" : value}</span>
-      </div>
-      <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-white/45">
-        {label}
-      </p>
     </div>
   );
 }

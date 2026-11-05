@@ -295,10 +295,10 @@ export function ReportAnalyticsSection({
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/45">
-              Feature ranking
+              Strength order
             </p>
             <p className="mt-1 text-sm text-white/50">
-              Strongest measured signals first
+              What already reads well — strongest first
             </p>
           </div>
         </div>

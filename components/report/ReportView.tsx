@@ -470,15 +470,21 @@ export function ReportView({
         <div className="flex flex-col gap-4 lg:order-1">
           <div className="report-glass rounded-3xl p-6 md:p-7">
             <p className="text-xs uppercase tracking-[0.2em] text-white/45">
-              Appearance report
+              Strengths pass
             </p>
             <h1 className="mt-3 font-[family-name:var(--font-cursive)] text-4xl leading-[1.1] text-white sm:text-5xl">
-              Your AI Appearance Report
+              What already works
             </h1>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/55">
-              Precise metrics from measurable features — each score names the
-              signal behind it. Never a raw attractiveness number.
+              Private, on your real photos — strengths first, then light ways to
+              accentuate them. Measurement details stay secondary.
             </p>
+            <Link
+              href={`/appearance/${report.id}`}
+              className="mt-4 inline-flex text-sm font-medium text-white/80 underline-offset-4 hover:underline"
+            >
+              Open interactive strengths view →
+            </Link>
           </div>
 
           <div className="report-glass rounded-3xl p-5 md:p-6">
@@ -533,25 +539,32 @@ export function ReportView({
             </div>
           </div>
 
-          <div className="report-glass rounded-3xl p-5 md:p-6">
-            <div className="flex items-start justify-between gap-3">
+          <details className="report-glass rounded-3xl p-5 md:p-6 group">
+            <summary className="cursor-pointer list-none text-xs uppercase tracking-[0.16em] text-white/45 [&::-webkit-details-marker]:hidden">
+              Measurement details
+              <span className="ml-2 font-normal normal-case tracking-normal text-white/30 group-open:hidden">
+                (optional)
+              </span>
+            </summary>
+            <div className="mt-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-white/40">
-                  Overall composite
+                <p className="text-xs uppercase tracking-[0.16em] text-white/35">
+                  Composite reference
                 </p>
-                <p className="mt-2 text-5xl font-semibold tracking-tight text-white md:text-6xl">
+                <p className="mt-2 text-4xl font-semibold tracking-tight text-white/80 md:text-5xl">
                   {report.overallScore}
-                  <span className="ml-1 text-lg font-normal text-white/35">
+                  <span className="ml-1 text-lg font-normal text-white/30">
                     / 100
                   </span>
                 </p>
               </div>
-              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/70">
-                measured
+              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/55">
+                internal
               </span>
             </div>
             <ScoreGauge value={report.overallScore} />
             <p className="mt-3 text-xs leading-relaxed text-white/40">
+              Numbers stay secondary to the strengths view.{" "}
               {report.retainForTracking
                 ? "Photos retained for tracking (opt-in)."
                 : report.portraitFileId
@@ -560,7 +573,7 @@ export function ReportView({
                     ? "Source photos deleted after analysis."
                     : "Analysis complete."}
             </p>
-          </div>
+          </details>
 
           <div className="grid grid-cols-2 gap-3">
             <MetricTile
@@ -698,11 +711,11 @@ export function ReportView({
 
           <div className="report-glass rounded-3xl p-5">
             <p className="text-xs uppercase tracking-[0.16em] text-white/40">
-              Appearance index
+              Detail index
             </p>
-            <p className="mt-1 text-4xl font-semibold text-white">
+            <p className="mt-1 text-3xl font-semibold text-white/75">
               {compositeTen}
-              <span className="text-lg font-normal text-white/35"> / 10</span>
+              <span className="text-lg font-normal text-white/30"> / 10</span>
             </p>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <MiniRing

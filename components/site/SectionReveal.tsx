@@ -1,52 +1,68 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 /**
- * Scroll-triggered enter animation for landing sections.
- * Fades + lifts once when the block enters the viewport.
+ * Scroll-linked section enter: content rises into place as it enters the
+ * viewport (parallax feel), instead of a one-shot fade.
  */
 export function SectionReveal({
   children,
   className = "",
-  delayMs = 0,
+  /** Extra vertical travel in px while entering (higher = stronger rise). */
+  risePx = 96,
 }: {
   children: ReactNode;
   className?: string;
-  delayMs?: number;
+  risePx?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
 
-    if (typeof IntersectionObserver === "undefined") {
-      setInView(true);
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (reduceMotion) {
+      node.style.setProperty("--sr-p", "1");
       return;
     }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          setInView(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
-    );
+    node.style.setProperty("--sr-rise", `${risePx}px`);
 
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+    let raf = 0;
+    const update = () => {
+      const rect = node.getBoundingClientRect();
+      const vh = window.innerHeight || 1;
+      // 0 = section top still at bottom of viewport
+      // 1 = section top has risen to ~28% of viewport height
+      const start = vh;
+      const end = vh * 0.28;
+      const raw = (start - rect.top) / Math.max(1, start - end);
+      const progress = Math.max(0, Math.min(1, raw));
+      node.style.setProperty("--sr-p", progress.toFixed(4));
+    };
+
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [risePx]);
 
   return (
-    <div
-      ref={ref}
-      className={`section-reveal ${inView ? "is-in" : ""} ${className}`}
-      style={{ transitionDelay: `${delayMs}ms` }}
-    >
+    <div ref={ref} className={`section-reveal ${className}`.trim()}>
       {children}
     </div>
   );

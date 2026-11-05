@@ -21,7 +21,7 @@ const libreCaslonDisplay = Libre_Caslon_Display({
 export const metadata: Metadata = {
   title: "Zelko — AI Appearance Coach",
   description:
-    "Know exactly what to change — every score comes with the reason behind it.",
+    "See what already works. Then make it work harder — strengths on your real photos, private progress, no public ranking.",
 };
 
 export default function RootLayout({

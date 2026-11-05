@@ -92,12 +92,12 @@ export function AppearanceAuthGate({
             id="appearance-auth-title"
             className="mt-2 text-2xl font-semibold text-white"
           >
-            Save this pass &amp; unlock your style profile
+            Save this pass &amp; continue styling
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-white/55">
-            Your Face &amp; Grooming reveal is ready. Create a free account to
-            set style preferences and generate prescribed looks — and keep this
-            report on your dashboard.
+            Your strengths view is ready. Create a free account to set style
+            preferences that accentuate what already works — and keep this pass
+            on your dashboard.
           </p>
 
           {mode === "register" ? (

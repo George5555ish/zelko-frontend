@@ -21,43 +21,43 @@ export function ReportPreviewSection() {
       <div className="relative z-10 mx-auto max-w-7xl">
         <div className="max-w-2xl">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/40">
-            Inside your report
+            Inside your pass
           </p>
           <h2 className="mt-3 font-[family-name:var(--font-cursive)] text-4xl leading-[1.1] tracking-tight text-white sm:text-5xl">
-            This is what you walk away with.
+            Strengths on your real photos.
           </h2>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/50 sm:text-[15px]">
-            A measured appearance report — interactive portrait, summary, and
-            analytic charts — not a public ranking.
+            Zoom what already works, then light style direction — private, no
+            public ranking, no likeness-first generation.
           </p>
         </div>
 
         <div className="mt-14 space-y-16 md:mt-20 md:space-y-24">
           <PreviewRow
-            eyebrow="Appearance dashboard"
-            title="Your face, scored with a reason."
-            body="Tap landmark points on your portrait. See strongest signals, composite score, and gated Pro summary — never a raw attractiveness number."
+            eyebrow="Strengths view"
+            title="Your face, accentuated — not scored first."
+            body="Soft highlights on your real photo. Short strength notes for eyes, framing, and structure. Pro unlocks the full sequence and style panel."
             bullets={[
-              "Interactive portrait with feature dots",
-              "Jawline, grooming, and next-action cards",
-              "Free top signals · Pro unlocks the full write-up",
+              "Interactive zooms on your uploads",
+              "Positive, specific strength notes",
+              "Free 2–3 zooms · Pro unlocks the full pass",
             ]}
             imageSrc="/landing/report-dashboard.png"
-            imageAlt="Zelko appearance report dashboard with interactive portrait and metric cards"
+            imageAlt="Zelko strengths presentation on a real portrait"
             reverse={false}
           />
 
           <PreviewRow
-            eyebrow="Analytic views"
-            title="Charts that match the product language."
-            body="Facial thirds, skin clarity distribution, symmetry tracks, feature radar, and a ranked bar list — filled with your measured scores."
+            eyebrow="Style direction"
+            title="Neckline, color, hair — tied to a zoom."
+            body="After the zooms, a clean panel suggests open necklines, a short palette, and hair framing that keeps attention on your strongest features."
             bullets={[
-              "Facial thirds & proportion balance",
-              "Skin clarity curve with confidence",
-              "Feature map + strongest-first ranking",
+              "Neckline that keeps structure visible",
+              "3–5 undertone-friendly swatches",
+              "One low-effort next step",
             ]}
             imageSrc="/landing/report-analytics.png"
-            imageAlt="Zelko report analytic charts including facial thirds, skin clarity, symmetry, and feature ranking"
+            imageAlt="Zelko style direction panel with palette and framing notes"
             reverse
           />
         </div>
@@ -67,7 +67,7 @@ export function ReportPreviewSection() {
             href="/upload"
             className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-neutral-950 transition hover:bg-white/90"
           >
-            Start free report
+            Start free strengths pass
           </Link>
           <Link
             href="/how-it-works"

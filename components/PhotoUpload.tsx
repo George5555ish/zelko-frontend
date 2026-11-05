@@ -4,12 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { extractFaceLandmarksFromFile, type LandmarkPoint } from "@/lib/mediapipe";
 import type { UploadConsent } from "@/lib/consent";
-import { checkDistressLanguage } from "@/lib/distress-check";
-import {
-  PRIORITY_FEATURE_OPTIONS,
-  USER_NOTE_MAX_LENGTH,
-  type PriorityFeatureKey,
-} from "@/lib/personalization";
 import {
   assessLandmarkQuality,
   pickBestPortraitSlot,
@@ -77,10 +71,6 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
   const [dragging, setDragging] = useState(false);
   const [uploadingBatch, setUploadingBatch] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [priorityFeatures, setPriorityFeatures] = useState<
-    PriorityFeatureKey[]
-  >([]);
-  const [userNote, setUserNote] = useState("");
   const [supportMode, setSupportMode] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [approvalToast, setApprovalToast] = useState(false);
@@ -182,12 +172,6 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
 
   const updateSlot = useCallback((id: string, patch: Partial<UploadSlot>) => {
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-  }, []);
-
-  const togglePriority = useCallback((key: PriorityFeatureKey) => {
-    setPriorityFeatures((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    );
   }, []);
 
   const processFile = useCallback(
@@ -397,15 +381,6 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
         .map((s) => s.fileId as string),
     ];
 
-    const note = userNote.trim().slice(0, USER_NOTE_MAX_LENGTH);
-    // Client-side distress stub — never feed flagged text into prioritization.
-    // TODO(replace): same stub as backend; swap for a stronger check later.
-    if (checkDistressLanguage(note).flagged) {
-      setSupportMode(true);
-      setError(null);
-      return;
-    }
-
     setError(null);
     setAnalyzing(true);
     try {
@@ -420,8 +395,8 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           fileIds,
           retainForTracking: consent.retainForTracking,
           allowTraining: consent.allowTraining,
-          priorityFeatures,
-          userNote: note.length > 0 ? note : null,
+          priorityFeatures: [],
+          userNote: null,
           landmarks: portrait.landmarks,
           portraitFileId: portrait.fileId,
         }),
@@ -486,10 +461,8 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
     atFreeReportLimit,
     consent.allowTraining,
     consent.retainForTracking,
-    priorityFeatures,
     router,
     slots,
-    userNote,
   ]);
 
   const acceptedCount = slots.filter((s) => s.status === "accepted").length;
@@ -525,7 +498,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
   }
   const stagesLeft = 4; // face, prefs, style reveal, looks
   const uploadDetail = analyzing
-    ? "Analyzing face mesh — Face & Grooming reveal is next"
+    ? "Analyzing face mesh — strengths view is next"
     : acceptedCount >= MIN_PHOTOS
       ? `Ready to analyze · ${stagesLeft} stages after this`
       : acceptedCount === 0
@@ -539,6 +512,7 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
         withinStep={uploadWithin}
         detail={uploadDetail}
         variant="dark"
+        compact
       />
       <div className="upload-layout">
         <div className="upload-layout-copy">
@@ -548,8 +522,8 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           </h2>
           <p className="mt-1 max-w-md text-[13px] leading-snug text-white/50">
             {MIN_PHOTOS}–{MAX_PHOTOS} clear face photos. Each needs a readable
-            face mesh (eye, nose, jawline) so scores can be measured — not just
-            accepted.
+            face mesh (eye, nose, jawline) so we can map strengths on your real
+            photos — not just accept the upload.
           </p>
 
           {isAuthed && !user?.isPro && freeReportsUsed != null ? (
@@ -620,13 +594,6 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
               {error}
             </p>
           )}
-
-          <PersonalizationFields
-            priorityFeatures={priorityFeatures}
-            onToggle={togglePriority}
-            userNote={userNote}
-            onNoteChange={setUserNote}
-          />
 
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -870,71 +837,6 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function PersonalizationFields({
-  priorityFeatures,
-  onToggle,
-  userNote,
-  onNoteChange,
-}: {
-  priorityFeatures: PriorityFeatureKey[];
-  onToggle: (key: PriorityFeatureKey) => void;
-  userNote: string;
-  onNoteChange: (value: string) => void;
-}) {
-  const remaining = USER_NOTE_MAX_LENGTH - userNote.length;
-
-  return (
-    <div className="upload-glass-inset mt-2.5 px-2.5 py-2.5">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <p className="upload-eyebrow">Optional focus</p>
-          <p className="mt-0.5 text-[13px] font-medium text-white">
-            What are you most curious about?
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {PRIORITY_FEATURE_OPTIONS.map(({ key, label }) => {
-          const selected = priorityFeatures.includes(key);
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onToggle(key)}
-              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition ${
-                selected
-                  ? "border-white/50 bg-white text-neutral-950"
-                  : "border-white/20 bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      <label className="mt-2 block">
-        <span className="sr-only">Anything else you&apos;d like us to focus on?</span>
-        <textarea
-          value={userNote}
-          onChange={(e) =>
-            onNoteChange(e.target.value.slice(0, USER_NOTE_MAX_LENGTH))
-          }
-          rows={1}
-          maxLength={USER_NOTE_MAX_LENGTH}
-          placeholder="Anything else you'd like us to focus on?"
-          className="w-full resize-none rounded-xl border border-white/15 bg-black/25 px-3 py-1.5 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-white/35 focus:ring-1 focus:ring-white/20"
-        />
-        <span className="mt-0.5 block text-right text-[10px] text-white/35">
-          {remaining} left
-        </span>
-      </label>
     </div>
   );
 }

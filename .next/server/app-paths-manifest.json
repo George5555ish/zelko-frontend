@@ -3,6 +3,8 @@
   "/dashboard/page": "app/dashboard/page.js",
   "/login/page": "app/login/page.js",
   "/page": "app/page.js",
+  "/pricing/page": "app/pricing/page.js",
   "/report/[id]/page": "app/report/[id]/page.js",
+  "/tracking/page": "app/tracking/page.js",
   "/upload/page": "app/upload/page.js"
 }

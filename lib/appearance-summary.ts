@@ -2,25 +2,6 @@ import { isFeatureMeasurable } from "@/lib/score-tone";
 import type { FeatureKey, ReportViewModel } from "@/lib/types/report";
 import { FEATURE_LABELS, SCORED_APPEARANCE_KEYS } from "@/lib/types/report";
 
-function bandFor(score: number): "strong" | "steady" | "soft" {
-  if (score >= 75) return "strong";
-  if (score >= 60) return "steady";
-  return "soft";
-}
-
-function vibeLine(score: number): string {
-  if (score >= 80) {
-    return "Honestly? This is a strong read. Most of what we measured is holding up.";
-  }
-  if (score >= 70) {
-    return "Overall you're in a good place. A few things look solid, a couple deserve a second look.";
-  }
-  if (score >= 60) {
-    return "It's a mixed bag in a useful way. Some stuff is already working. Some stuff is softer.";
-  }
-  return "There's a clear shortlist of things to work on. Not a roast. Just where the signals got quieter.";
-}
-
 function listLabels(keys: FeatureKey[]): string {
   const labels = keys.map((k) => FEATURE_LABELS[k].toLowerCase());
   if (labels.length === 0) return "";
@@ -30,13 +11,13 @@ function listLabels(keys: FeatureKey[]): string {
 }
 
 /**
- * Conversational appearance summary for the report UI.
- * Free: short preview only (composite + strongest cues).
- * Paid/pro: full write-up including softer spots, gates, and focus notes.
+ * Strengths-first appearance summary for the report UI.
+ * Free: short preview of what already works.
+ * Pro: full write-up with light accent notes (never a flaw list).
  */
 export function buildAppearanceSummary(report: ReportViewModel): {
   title: string;
-  /** Safe for free tier — no weak-feature spoiler detail. */
+  /** Safe for free tier — leads with strengths only. */
   preview: string[];
   /** Full summary for paid/pro members. */
   full: string[];
@@ -48,14 +29,8 @@ export function buildAppearanceSummary(report: ReportViewModel): {
     (a, b) => report.features[b].score - report.features[a].score,
   );
 
-  const strong = ranked.filter(
-    (k) => bandFor(report.features[k].score) === "strong",
-  );
-  const soft = ranked.filter(
-    (k) => bandFor(report.features[k].score) === "soft",
-  );
   const top = ranked.slice(0, Math.min(2, ranked.length));
-  const weak = [...measurable]
+  const accent = ranked
     .filter((k) => report.features[k].score < 70)
     .sort((a, b) => report.features[a].score - report.features[b].score)
     .slice(0, 2);
@@ -64,41 +39,33 @@ export function buildAppearanceSummary(report: ReportViewModel): {
     (k) => !isFeatureMeasurable(report.features[k].measurable),
   );
 
-  const opener = `Your composite landed at ${report.overallScore}/100. ${vibeLine(report.overallScore)} Reminder: this is not an attractiveness score, and nobody else is in this comparison.`;
+  const opener =
+    "This pass stays private — you versus you. We lead with what already reads well on your photos, then suggest light ways to accentuate it.";
 
   let strengths: string;
   if (top.length === 0) {
     strengths =
-      "We couldn't get a clean enough read this round. Next time, try clearer front-facing shots and we'll have more to work with.";
-  } else if (strong.length >= 2) {
-    strengths = `What's popping first: ${listLabels(top)}. Those are your cleanest signals in this photo. Good anchors if you re-upload later.`;
-  } else if (strong.length === 1) {
-    strengths = `Your strongest moment is ${FEATURE_LABELS[strong[0]].toLowerCase()} at ${report.features[strong[0]].score}/100.${
-      top[1]
-        ? ` ${FEATURE_LABELS[top[1]].toLowerCase()} is right behind it.`
-        : " Everything else is more mixed, which actually helps you know where to focus."
-    }`;
+      "We need a clearer frontal photo to map strengths next time. When the mesh reads cleanly, the zoom sequence gets more specific.";
   } else {
-    strengths = `Nothing is screaming "perfect," but ${listLabels(top)} are leading right now. Lean on those while you tidy up the softer scores.`;
+    strengths = `What’s already working: ${listLabels(top)}. Those are the cleanest signals in this set — good anchors for framing, color, and hair.`;
   }
 
   const preview = [opener, strengths];
-
   const full = [...preview];
 
-  if (weak.length > 0) {
+  if (accent.length > 0) {
     full.push(
-      `The softer spots are mostly ${listLabels(weak)}. Each one has a real signal behind it plus a next step, so you're not left guessing. Tap the dots on your portrait if you want the close-up version.`,
+      `Light accent notes around ${listLabels(accent)} are optional and low-effort — think emphasis, not overhaul. Open the strengths zooms on your portrait for the close-up version.`,
     );
-  } else if (soft.length === 0 && measurable.length > 0) {
+  } else if (measurable.length > 0) {
     full.push(
-      "Nothing here is sitting in a clearly weak zone. When you re-upload, keep the lighting and angle similar so change looks like change, not a photo accident.",
+      "Nothing here needs a heavy hand. Keep lighting and angle similar when you re-upload so progress looks like progress.",
     );
   }
 
   if (skipped.includes("grooming_signal")) {
     full.push(
-      "We skipped grooming this time. Your outfit wasn't clear enough in the frame. Wider shot next round and that signal can join the party.",
+      "Grooming finish wasn’t clear in this frame. A slightly wider shot next time lets that signal join the strengths read.",
     );
   }
 
@@ -107,12 +74,12 @@ export function buildAppearanceSummary(report: ReportViewModel): {
   );
   if (priorities.length > 0) {
     full.push(
-      `You flagged ${listLabels(priorities)} as the stuff you care about most. We didn't change those scores. We just bump them up when we rank what to do next.`,
+      `You flagged ${listLabels(priorities)} as personal priorities. We keep those in view when we order accent tips — scores stay as measured.`,
     );
   }
 
   return {
-    title: "Appearance summary",
+    title: "Strengths summary",
     preview,
     full,
   };

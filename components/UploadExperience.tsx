@@ -21,7 +21,7 @@ export function UploadExperience() {
           <div className="upload-stage-card">
             <div className="upload-stage-card-body">
               <PhotoUpload consent={consent} />
-              <p className="mt-3 text-center text-[11px] leading-relaxed text-white/40">
+              <p className="mt-2 text-center text-[10px] leading-relaxed text-white/40">
                 By uploading you agree to how we handle photos under our{" "}
                 <Link
                   href="/privacy"
