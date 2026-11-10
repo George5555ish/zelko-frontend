@@ -141,9 +141,10 @@ export const FEATURE_KEYS: FeatureKey[] = [
 ];
 
 /** Appearance features shown in the report breakdown (quality is a gate, not a “look”). */
-export const SCORED_APPEARANCE_KEYS: FeatureKey[] = FEATURE_KEYS.filter(
-  (k) => k !== "photo_quality",
-);
+export const SCORED_APPEARANCE_KEYS: Exclude<FeatureKey, "photo_quality">[] =
+  FEATURE_KEYS.filter(
+    (k): k is Exclude<FeatureKey, "photo_quality"> => k !== "photo_quality",
+  );
 
 export const FEATURE_LABELS: Record<FeatureKey, string> = {
   face_symmetry: "Face symmetry",

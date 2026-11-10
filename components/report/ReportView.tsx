@@ -44,6 +44,7 @@ import { OutfitRecommendPanel } from "@/components/report/OutfitRecommendPanel";
 import { ReportAnalyticsSection } from "@/components/report/ReportAnalyticsSection";
 import { PrivacyDataStatement } from "@/components/site/PrivacyDataStatement";
 import "./report-dash.css";
+
 const FREE_TOP_COUNT = 2;
 
 type ReportLayoutMode = "classic" | "orbit";
@@ -233,7 +234,9 @@ export function ReportView({
     [ranked],
   );
 
-  const isUnlocked = (key: FeatureKey) => paid || freeUnlocked.has(key);
+  const isUnlocked = (key: FeatureKey) =>
+    paid ||
+    (key !== "photo_quality" && freeUnlocked.has(key));
 
   const topFeature = ranked[0] ?? SCORED_APPEARANCE_KEYS[0];
   const clarity = report.features.skin_clarity;
