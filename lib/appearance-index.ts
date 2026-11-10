@@ -310,10 +310,10 @@ export function buildStyleProfileSummary(
 }
 
 export const STAGE_LABELS: Record<AppearanceStage, string> = {
-  face_reveal: "Face & Grooming",
+  face_reveal: "Celebrity match",
   style_collect: "Style preferences",
   style_reveal: "Style Profile",
-  prescription_reveal: "Your looks",
+  prescription_reveal: "Inspired looks",
   complete: "Profile complete",
 };
 
@@ -331,12 +331,12 @@ export const JOURNEY_FLOW_STEPS: {
   shortLabel: string;
 }[] = [
   { id: "upload", label: "Upload photos", shortLabel: "Upload" },
-  { id: "face_reveal", label: "Face & Grooming", shortLabel: "Face" },
+  { id: "face_reveal", label: "Celebrity match", shortLabel: "Match" },
   { id: "style_collect", label: "Style preferences", shortLabel: "Prefs" },
   { id: "style_reveal", label: "Style Profile", shortLabel: "Style" },
   {
     id: "prescription_reveal",
-    label: "Prescribed looks",
+    label: "Inspired looks",
     shortLabel: "Looks",
   },
 ];

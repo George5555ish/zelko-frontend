@@ -12,18 +12,23 @@ import {
   type AuthUser,
 } from "@/lib/auth";
 import type { ReportViewModel } from "@/lib/types/report";
-import { LookTrackPanel } from "@/components/report/LookTrackPanel";
+// Scoring-era “Toward your look” compare (parked):
+// import { LookTrackPanel } from "@/components/report/LookTrackPanel";
 import { OutfitRecommendPanel } from "@/components/report/OutfitRecommendPanel";
 import { JourneyLooksGallery } from "@/components/dashboard/OutfitsSection";
+import { DashboardStrengthEmpty } from "@/components/dashboard/DashboardStrengthMap";
+import { CelebrityMatchStage } from "@/components/appearance/CelebrityMatchStage";
 import {
-  DashboardStrengthEmpty,
-  DashboardStrengthMap,
-} from "@/components/dashboard/DashboardStrengthMap";
+  buildCelebrityMatchBundle,
+  persistCelebritySelection,
+} from "@/lib/celebrity-match";
 import type { DashboardTheme } from "@/hooks/useDashboardTheme";
 import "./account-dash.css";
+import "@/app/appearance/appearance.css";
+import "@/components/report/report-dash.css";
 
 type AnalysisMode = "assistant" | "target";
-type DashView = "overview" | "outfits";
+type DashView = "overview" | "outfits" | "progress";
 
 export function AccountDashboard({
   user,
@@ -42,7 +47,12 @@ export function AccountDashboard({
   const searchParams = useSearchParams();
   const modeParam = searchParams.get("mode");
   const viewParam = searchParams.get("view");
-  const dashView: DashView = viewParam === "outfits" ? "outfits" : "overview";
+  const dashView: DashView =
+    viewParam === "outfits"
+      ? "outfits"
+      : viewParam === "progress"
+        ? "progress"
+        : "overview";
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>(
     modeParam === "target" ? "target" : "assistant",
   );
@@ -71,6 +81,10 @@ export function AccountDashboard({
 
   function goOutfits() {
     router.replace("/dashboard?view=outfits", { scroll: false });
+  }
+
+  function goProgress() {
+    router.replace("/dashboard?view=progress", { scroll: false });
   }
 
   function goOverview() {
@@ -130,8 +144,15 @@ export function AccountDashboard({
     };
   }, [latest?.id, latest?.standardizedPortraitFileId, latest?.portraitFileId]);
 
-  const portraitSrc = accountPortraitUrl(latest);
-  const strengthsHref = latest ? `/appearance/${latest.id}` : "/upload";
+  const matchHref = latest ? `/appearance/${latest.id}` : "/upload";
+  const matchBundle = useMemo(
+    () => (latest ? buildCelebrityMatchBundle(latest) : null),
+    [latest],
+  );
+  const celebrityUpdates = matchBundle?.inspiredLooks.slice(0, 3) ?? [];
+  const selectedCelebrity =
+    matchBundle?.matches.find((m) => m.celebrity.id === matchBundle.selectedId)
+      ?.celebrity ?? matchBundle?.matches[0]?.celebrity ?? null;
 
   async function handleDelete(reportId: string) {
     const ok = window.confirm(
@@ -212,10 +233,15 @@ export function AccountDashboard({
             <IconScan />
             <span className="account-dash__rail-label">New scan</span>
           </Link>
-          <Link href="/tracking" title="Progress">
+          <button
+            type="button"
+            title="Progress"
+            data-active={dashView === "progress" ? "true" : undefined}
+            onClick={goProgress}
+          >
             <IconHeart />
             <span className="account-dash__rail-label">Progress</span>
-          </Link>
+          </button>
           <Link href="/pricing" title={user.isPro ? "Plan" : "Upgrade"}>
             <IconSpark />
             <span className="account-dash__rail-label">
@@ -253,12 +279,16 @@ export function AccountDashboard({
                 <p className="truncate text-sm font-semibold text-white">
                   {dashView === "outfits"
                     ? "Your outfits"
-                    : `${greeting}, ${firstName}`}
+                    : dashView === "progress"
+                      ? "Your progress"
+                      : `${greeting}, ${firstName}`}
                 </p>
                 <p className="truncate text-xs text-white/45">
                   {dashView === "outfits"
                     ? "Prescribed looks, AI stills, and eBay matches"
-                    : user.email}
+                    : dashView === "progress"
+                      ? "Classic appearance report from your latest scan"
+                      : user.email}
                 </p>
               </div>
               <span
@@ -291,10 +321,10 @@ export function AccountDashboard({
                 New scan
               </Link>
               <Link
-                href={strengthsHref}
+                href={matchHref}
                 className="inline-flex items-center rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-neutral-950 transition hover:bg-white/90"
               >
-                {latest ? "Open strengths" : "Start scan"}
+                {latest ? "Open match" : "Start scan"}
               </Link>
             </div>
           </header>
@@ -324,7 +354,7 @@ export function AccountDashboard({
                     : "text-white/35"
                 }`}
               >
-                Strengths & next steps
+                Celebrity match & looks
               </p>
             </button>
             <button
@@ -338,7 +368,7 @@ export function AccountDashboard({
                   : "text-white/55 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <p className="text-xs font-semibold">Toward your look</p>
+              <p className="text-xs font-semibold">Updates</p>
               <p
                 className={`mt-0.5 text-[11px] ${
                   analysisMode === "target"
@@ -346,7 +376,7 @@ export function AccountDashboard({
                     : "text-white/35"
                 }`}
               >
-                Compare to a reference
+                New looks from your celebrity
               </p>
             </button>
           </div>
@@ -407,49 +437,118 @@ export function AccountDashboard({
             </div>
           ) : null}
 
-          {dashView === "overview" && analysisMode === "target" ? (
+          {dashView === "progress" ? (
             latest ? (
-              <LookTrackPanel
-                baselineReport={latest}
-                isAuthed
-                isPro={user.isPro}
-                tone={theme === "light" ? "light" : "dark"}
-                onUserChange={onUserChange}
-              />
+              <section className="account-dash__card p-5 sm:p-6">
+                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                  Recalculate
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-white">
+                  Same photos → stable match
+                </h2>
+                <p className="mt-2 max-w-xl text-sm text-white/50">
+                  Your celebrity ranking stays consistent unless photos change
+                  substantially. Re-upload to refresh, or open the match home to
+                  pick a different style anchor.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href="/upload"
+                    className="inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-950"
+                  >
+                    Recalculate with new photos
+                  </Link>
+                  <Link
+                    href={`/appearance/${latest.id}`}
+                    className="inline-flex rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/85"
+                  >
+                    Open match
+                  </Link>
+                </div>
+              </section>
             ) : (
               <section className="account-dash__card p-5 sm:p-6">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-white/40">
-                  Toward your look
+                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                  Progress
                 </p>
-                <h3 className="mt-1 text-lg font-semibold text-white">
-                  Need a baseline first
-                </h3>
+                <h2 className="mt-1 text-lg font-semibold text-white">
+                  Need photos first
+                </h2>
                 <p className="mt-2 text-sm text-white/50">
-                  Complete a free appearance scan, then upload a reference photo
-                  to compare alignment.
+                  Upload for a celebrity style match, then recalculate anytime.
                 </p>
                 <Link
                   href="/upload"
                   className="mt-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-950"
                 >
-                  Start assessment
+                  Start match
                 </Link>
               </section>
             )
           ) : null}
 
+          {dashView === "overview" && analysisMode === "target" ? (
+            <section className="account-dash__card p-5 sm:p-6">
+              <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+                Updates
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-white">
+                {selectedCelebrity
+                  ? `New looks inspired by ${selectedCelebrity.name}`
+                  : "Celebrity updates"}
+              </h2>
+              <p className="mt-2 max-w-xl text-sm text-white/50">
+                Fresh outfit directions from your style anchor — a reason to
+                come back. Pro unlocks more frequent drops.
+              </p>
+              {celebrityUpdates.length > 0 ? (
+                <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+                  {celebrityUpdates.map((look) => (
+                    <li
+                      key={look.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5"
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
+                        {look.title}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-white">
+                        {look.outfit}
+                      </p>
+                      <p className="mt-1 text-xs text-white/45">{look.wearability}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Link
+                  href="/upload"
+                  className="mt-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-950"
+                >
+                  Get your first match
+                </Link>
+              )}
+            </section>
+          ) : null}
+
           {dashView === "overview" && analysisMode === "assistant" ? (
             <div className="flex flex-col gap-3">
-              {latest && portraitSrc ? (
-                <DashboardStrengthMap
+              {latest ? (
+                <CelebrityMatchStage
                   report={latest}
-                  portraitSrc={portraitSrc}
-                  avatarBusy={avatarBusy}
-                  onTowardLook={() => selectMode("target")}
-                  onOutfits={goOutfits}
+                  fullProfileUnlocked={Boolean(user.isPro)}
+                  onContinue={goOutfits}
+                  continueLabel="Browse inspired outfits"
+                  onRecalculate={() => {
+                    const bundle = buildCelebrityMatchBundle(latest);
+                    persistCelebritySelection(
+                      bundle.seed,
+                      bundle.selectedId,
+                      bundle.matches.map((m) => m.celebrity.id),
+                    );
+                    window.location.assign("/upload");
+                  }}
                 />
               ) : (
-                <DashboardStrengthEmpty loading={loading} />
+                <DashboardStrengthEmpty loading={loading || Boolean(avatarBusy)} />
               )}
 
               {user.isPro ? (
@@ -461,7 +560,7 @@ export function AccountDashboard({
                     <p className="mt-1 text-sm text-white/60">
                       {user.cancelAtPeriodEnd && user.currentPeriodEnd
                         ? `Active until ${new Date(user.currentPeriodEnd).toLocaleDateString("en-GB")}.`
-                        : "Full map, tracking, and checklist included."}
+                        : "Full profile, unlimited inspired looks, and celebrity updates."}
                     </p>
                     {billingMessage ? (
                       <p className="mt-1 text-sm text-emerald-300">
@@ -493,12 +592,13 @@ export function AccountDashboard({
                         {baselineReports.length - 1} more
                       </h2>
                     </div>
-                    <Link
-                      href="/tracking"
-                      className="text-xs font-semibold text-white/70 underline-offset-4 hover:text-white hover:underline"
+                    <button
+                      type="button"
+                      onClick={goProgress}
+                      className="cursor-pointer text-xs font-semibold text-white/70 underline-offset-4 hover:text-white hover:underline"
                     >
                       Progress
-                    </Link>
+                    </button>
                   </div>
                   <ul className="mt-4 space-y-2">
                     {baselineReports.slice(1, 4).map((report) => (

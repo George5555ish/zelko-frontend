@@ -52,9 +52,12 @@ const LAYOUT_STORAGE_KEY = "zelko-report-layout";
 export function ReportView({
   report,
   initialPaid = false,
+  embedded = false,
 }: {
   report: ReportViewModel;
   initialPaid?: boolean;
+  /** Hide site chrome when mounted inside the account dashboard. */
+  embedded?: boolean;
 }) {
   const [paid, setPaid] = useState(initialPaid);
   const [signupOpen, setSignupOpen] = useState(false);
@@ -282,153 +285,202 @@ export function ReportView({
   const faceSrc = portraitUrl(report.portraitFileId) ?? "/woman1.png";
   const usingUserPortrait = Boolean(report.portraitFileId);
 
+  const layoutToggle = (
+    <div className="flex items-center rounded-full border border-white/12 bg-white/8 p-0.5 backdrop-blur-xl">
+      <button
+        type="button"
+        onClick={() => switchLayout("classic")}
+        className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+          layout === "classic"
+            ? "bg-white/15 text-white"
+            : "text-white/45 hover:text-white/75"
+        }`}
+        aria-pressed={layout === "classic"}
+      >
+        Classic
+      </button>
+      <button
+        type="button"
+        onClick={() => switchLayout("orbit")}
+        className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+          layout === "orbit"
+            ? "bg-white/15 text-white"
+            : "text-white/45 hover:text-white/75"
+        }`}
+        aria-pressed={layout === "orbit"}
+      >
+        Orbit
+      </button>
+    </div>
+  );
+
   return (
-    <div className="report-dash relative min-h-screen overflow-hidden text-white">
+    <div
+      className={`report-dash relative overflow-hidden text-white ${
+        embedded ? "min-h-0 rounded-[1.35rem]" : "min-h-screen"
+      }`}
+    >
       <div aria-hidden className="report-dash__bg" />
 
-      <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-5 md:px-8">
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white/90">
-            Z
-          </span>
-          <span className="text-lg font-semibold tracking-tight text-white">
-            Zelko
-          </span>
-        </Link>
-
-        <div className="hidden items-center gap-1 rounded-full border border-white/12 bg-white/8 p-1 shadow-sm backdrop-blur-xl lg:flex">
-          {isAuthed ? (
-            <>
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="rounded-full px-3.5 py-1.5 text-sm text-white/50 transition hover:text-white"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <span className="rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950">
-                Report
-              </span>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/"
-                className="rounded-full px-3.5 py-1.5 text-sm text-white/50 transition hover:text-white"
-              >
-                home
-              </Link>
-              <span className="rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950">
-                result
-              </span>
-              <Link
-                href="/tracking"
-                className="rounded-full px-3.5 py-1.5 text-sm text-white/50 transition hover:text-white"
-              >
-                progress
-              </Link>
-            </>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-full border border-white/12 bg-white/8 p-0.5 backdrop-blur-xl">
-            <button
-              type="button"
-              onClick={() => switchLayout("classic")}
-              className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-                layout === "classic"
-                  ? "bg-white/15 text-white"
-                  : "text-white/45 hover:text-white/75"
-              }`}
-              aria-pressed={layout === "classic"}
-            >
-              Classic
-            </button>
-            <button
-              type="button"
-              onClick={() => switchLayout("orbit")}
-              className={`cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-                layout === "orbit"
-                  ? "bg-white/15 text-white"
-                  : "text-white/45 hover:text-white/75"
-              }`}
-              aria-pressed={layout === "orbit"}
-            >
-              Orbit
-            </button>
+      {embedded ? (
+        <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-5">
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+              Progress
+            </p>
+            <p className="mt-0.5 text-sm font-semibold text-white">
+              Appearance report
+            </p>
           </div>
-          {!paid ? (
-            <button
-              type="button"
-              onClick={() => void handleUnlock()}
-              disabled={unlockBusy}
-              className="cursor-pointer rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950 transition hover:bg-white/90 disabled:opacity-60"
-            >
-              {unlockBusy ? "…" : "Unlock"}
-            </button>
-          ) : (
-            <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
-              Full report
-            </span>
-          )}
-          {isAuthed ? (
-            <Link
-              href="/login"
-              className="hidden rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-sm text-white/70 backdrop-blur-xl transition hover:bg-white/15 sm:inline"
-            >
-              Account
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="hidden rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-sm text-white/70 backdrop-blur-xl transition hover:bg-white/15 sm:inline"
-            >
-              Sign in
-            </Link>
-          )}
-          <MenuToggleButton
-            open={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
-            light
-          />
+          <div className="flex items-center gap-2">
+            {layoutToggle}
+            {!paid ? (
+              <button
+                type="button"
+                onClick={() => void handleUnlock()}
+                disabled={unlockBusy}
+                className="cursor-pointer rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950 transition hover:bg-white/90 disabled:opacity-60"
+              >
+                {unlockBusy ? "…" : "Unlock"}
+              </button>
+            ) : (
+              <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
+                Full report
+              </span>
+            )}
+          </div>
         </div>
-      </nav>
+      ) : (
+        <>
+          <nav className="relative z-20 mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-5 md:px-8">
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white/90">
+                Z
+              </span>
+              <span className="text-lg font-semibold tracking-tight text-white">
+                Zelko
+              </span>
+            </Link>
 
-      <MobileNavSheet
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        links={
-          isAuthed
-            ? [...navLinks, { label: "This report", href: `/report/${report.id}` }]
-            : [
-                { label: "Home", href: "/" },
-                { label: "Tracking", href: "/tracking" },
-                { label: "Pricing", href: "/pricing" },
-              ]
-        }
-        extras={
-          isAuthed ? (
-            <Link
-              href="/login"
-              onClick={() => setMenuOpen(false)}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
-            >
-              Account
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              onClick={() => setMenuOpen(false)}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
-            >
-              Sign in
-            </Link>
-          )
-        }
-      />
+            <div className="hidden items-center gap-1 rounded-full border border-white/12 bg-white/8 p-1 shadow-sm backdrop-blur-xl lg:flex">
+              {isAuthed ? (
+                <>
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="rounded-full px-3.5 py-1.5 text-sm text-white/50 transition hover:text-white"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                  <span className="rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950">
+                    Report
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/"
+                    className="rounded-full px-3.5 py-1.5 text-sm text-white/50 transition hover:text-white"
+                  >
+                    home
+                  </Link>
+                  <span className="rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950">
+                    result
+                  </span>
+                  <Link
+                    href="/dashboard?view=progress"
+                    className="rounded-full px-3.5 py-1.5 text-sm text-white/50 transition hover:text-white"
+                  >
+                    progress
+                  </Link>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {layoutToggle}
+              {!paid ? (
+                <button
+                  type="button"
+                  onClick={() => void handleUnlock()}
+                  disabled={unlockBusy}
+                  className="cursor-pointer rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-950 transition hover:bg-white/90 disabled:opacity-60"
+                >
+                  {unlockBusy ? "…" : "Unlock"}
+                </button>
+              ) : (
+                <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
+                  Full report
+                </span>
+              )}
+              {isAuthed ? (
+                <Link
+                  href="/login"
+                  className="hidden rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-sm text-white/70 backdrop-blur-xl transition hover:bg-white/15 sm:inline"
+                >
+                  Account
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  className="hidden rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-sm text-white/70 backdrop-blur-xl transition hover:bg-white/15 sm:inline"
+                >
+                  Sign in
+                </Link>
+              )}
+              <MenuToggleButton
+                open={menuOpen}
+                onClick={() => setMenuOpen((v) => !v)}
+                light
+              />
+            </div>
+          </nav>
+
+          <MobileNavSheet
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            links={
+              isAuthed
+                ? [
+                    ...navLinks,
+                    {
+                      label: "This report",
+                      href: `/report/${report.id}`,
+                    },
+                  ]
+                : [
+                    { label: "Home", href: "/" },
+                    {
+                      label: "Progress",
+                      href: "/dashboard?view=progress",
+                    },
+                    { label: "Pricing", href: "/pricing" },
+                  ]
+            }
+            extras={
+              isAuthed ? (
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
+                >
+                  Account
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
+                >
+                  Sign in
+                </Link>
+              )
+            }
+          />
+        </>
+      )}
 
       {unlockError ? (
         <p className="relative z-20 mx-auto max-w-7xl px-5 pb-2 text-sm text-amber-200/90 md:px-8">

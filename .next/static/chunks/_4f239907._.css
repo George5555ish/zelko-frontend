@@ -671,6 +671,41 @@
   box-shadow: 0 0 0 4px rgba(74, 222, 128, .18);
 }
 
+.upload-req {
+  gap: .65rem;
+  display: grid;
+}
+
+@media (min-width: 720px) {
+  .upload-req {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.upload-req__card {
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: .9rem;
+  padding: .85rem .9rem;
+}
+
+.upload-req__card h3 {
+  color: #fff;
+  margin: .2rem 0 .35rem;
+  font-size: .95rem;
+}
+
+.upload-req__card ul {
+  margin: .35rem 0 0;
+  padding-left: 1.05rem;
+}
+
+.upload-req__card li {
+  color: rgba(255, 255, 255, .52);
+  font-size: .75rem;
+  line-height: 1.4;
+}
+
 /* [project]/app/journey-progress.css [app-client] (css) */
 .journey-progress {
   --jp-ink: #171717;

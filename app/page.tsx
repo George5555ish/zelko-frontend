@@ -1,12 +1,13 @@
 import { LandingHero } from "@/components/LandingHero";
-import { AnalysisShowcaseSection } from "@/components/landing/AnalysisShowcaseSection";
-import { FaceMeshScanSection } from "@/components/landing/FaceMeshScanSection";
-import { ReportPreviewSection } from "@/components/landing/ReportPreviewSection";
+// Scoring-era landing sections (parked for celebrity-match pivot):
+// import { AnalysisShowcaseSection } from "@/components/landing/AnalysisShowcaseSection";
+// import { FaceMeshScanSection } from "@/components/landing/FaceMeshScanSection";
+// import { ReportPreviewSection } from "@/components/landing/ReportPreviewSection";
 import { TowardYourLookSection } from "@/components/landing/TowardYourLookSection";
 import { OutfitStudioSection } from "@/components/landing/OutfitStudioSection";
 import { ManifestoSection } from "@/components/ManifestoSection";
 import { FeatureMarquee } from "@/components/site/FeatureMarquee";
-import { LoopSection } from "@/components/site/LoopSection";
+// import { LoopSection } from "@/components/site/LoopSection";
 import { SuggestionsSticky } from "@/components/site/SuggestionsSticky";
 import { VersusSection } from "@/components/VersusSection";
 import { LandingCTA } from "@/components/site/LandingCTA";
@@ -19,6 +20,7 @@ export default function HomePage() {
     <main className="bg-[var(--background)]">
       <ProNeedsReportBanner />
       <LandingHero />
+      {/* Facial scoring marketing — parked
       <SectionReveal>
         <AnalysisShowcaseSection />
       </SectionReveal>
@@ -28,6 +30,7 @@ export default function HomePage() {
       <SectionReveal>
         <ReportPreviewSection />
       </SectionReveal>
+      */}
       <SectionReveal>
         <TowardYourLookSection />
       </SectionReveal>
@@ -43,9 +46,7 @@ export default function HomePage() {
       <SectionReveal>
         <ManifestoSection />
       </SectionReveal>
-      <SectionReveal>
-        <LoopSection />
-      </SectionReveal>
+      {/* <SectionReveal><LoopSection /></SectionReveal> */}
       <SectionReveal>
         <VersusSection />
       </SectionReveal>

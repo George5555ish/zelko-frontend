@@ -1,10 +1,8 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
   "/appearance/[id]/page": "app/appearance/[id]/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
+  "/credits/celebrities/page": "app/credits/celebrities/page.js",
   "/login/page": "app/login/page.js",
   "/page": "app/page.js",
-  "/pricing/page": "app/pricing/page.js",
-  "/report/[id]/page": "app/report/[id]/page.js",
-  "/tracking/page": "app/tracking/page.js",
   "/upload/page": "app/upload/page.js"
 }

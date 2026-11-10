@@ -65,13 +65,29 @@ export function SiteFooter() {
                 Privacy Policy
               </Link>
             </li>
+            <li>
+              <Link
+                href="/credits/celebrities"
+                className="transition hover:text-neutral-950"
+              >
+                Celebrity photo credits
+              </Link>
+            </li>
           </ul>
         </div>
       </div>
 
       <div className="mx-auto mt-14 flex max-w-7xl flex-col gap-2 border-t border-neutral-200/80 pt-6 text-xs text-neutral-400 sm:flex-row sm:justify-between">
         <p>© {new Date().getFullYear()} Zelko. All rights reserved.</p>
-        <p>No percentiles. No unmeasurable traits. Explainable only.</p>
+        <p>
+          Celebrity photos:{" "}
+          <Link
+            href="/credits/celebrities"
+            className="underline hover:text-neutral-600"
+          >
+            Commons credits
+          </Link>
+        </p>
       </div>
     </footer>
   );

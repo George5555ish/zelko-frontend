@@ -2,6 +2,11 @@ import { notFound } from "next/navigation";
 import { ReportView } from "@/components/report/ReportView";
 import { fetchReportById } from "@/lib/api";
 
+/**
+ * PARKED product path — classic facial scoring report.
+ * Primary UX is `/appearance/[id]` (celebrity style match).
+ * Keep this route for restore / internal QA; do not link from marketing.
+ */
 export default async function ReportPage({
   params,
   searchParams,

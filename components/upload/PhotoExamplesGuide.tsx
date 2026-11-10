@@ -6,9 +6,9 @@ const GOOD_EXAMPLES = [
 ] as const;
 
 const BAD_EXAMPLES = [
-  { src: "/upload/examples/bad-distant.png", alt: "Distant full-body shot" },
   { src: "/upload/examples/bad-group.png", alt: "Group photo with multiple faces" },
   { src: "/upload/examples/bad-covered.png", alt: "Face covered by sunglasses" },
+  { src: "/upload/examples/bad-distant.png", alt: "Tiny distant face (hard to match)" },
 ] as const;
 
 export function PhotoExamplesGuide() {
@@ -16,14 +16,37 @@ export function PhotoExamplesGuide() {
     <div className="upload-photo-guide" aria-label="Photo selection guidance">
       <GuideRow
         tone="good"
-        title="Good photo examples"
-        description="Close-ups facing the camera — eye, nose, and jawline visible."
+        title="Good for basic match"
+        description="Clear face or upper-body shots facing the camera — eyes and jawline visible."
         images={GOOD_EXAMPLES}
       />
+      <div className="upload-photo-guide-row upload-photo-guide-row--good">
+        <div className="upload-photo-guide-heading">
+          <span className="upload-photo-guide-icon" aria-hidden>
+            <svg viewBox="0 0 20 20" fill="none">
+              <path
+                d="M5 10.5l3.2 3.2L15 6.8"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <p className="upload-photo-guide-title">Full profile set</p>
+            <p className="upload-photo-guide-desc">
+              For the gated full appearance profile: 2 head-to-toe full-body
+              photos plus 2 half-body / upper-body photos. Keep posture natural
+              and the whole silhouette readable.
+            </p>
+          </div>
+        </div>
+      </div>
       <GuideRow
         tone="bad"
-        title="Bad photo examples"
-        description="Profiles, tiny faces, covered features, groups, or extreme tilts."
+        title="Harder to match"
+        description="Groups, covered faces, heavy filters, or tiny distant faces."
         images={BAD_EXAMPLES}
       />
     </div>

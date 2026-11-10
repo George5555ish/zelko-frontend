@@ -227,6 +227,21 @@ function SiteFooter() {
                                         fileName: "[project]/components/site/SiteFooter.tsx",
                                         lineNumber: 63,
                                         columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                            href: "/credits/celebrities",
+                                            className: "transition hover:text-neutral-950",
+                                            children: "Celebrity photo credits"
+                                        }, void 0, false, {
+                                            fileName: "[project]/components/site/SiteFooter.tsx",
+                                            lineNumber: 69,
+                                            columnNumber: 15
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/site/SiteFooter.tsx",
+                                        lineNumber: 68,
+                                        columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
@@ -257,20 +272,32 @@ function SiteFooter() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/site/SiteFooter.tsx",
-                        lineNumber: 73,
+                        lineNumber: 81,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        children: "No percentiles. No unmeasurable traits. Explainable only."
-                    }, void 0, false, {
+                        children: [
+                            "Celebrity photos:",
+                            " ",
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                href: "/credits/celebrities",
+                                className: "underline hover:text-neutral-600",
+                                children: "Commons credits"
+                            }, void 0, false, {
+                                fileName: "[project]/components/site/SiteFooter.tsx",
+                                lineNumber: 84,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/components/site/SiteFooter.tsx",
-                        lineNumber: 74,
+                        lineNumber: 82,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/site/SiteFooter.tsx",
-                lineNumber: 72,
+                lineNumber: 80,
                 columnNumber: 7
             }, this)
         ]

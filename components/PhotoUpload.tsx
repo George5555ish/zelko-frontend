@@ -38,7 +38,8 @@ export interface UploadSlot {
   landmarkScore?: number | null;
 }
 
-const MIN_PHOTOS = 3;
+/** Basic celebrity match: 1–2 clear face/upper-body photos (min 2 for stability). */
+const MIN_PHOTOS = 2;
 const MAX_PHOTOS = 5;
 const FREE_REPORT_CAP = 5;
 
@@ -393,12 +394,15 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
         },
         body: JSON.stringify({
           fileIds,
-          retainForTracking: consent.retainForTracking,
+          // Keep all frames when aiming for the gated 4-photo full profile.
+          retainForTracking:
+            consent.retainForTracking || accepted.length >= 4,
           allowTraining: consent.allowTraining,
           priorityFeatures: [],
           userNote: null,
           landmarks: portrait.landmarks,
           portraitFileId: portrait.fileId,
+          fullProfileIntent: accepted.length >= 4,
         }),
       });
       const raw = await res.text();
@@ -516,15 +520,46 @@ export function PhotoUpload({ consent }: { consent: UploadConsent }) {
       />
       <div className="upload-layout">
         <div className="upload-layout-copy">
-          <p className="upload-eyebrow">Appearance report</p>
+          <p className="upload-eyebrow">Celebrity style match</p>
           <h2 className="mt-1 font-[family-name:var(--font-cursive)] text-[1.65rem] leading-tight tracking-tight text-white sm:text-[1.85rem]">
-            Place your portraits.
+            Add your photos.
           </h2>
           <p className="mt-1 max-w-md text-[13px] leading-snug text-white/50">
-            {MIN_PHOTOS}–{MAX_PHOTOS} clear face photos. Each needs a readable
-            face mesh (eye, nose, jawline) so we can map strengths on your real
-            photos — not just accept the upload.
+            Start with a basic match, or unlock the full appearance profile with
+            the 4-photo set. Face/upper-body shots still need a clear, readable
+            face.
           </p>
+
+          <div className="upload-req mt-3">
+            <div className="upload-req__card">
+              <p className="upload-eyebrow">Basic match · free</p>
+              <h3>1–2 face / upper-body photos</h3>
+              <ul>
+                <li>Clear face, good light, facing the camera</li>
+                <li>Shoulders-up is ideal for matching</li>
+                <li>Minimum {MIN_PHOTOS} accepted to continue</li>
+                <li>Unlocks celebrity match % + inspired looks</li>
+              </ul>
+            </div>
+            <div className="upload-req__card">
+              <p className="upload-eyebrow">Full appearance profile · gated</p>
+              <h3>Exactly 4 photos</h3>
+              <ul>
+                <li>
+                  <strong>2 full-body</strong> head-to-toe shots
+                </li>
+                <li>
+                  <strong>2 half-body / upper-body</strong> shots
+                </li>
+                <li>Unlocks feature notes + personality-style match</li>
+                <li>
+                  {acceptedCount >= 4
+                    ? "4+ photos uploaded — full profile will unlock"
+                    : `Add ${Math.max(0, 4 - acceptedCount)} more for the full profile`}
+                </li>
+              </ul>
+            </div>
+          </div>
 
           {isAuthed && !user?.isPro && freeReportsUsed != null ? (
             <p className="mt-2 text-xs text-white/45">

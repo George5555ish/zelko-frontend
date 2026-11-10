@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FEATURE_LABELS,
   SCORED_APPEARANCE_KEYS,
@@ -11,6 +11,8 @@ import {
 } from "@/lib/types/report";
 import { isFeatureMeasurable } from "@/lib/score-tone";
 import { buildStrengthsPresentation } from "@/lib/strengths-presentation";
+import { fetchOutfitStills, getAuthToken } from "@/lib/auth";
+import type { AppearanceJourneyView, JourneyLook } from "@/lib/appearance-index";
 
 const FALLBACK_ANCHORS: Record<
   Exclude<FeatureKey, "photo_quality">,
@@ -20,9 +22,9 @@ const FALLBACK_ANCHORS: Record<
   eye_spacing: { x: 0.58, y: 0.36 },
   facial_proportions: { x: 0.5, y: 0.48 },
   face_symmetry: { x: 0.72, y: 0.52 },
-  jawline_definition: { x: 0.5, y: 0.78 },
-  skin_clarity: { x: 0.3, y: 0.48 },
-  grooming_signal: { x: 0.68, y: 0.42 },
+  jawline_definition: { x: 0.5, y: 0.72 },
+  skin_clarity: { x: 0.32, y: 0.46 },
+  grooming_signal: { x: 0.66, y: 0.4 },
 };
 
 type Callout = {
@@ -32,17 +34,18 @@ type Callout = {
   tag: string;
   title: string;
   meta: string;
-  note: string;
   ax: number;
   ay: number;
   side: "left" | "right";
-  cardX: number;
-  cardY: number;
 };
 
-function shortTitle(label: string): string {
-  return label.replace(/\s+/g, " ").trim();
-}
+type OutfitTile = {
+  id: string;
+  label: string;
+  style: string | null;
+  imageSrc: string | null;
+  ebayHref: string | null;
+};
 
 function pickAnchor(
   key: Exclude<FeatureKey, "photo_quality">,
@@ -54,38 +57,72 @@ function pickAnchor(
 }
 
 function buildCallouts(report: ReportViewModel): Callout[] {
-  const ranked = [...SCORED_APPEARANCE_KEYS]
-    .filter((k) => isFeatureMeasurable(report.features[k]?.measurable))
+  const measurable = [...SCORED_APPEARANCE_KEYS].filter((k) =>
+    isFeatureMeasurable(report.features[k]?.measurable),
+  );
+  const pool = measurable.length > 0 ? measurable : [...SCORED_APPEARANCE_KEYS];
+  const ranked = pool
     .sort(
       (a, b) =>
         (report.features[b]?.score ?? 0) - (report.features[a]?.score ?? 0),
     )
-    .slice(0, 3);
+    .slice(0, 2);
 
   return ranked.map((key, i) => {
-    const score = Math.round(report.features[key].score);
+    const score = Math.round(report.features[key]?.score ?? 0);
     const { x, y } = pickAnchor(key, report.featureOverlays);
-    const side: "left" | "right" =
-      i === 1 ? "right" : x < 0.5 ? "left" : i === 0 ? "left" : "right";
-    // Card sits outward from the face so the portrait stays clear.
-    const cardX = side === "left" ? Math.max(0.04, x - 0.34) : Math.min(0.72, x + 0.08);
-    const cardY = Math.max(0.08, Math.min(0.52, y - 0.12 + i * 0.02));
+    const side: "left" | "right" = i === 0 ? "left" : "right";
     const tag = FEATURE_LABELS[key].split(" ")[0]!.toUpperCase();
     return {
       id: key,
       index: i + 1,
       key,
       tag: `${tag} #${String(i + 1).padStart(3, "0")}`,
-      title: shortTitle(FEATURE_LABELS[key]),
+      title: FEATURE_LABELS[key],
       meta: `Strength · ${score}`,
-      note:
-        report.features[key].observedSignal?.trim().slice(0, 72) ||
-        "Reads clearly on this scan",
-      ax: x,
-      ay: y,
+      ax: Math.min(0.78, Math.max(0.22, x)),
+      ay: Math.min(0.58, Math.max(0.2, y)),
       side,
-      cardX,
-      cardY,
+    };
+  });
+}
+
+function ebaySearchHref(query: string): string {
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(
+    query.slice(0, 80),
+  )}`;
+}
+
+function tilesFromJourney(looks: JourneyLook[]): OutfitTile[] {
+  return looks
+    .filter((l) => l.status === "ready")
+    .map((look) => {
+      const style = look.recommendedStyle?.trim() || look.label;
+      return {
+        id: look.id,
+        label: look.label,
+        style: look.recommendedStyle,
+        imageSrc: look.fileId ? `/api/files/${look.fileId}` : null,
+        ebayHref: style ? ebaySearchHref(style) : null,
+      };
+    });
+}
+
+function tilesFromStills(
+  stills: {
+    id: string;
+    fileId: string;
+    promptMeta?: { recommendedStyle?: string };
+  }[],
+): OutfitTile[] {
+  return stills.map((still, i) => {
+    const style = still.promptMeta?.recommendedStyle?.trim() || null;
+    return {
+      id: still.id,
+      label: `Outfit ${i + 1}`,
+      style,
+      imageSrc: `/api/files/${still.fileId}`,
+      ebayHref: style ? ebaySearchHref(style) : null,
     };
   });
 }
@@ -107,12 +144,63 @@ export function DashboardStrengthMap({
   const [activeId, setActiveId] = useState<string | null>(
     () => callouts[0]?.id ?? null,
   );
-  const presentation = useMemo(
-    () => buildStrengthsPresentation(report),
-    [report],
-  );
+  const [outfitTiles, setOutfitTiles] = useState<OutfitTile[]>([]);
+  const [outfitsLoading, setOutfitsLoading] = useState(true);
+
+  const persona = useMemo(() => {
+    try {
+      return buildStrengthsPresentation(report).summary.persona;
+    } catch {
+      return "Strengths mapped from your latest scan.";
+    }
+  }, [report]);
   const active = callouts.find((c) => c.id === activeId) ?? callouts[0] ?? null;
   const strengthsHref = `/appearance/${report.id}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setOutfitsLoading(true);
+      try {
+        const token = getAuthToken();
+        const [journeyRes, stills] = await Promise.all([
+          fetch(`/api/appearance/${report.id}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            cache: "no-store",
+          })
+            .then(
+              (res) =>
+                res.json() as Promise<{
+                  journey?: AppearanceJourneyView;
+                }>,
+            )
+            .catch(() => ({ journey: undefined })),
+          fetchOutfitStills(report.id).catch(() => null),
+        ]);
+
+        if (cancelled) return;
+
+        const fromJourney = tilesFromJourney(journeyRes.journey?.looks ?? []);
+        const fromStills = stills ? tilesFromStills(stills.stills) : [];
+        // Prefer journey stills with images; fill with AI outfit stills; dedupe by image.
+        const merged: OutfitTile[] = [];
+        const seen = new Set<string>();
+        for (const tile of [...fromJourney, ...fromStills]) {
+          const key = tile.imageSrc || tile.id;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(tile);
+          if (merged.length >= 4) break;
+        }
+        setOutfitTiles(merged);
+      } finally {
+        if (!cancelled) setOutfitsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [report.id]);
 
   return (
     <section className="strength-map" aria-label="Strength analysis">
@@ -132,15 +220,13 @@ export function DashboardStrengthMap({
           aria-hidden
         >
           {callouts.map((c) => {
-            const joinX = c.side === "left" ? c.cardX * 100 + 22 : c.cardX * 100;
-            const joinY = c.cardY * 100 + 10;
+            const joinX = c.side === "left" ? 8 : 92;
+            const joinY = c.side === "left" ? 22 : 28;
+            const midX = c.side === "left" ? c.ax * 100 - 10 : c.ax * 100 + 10;
             return (
               <g key={c.id}>
-                <line
-                  x1={c.ax * 100}
-                  y1={c.ay * 100}
-                  x2={joinX}
-                  y2={joinY}
+                <path
+                  d={`M ${c.ax * 100} ${c.ay * 100} L ${midX} ${joinY} L ${joinX} ${joinY}`}
                   className={`strength-map__line${
                     active?.id === c.id ? " is-active" : ""
                   }`}
@@ -148,7 +234,7 @@ export function DashboardStrengthMap({
                 <circle
                   cx={c.ax * 100}
                   cy={c.ay * 100}
-                  r="0.9"
+                  r="1.1"
                   className={`strength-map__anchor${
                     active?.id === c.id ? " is-active" : ""
                   }`}
@@ -162,13 +248,9 @@ export function DashboardStrengthMap({
           <button
             key={c.id}
             type="button"
-            className={`strength-map__callout${
+            className={`strength-map__callout strength-map__callout--${c.side}${
               active?.id === c.id ? " is-active" : ""
             }`}
-            style={{
-              left: `${c.cardX * 100}%`,
-              top: `${c.cardY * 100}%`,
-            }}
             onClick={() => setActiveId(c.id)}
             aria-pressed={active?.id === c.id}
           >
@@ -191,7 +273,9 @@ export function DashboardStrengthMap({
         <p className="strength-map__scan-badge">
           {avatarBusy ? "Generating…" : "Zelko scan"}
         </p>
+      </div>
 
+      <div className="strength-map__side">
         <div className="strength-map__panel">
           <p className="strength-map__chip">
             {active
@@ -261,13 +345,78 @@ export function DashboardStrengthMap({
                 </span>
                 <div>
                   <p className="strength-map__feat-title">Framing</p>
-                  <p className="strength-map__feat-copy">
-                    {presentation.summary.persona}
-                  </p>
+                  <p className="strength-map__feat-copy">{persona}</p>
                 </div>
               </li>
             </ul>
           </div>
+        </div>
+
+        <div className="strength-map__outfits">
+          <div className="strength-map__outfits-head">
+            <div>
+              <p className="strength-map__outfits-eyebrow">Looks &amp; eBay</p>
+              <h3 className="strength-map__outfits-title">
+                {outfitTiles.length > 0
+                  ? "Your generated outfits"
+                  : "Outfits land here"}
+              </h3>
+            </div>
+            <button
+              type="button"
+              className="strength-map__feat-link"
+              onClick={onOutfits}
+            >
+              All outfits →
+            </button>
+          </div>
+
+          {outfitsLoading ? (
+            <p className="strength-map__outfits-empty">Loading looks…</p>
+          ) : outfitTiles.length === 0 ? (
+            <div className="strength-map__outfits-empty-card">
+              <p>
+                Finish the style journey or generate an outfit to fill this
+                space with stills and eBay matches.
+              </p>
+              <button
+                type="button"
+                className="strength-map__cta-ghost"
+                onClick={onOutfits}
+              >
+                Open outfits
+              </button>
+            </div>
+          ) : (
+            <ul className="strength-map__outfit-grid">
+              {outfitTiles.map((tile) => (
+                <li key={tile.id} className="strength-map__outfit-card">
+                  {tile.imageSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={tile.imageSrc} alt={tile.label} />
+                  ) : (
+                    <div className="strength-map__outfit-ph" aria-hidden />
+                  )}
+                  <div className="strength-map__outfit-meta">
+                    <p className="strength-map__outfit-label">{tile.label}</p>
+                    {tile.style ? (
+                      <p className="strength-map__outfit-style">{tile.style}</p>
+                    ) : null}
+                    {tile.ebayHref ? (
+                      <a
+                        href={tile.ebayHref}
+                        target="_blank"
+                        rel="noopener noreferrer sponsored"
+                        className="strength-map__feat-link"
+                      >
+                        Search eBay →
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </section>
@@ -279,14 +428,14 @@ export function DashboardStrengthEmpty({ loading }: { loading: boolean }) {
     <section className="strength-map strength-map--empty account-dash__card">
       <div className="strength-map__empty">
         <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
-          Strength analysis
+          Celebrity style match
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
-          {loading ? "Loading your scan…" : "Upload a portrait"}
+          {loading ? "Loading your match…" : "Upload photos to match"}
         </h2>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-white/55">
-          Zelko pins what already reads well on your face — then builds style
-          and Toward your look from those leads.
+          Basic match needs 1–2 clear face/upper-body photos. The full profile
+          unlocks with 2 full-body + 2 half-body shots.
         </p>
         {!loading ? (
           <Link

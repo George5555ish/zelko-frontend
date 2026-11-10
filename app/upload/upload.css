@@ -422,3 +422,38 @@
   background: #4ade80;
   box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.18);
 }
+
+.upload-req {
+  display: grid;
+  gap: 0.65rem;
+}
+
+@media (min-width: 720px) {
+  .upload-req {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.upload-req__card {
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.85rem 0.9rem;
+}
+
+.upload-req__card h3 {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.upload-req__card ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.05rem;
+}
+
+.upload-req__card li {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.52);
+}

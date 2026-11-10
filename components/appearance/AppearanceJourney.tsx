@@ -11,13 +11,16 @@ import {
 } from "@/lib/appearance-index";
 import { fetchMe, getAuthToken, type AuthUser } from "@/lib/auth";
 import { useAuthUser } from "@/lib/use-auth-user";
-import { StrengthsPresentation } from "./StrengthsPresentation";
+// Scoring-era Stage 1 (parked — restore if we bring back facial strengths):
+// import { StrengthsPresentation } from "./StrengthsPresentation";
+import { CelebrityMatchStage } from "./CelebrityMatchStage";
 import { StyleCollectStage } from "./StyleCollectStage";
 import { StyleProfileReveal } from "./StyleProfileReveal";
 import { LooksReveal } from "./LooksReveal";
 import { JourneyProPitch } from "./JourneyProPitch";
 import { JourneyProgressBar } from "./JourneyProgressBar";
 import { AppearanceAuthGate } from "./AppearanceAuthGate";
+import { matchSeedForReport } from "@/lib/celebrity-match";
 import "@/components/report/report-dash.css";
 import "@/app/appearance/appearance.css";
 import "@/app/journey-progress.css";
@@ -270,12 +273,12 @@ export function AppearanceJourney({ report }: { report: ReportViewModel }) {
             flowStep === "complete"
               ? undefined
               : flowStep === "face_reveal"
-                ? "Upload done · mapping your strengths"
+                ? "Upload done · celebrity style match"
                 : flowStep === "style_collect"
                   ? "Pick your visual style preferences"
                   : flowStep === "style_reveal"
-                    ? "Style Profile ready — looks are next"
-                    : "Almost done — prescribed looks"
+                    ? "Style profile ready — inspired looks next"
+                    : "Almost done — inspired looks"
           }
         />
 
@@ -289,7 +292,7 @@ export function AppearanceJourney({ report }: { report: ReportViewModel }) {
               <p className="ai-reveal__eyebrow">Account required</p>
               <h2>Sign in to continue your style profile</h2>
               <p>
-                Your strengths view stays free. Style preferences need a free
+                Your celebrity match stays free. Style preferences need a free
                 account so we can save them to your dashboard.
               </p>
             </div>
@@ -304,20 +307,22 @@ export function AppearanceJourney({ report }: { report: ReportViewModel }) {
             </div>
           </section>
         ) : stage === "face_reveal" ? (
-          <StrengthsPresentation
+          <CelebrityMatchStage
             report={report}
-            isPro={Boolean(authUser?.isPro || user?.isPro)}
+            fullProfileUnlocked={Boolean(
+              authUser?.isPro || user?.isPro || journey?.fullProfileComplete,
+            )}
             onContinue={onContinueFromFace}
             continueLabel={
               signedIn
                 ? "Continue to style preferences"
                 : "Continue — create free account"
             }
-            continueNote={
-              signedIn
-                ? "Next: a few visual choices that accentuate what already works."
-                : "Next: a free account, then style preferences that accentuate your strengths."
-            }
+            onRecalculate={() => {
+              // Stable seed uses portrait ids — new photos via upload change the match.
+              void matchSeedForReport(report);
+              window.location.assign("/upload");
+            }}
           />
         ) : stage === "style_collect" ? (
           <StyleCollectStage

@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Libre_Caslon_Display } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Great_Vibes,
+  Libre_Caslon_Display,
+} from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,6 +23,12 @@ const libreCaslonDisplay = Libre_Caslon_Display({
   weight: "400",
 });
 
+const greatVibes = Great_Vibes({
+  variable: "--font-script",
+  subsets: ["latin"],
+  weight: "400",
+});
+
 export const metadata: Metadata = {
   title: "Zelko — AI Appearance Coach",
   description:
@@ -32,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${libreCaslonDisplay.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${libreCaslonDisplay.variable} ${greatVibes.variable} antialiased`}
       >
         {children}
       </body>
